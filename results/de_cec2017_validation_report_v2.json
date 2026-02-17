@@ -1,0 +1,43 @@
+{
+  "budget_monotonic": {
+    "budgets": [
+      2000,
+      10000,
+      50000,
+      100000
+    ],
+    "errors": [
+      185060769.08962157,
+      353.0700119783352,
+      0.0,
+      0.0
+    ],
+    "non_increasing": true
+  },
+  "reproducibility_same_seed": {
+    "fit1": 745.8596898540388,
+    "fit2": 745.8596898540388,
+    "equal": true
+  },
+  "consistency_raw_eval": {
+    "reported": 1100.1822279185158,
+    "raw": 1100.1822279185158,
+    "abs_diff": 0.0,
+    "matches": true
+  },
+  "full_suite_d10": {
+    "num_functions": 30,
+    "all_error_non_negative": true,
+    "mean_error": 116.52108186397608,
+    "median_error": 4.592099878879935,
+    "min_error": 0.0,
+    "max_error": 429.1172138935581
+  },
+  "milestones": {
+    "files": 30,
+    "bad_len": 0,
+    "bad_nonmono": 0,
+    "bad_neg": 0,
+    "all_ok": true
+  }
+}
