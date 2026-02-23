@@ -1,94 +1,100 @@
-"""
-Algoritmo de Evolución Diferencial (DE) usando la librería pyade.
-
-Este módulo encapsula la funcionalidad de pyade para seguir la estructura 
-de clases del proyecto en minimización.
-"""
+# implementación del algoritmo DE utilizando la librería PYADE.
 
 import numpy as np
+
+# PYADE cuenta con la implementación directa, formal y genérica (básica) del 
+# algoritmo DE, en concreto, DE/rand/1 (un solo vector diferencial)/bin (cruce binario)
+
 import pyade.de
 
-
 class DifferentialEvolution:
-    """
-    Algoritmo de Evolución Diferencial (DE).
-    
-    Wrapper sobre pyade.de.apply que permite minimizar problemas definidos
-    con la interfaz DefaultProblem.
-    """
-    
-    def __init__(self, tam_poblacion=None, f=None, cr=None, metodo_cruce=None, 
-                 max_evals=None, seed=42):
-        """
-        Constructor del DE.
-        
-        :param tam_poblacion: Tamaño población (None = defecto pyade).
-        :param f: Factor mutación (None = defecto pyade, typ. 0.5).
-        :param cr: Ratio cruce (None = defecto pyade, typ. 0.9).
-        :param metodo_cruce: 'bin'/'exp' (None = defecto pyade 'bin').
-        :param max_evals: Evaluaciones máximas (None = defecto pyade).
-        :param seed: Semilla aleatoria (Default 42).
-        """
+    # constructor del DE
+    # --------------------
+    # permite construir como objeto el algoritmo, indicando los valores propios de cada uno de los 
+    # parámetros esenciales de los que depende PYADE.
+
+    # por defecto, pyade asocia valores a cada uno de sus parametros definidos:
+    # * tam_poblacion = 10 * dim
+    # * individual_size = 10
+    # * max_evals = 10000 * dim
+    # * f = 0.5
+    # * cr = 0.9
+    # * cross = "bin"
+    # * seed = None (no asigna por defecto)
+    # * callback = None
+
+    # en este caso, fijamos la semilla por defecto --> seed = 42
+
+    def __init__(self, tam_poblacion = None, f = None, cr = None, metodo_cruce = None, max_evals = None, seed = 42):
         self.tam_poblacion = tam_poblacion
         self.f = f
         self.cr = cr
         self.metodo_cruce = metodo_cruce
         self.max_evals = max_evals
         self.seed = seed
-        self.evals = 0
-        self._max_evals_effective = None
+
+        self.evals = 0 # contabilizador de evals realizadas para evitar que evals > max_evals
+        self._max_evals_reales = None
         self._problem = None
 
+    # evalua_solucion incrementa el contador de evaluaciones cada vez que se ejecuta
+    # la funcion objetivo (fitness) y devuelve el fitness (float)
+
     def evalua_solucion(self, solution):
-        """
-        Método puente para pyade:
-        1. Incrementa el contador de evaluaciones.
-        2. Llama al problema (minimización).
-        3. Devuelve el fitness tal cual.
-        """
-        # Corte estricto de evaluaciones para respetar presupuesto CEC.
-        if self._max_evals_effective is not None and self.evals >= self._max_evals_effective:
+        # pyade puede superar las max_evals ya que trabaja internamente con max_iters
+        # max_iters = max_evals / tam_poblacion 
+        # por tanto, y como queremos que el tope sea max_evals, evaluamos aquells individuos
+        # que no superen las evaluacioes. para el resto, se devuelve el peor fitness posible evitando
+        # que sean escogidos  
+        if self._max_evals_reales is not None and self.evals >= self._max_evals_reales:
             return float("inf")
 
         self.evals += 1
         return float(self._problem.fitness(solution))
 
+    # optimize ejecuta DE sobre el problema concreto
+    #   * limites : array (dim, 2) con [min, max] por dim
+    #   * problem : problema con método fitness
+    # devuelve mejor_solucion y mejor_fitness
+
     def optimize(self, limites, problem):
-        """
-        Ejecuta Differential Evolution sobre el problema dado.
-        
-        :param limites: Array (dim, 2) con [min, max] por dimensión.
-        :param problem: Instancia de problema con método fitness().
-        :return: Tupla (mejor_solución, mejor_fitness).
-        """
         dim = limites.shape[0]
         self.evals = 0
-        self._max_evals_effective = None
+        self._max_evals_reales = None
         self._problem = problem
-        
-        # Obtenemos parámetros por defecto de pyade
-        params = pyade.de.get_default_params(dim=dim)
-        
-        # Sobrescribimos SOLO si el usuario ha especificado un valor
-        if self.tam_poblacion is not None:
-            params['population_size'] = self.tam_poblacion
-        if self.max_evals is not None:
-            params['max_evals'] = self.max_evals
-        if self.f is not None:
-            params['f'] = self.f
-        if self.cr is not None:
-            params['cr'] = self.cr
-        if self.metodo_cruce is not None:
-            params['cross'] = self.metodo_cruce
-            
+
+        # "get_default_params(dim)" devuelve un diccionario de parámetros asociados al DE:
+        #   * population_size = tamaño de la poblacion/número de individuos
+        #   * individual_size = tamaño del problema/número de variables = dim
+        #   * max_evals = numero máximo de evaluaciones del fitness
+        #   * f = factor de escala que multiplica al vector diferencial
+        #       * f bajo = pasos pequeños --> explotacion
+        #       * f alto = pasos grandes --> exploracion
+        #   * cr = probabilidad de cruce para la combinación de mutante y trial 
+        #   * cross = tipo de cruce --> binomial
+        #   * seed = semilla aleatoria --> ya implementado (no hay que utilizar el rng) 
+        #   * callbacks = función que llama PYADE para logging
+
+        params = pyade.de.get_default_params(dim = dim)
+
+        # se asignan los valores correctos a los parametros principales del algoritmo
         params['individual_size'] = dim
         params['bounds'] = np.asarray(limites, dtype=float)
-        params['seed'] = self.seed
-        self._max_evals_effective = int(params['max_evals']) if params.get('max_evals') is not None else None
-        
-        # Pasamos el método envolvente de la clase
+        params['seed'] = int(self.seed)
+
+        # se sobreescriben los parametros principales si son distintos al default 
+        if self.tam_poblacion is not None: params['population_size'] = int(self.tam_poblacion)
+        if self.max_evals is not None: params['max_evals'] = int(self.max_evals)
+        if self.f is not None: params['f'] = float(self.f)
+        if self.cr is not None: params['cr'] = float(self.cr)
+        if self.metodo_cruce is not None: params['cross'] = self.metodo_cruce
+
+        if int(params['max_evals']) <= 0:
+            raise ValueError("max_evals debe ser > 0")
+        self._max_evals_reales = int(params['max_evals'])
+
+        # se asigna la funcion que llama al fitness del problema
         params['func'] = self.evalua_solucion
-        
-        # Ejecutar pyade (minimización)
+
         mejor_solucion, mejor_fitness = pyade.de.apply(**params)
         return mejor_solucion, float(mejor_fitness)

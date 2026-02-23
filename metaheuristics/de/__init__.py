@@ -1,4 +1,17 @@
-from .differential_evolution import DifferentialEvolution
-from .differential_evolution_cec2017 import DifferentialEvolutionCEC2017
+__all__ = ["DifferentialEvolution", "DifferentialEvolutionCEC2017", "DifferentialEvolutionQAP"]
 
-__all__ = ["DifferentialEvolution", "DifferentialEvolutionCEC2017"]
+
+def __getattr__(name):
+    if name == "DifferentialEvolution":
+        from .differential_evolution import DifferentialEvolution
+
+        return DifferentialEvolution
+    if name == "DifferentialEvolutionCEC2017":
+        from .differential_evolution_cec2017 import DifferentialEvolutionCEC2017
+
+        return DifferentialEvolutionCEC2017
+    if name == "DifferentialEvolutionQAP":
+        from .differential_evolution_qap import DifferentialEvolutionQAP
+
+        return DifferentialEvolutionQAP
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")

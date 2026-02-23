@@ -1,3 +1,0 @@
-funcid,dim,milestone,error
-11,10,1,5.474606e+03
-11,10,2,3.737406e+03

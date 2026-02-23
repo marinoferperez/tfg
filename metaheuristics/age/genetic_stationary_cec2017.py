@@ -5,9 +5,9 @@ CEC2017 está definido como minimización y esta adaptación mantiene
 ese criterio en el algoritmo.
 """
 
-from __future__ import annotations
-
 from typing import Optional
+
+import numpy as np
 
 from metaheuristics.age.genetic_stationary import GeneticAlgorithm
 from metaheuristics.problems.cec2017_problem import CEC2017RealProblem
@@ -28,8 +28,10 @@ class GeneticStationaryCEC2017:
         seed: int = 42,
         algname: str = "age_stationary",
         lib_path: Optional[str] = None,
-        output_to_console: bool = False,
     ):
+        seed = int(seed)
+        self.age.rng = np.random.default_rng(seed)
+
         problem = CEC2017RealProblem(
             funcid=funcid,
             dim=dim,
@@ -37,7 +39,7 @@ class GeneticStationaryCEC2017:
             lib_path=lib_path,
             seed=seed,
         )
-        problem.prepare_run(output_to_console=output_to_console)
+        problem.prepare_run()
 
         best_solution, best_cec_fitness = self.age.optimize(
             limites=problem.get_bounds(),
@@ -51,19 +53,3 @@ class GeneticStationaryCEC2017:
             "best_cec_fitness": float(best_cec_fitness),
             "best_cec_error": best_error,
         }
-
-
-if __name__ == "__main__":
-    # Ejemplo de humo rápido (puedes subir max_evals para el benchmark oficial).
-    optimizer = GeneticStationaryCEC2017(
-        tam_poblacion=50,
-        prob_cruce=0.7,
-        prob_mutacion=0.1,
-        sigma=0.3,
-        alpha=0.45,
-        tam_torneo=2,
-        max_evals=2000,
-        seed=42,
-    )
-    result = optimizer.optimize(funcid=1, dim=10, seed=42, algname="age_stationary_demo")
-    print(f"F01 D10 -> error={result['best_cec_error']:.6e}, cec_fitness={result['best_cec_fitness']:.6e}")
