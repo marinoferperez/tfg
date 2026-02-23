@@ -1,8 +1,8 @@
-# implementación del algoritmo AGE.
+# implementación del algoritmo AGE para problemas continuos.
 
 import numpy as np
 
-class GeneticAlgorithm:
+class GeneticAlgorithmContinuo:
     # constructor del AGE
     # --------------------
     # construye el algoritmo con los valores utilizados comúnmente en la literatura
@@ -57,7 +57,7 @@ class GeneticAlgorithm:
     #   * problem : problema con método fitness
     # devuelve mejor_solucion y mejor_fitness
 
-    def optimize(self, limites, problem):
+    def optimize(self, limites, problem, callback_metricas=None):
         limites = np.asarray(limites, dtype=float)
         dim = limites.shape[0]
         max_evals = self.max_evals if self.max_evals is not None else 10000 * dim
@@ -68,6 +68,15 @@ class GeneticAlgorithm:
         fitness = np.asarray([problem.fitness(ind) for ind in poblacion], dtype=float)
         # el numero de evals va a ser igual al tamaño de la poblacion
         evals = self.tam_poblacion
+        generacion = 0
+
+        # registro opcional de metricas iniciales (poblacion inicial)
+        if callback_metricas is not None:
+            callback_metricas(
+                generacion=generacion,
+                fitness=fitness.copy(),
+                evaluaciones=evals,
+            )
 
         # cada it evalua a 2 hijos
         while evals + 2 <= max_evals:
@@ -106,6 +115,14 @@ class GeneticAlgorithm:
             if mejor_fit < fitness[peor_idx]:
                 poblacion[peor_idx] = mejor_hijo
                 fitness[peor_idx] = mejor_fit
+
+            generacion += 1
+            if callback_metricas is not None:
+                callback_metricas(
+                    generacion=generacion,
+                    fitness=fitness.copy(),
+                    evaluaciones=evals,
+                )
 
         mejor_idx = int(np.argmin(fitness))
         mejor_solucion = poblacion[mejor_idx].copy()

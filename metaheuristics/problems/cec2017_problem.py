@@ -1,16 +1,16 @@
 import ctypes
 from pathlib import Path
-from typing import Optional
 
 import numpy as np
 
-from metaheuristics.age.default_problem import DefaultProblem
-
-class CEC2017RealProblem(DefaultProblem):
+class CEC2017Problem:
     _VALID_DIMS = {2, 5, 10, 30, 50, 100}
 
-    def __init__(self, funcid: int, dim: int, algname: str = "age_stationary", lib_path: Optional[str] = None, seed: int = 42, opts=None) -> None:
-        super().__init__(dim=dim, seed=seed, opts=opts)
+    def __init__(self, funcid, dim, algname="age_stationary", lib_path=None, seed=42):
+        self.dim = int(dim)
+        self.seed = int(seed)
+        self.rng = np.random.default_rng(self.seed)
+
         if not 1 <= int(funcid) <= 30:
             raise ValueError("funcid debe estar en [1, 30]")
         if int(dim) not in self._VALID_DIMS:
@@ -54,7 +54,7 @@ class CEC2017RealProblem(DefaultProblem):
         return candidates[0]
 
     @staticmethod
-    def _load_library(lib_path: Path):
+    def _load_library(lib_path):
         if not lib_path.exists():
             raise FileNotFoundError(
                 f"No existe la librería CEC2017 en '{lib_path}'. "
@@ -100,17 +100,28 @@ class CEC2017RealProblem(DefaultProblem):
     def get_bounds(self):
         return self.bounds
 
-    def fitness(self, solution: np.ndarray):
-        """
-        Fitness original CEC2017 (minimización) para un único individuo.
-        """
+    def get_size(self):
+        return self.dim
+
+    def create_population(self, rng=None, pop_size=50, ind_size=None, bounds=None):
+        if rng is None:
+            rng = self.rng
+        if ind_size is None:
+            ind_size = self.dim
+        if bounds is None:
+            bounds = self.get_bounds()
+
+        lower = bounds[:, 0]
+        upper = bounds[:, 1]
+        return rng.uniform(lower, upper, size=(pop_size, ind_size))
+
+    def fitness(self, solution):
         if not self._initialized:
             raise RuntimeError("CEC2017 no inicializado. Llama a prepare_run() antes de evaluar.")
-
         x = np.asarray(solution, dtype=np.float64)
         x = np.ascontiguousarray(x, dtype=np.float64)
         ptr = x.ctypes.data_as(ctypes.POINTER(ctypes.c_double))
         return float(self._lib.cec17_fitness(ptr))
 
-    def cec_error(self, cec_fitness: float) -> float:
+    def cec_error(self, cec_fitness):
         return float(self._lib.cec17_error(float(cec_fitness)))

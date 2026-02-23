@@ -2,24 +2,20 @@
 Problema QAP (Quadratic Assignment Problem) para usar con metaheuristicas.
 
 Se mantiene la formulacion natural de minimizacion del QAP.
-Representacion interna para AGE/DE: random keys (vector real),
-que se decodifica a permutacion por argsort.
+Representacion interna configurable segun algoritmo:
+* continuo: vector real decodificado por argsort.
+* combinatorio (permutacion): permutacion directa.
 """
-
-from __future__ import annotations
 
 from pathlib import Path
 import re
-
 import numpy as np
 
-from metaheuristics.age.default_problem import DefaultProblem
-
-
-class QAPProblem(DefaultProblem):
-    """QAP de minimizacion con codificacion random-keys."""
-
-    def __init__(self, mat_flujo, mat_distancias, seed = 42, opts = None):
+class QAPProblem:
+    # constructor del problema qap
+    # ----------------------------
+    # valida matrices y configura la representacion segun tipo_algoritmo
+    def __init__(self, mat_flujo, mat_distancias, seed=42, tipo_algoritmo="continuo"):
         flujo = np.asarray(mat_flujo, dtype=float)
         dist = np.asarray(mat_distancias, dtype=float)
 
@@ -33,14 +29,24 @@ class QAPProblem(DefaultProblem):
             raise ValueError("El tamano del QAP debe ser >= 2")
 
         self.n = int(flujo.shape[0])
+        self.dim = self.n
+        self.seed = int(seed)
+        self.rng = np.random.default_rng(self.seed)
         self.flujo = flujo
         self.distance = dist
-        self.bounds = np.tile(np.array([[0.0, 1.0]], dtype=float), (self.n, 1))
 
-        super().__init__(dim=self.n, seed=seed, opts=opts)
+        self.tipo_algoritmo = str(tipo_algoritmo).strip().lower()
+        if self.tipo_algoritmo != "continuo" and self.tipo_algoritmo != "combinatorio":
+            raise ValueError("tipo_algoritmo debe ser 'continuo' o 'combinatorio'")
 
+
+        self.bounds = None
+        if self.tipo_algoritmo == "continuo":
+            self.bounds = np.tile(np.array([[0.0, 1.0]], dtype=float), (self.n, 1))
+
+    # from_qaplib carga una instancia qaplib (.dat) y construye el problema
     @classmethod
-    def from_qaplib(cls, path: str, seed: int = 42, opts=None) -> "QAPProblem":
+    def from_qaplib(cls, path, seed=42, tipo_algoritmo="continuo"):
         """
         Carga una instancia QAPLIB (.dat) en formato numerico clasico:
         n, seguido de n*n valores de flujo y n*n valores de distancia.
@@ -68,43 +74,87 @@ class QAPProblem(DefaultProblem):
         flujo = values[: n * n].reshape(n, n)
         dist = values[n * n : 2 * n * n].reshape(n, n)
 
-        return cls(mat_flujo=flujo, mat_distancias=dist, seed=seed, opts=opts)
+        return cls(
+            mat_flujo=flujo,
+            mat_distancias=dist,
+            seed=seed,
+            tipo_algoritmo=tipo_algoritmo,
+        )
 
-    def get_bounds(self) -> np.ndarray:
+    # get_bounds devuelve limites del espacio de busqueda
+    # para continuo devuelve [0,1]^n y para combinatorio devuelve None
+    def get_bounds(self):
         return self.bounds
 
-    def create_population(self, rng=None, pop_size=50, ind_size=None, bounds=None) -> np.ndarray:
+    # get_size devuelve n (dimension del problema)
+    def get_size(self):
+        return self.dim
+
+    # create_population genera individuos iniciales segun la representacion elegida
+    def create_population(self, rng=None, pop_size=50, ind_size=None, bounds=None):
         if rng is None:
             rng = self.rng
         if ind_size is None:
             ind_size = self.n
         if int(ind_size) != self.n:
             raise ValueError("ind_size debe coincidir con n")
-        return rng.uniform(0.0, 1.0, size=(int(pop_size), int(ind_size)))
 
-    def decode_assignment(self, solution: np.ndarray) -> np.ndarray:
-        """Convierte random-keys a permutacion (instalacion -> localizacion)."""
+        if self.tipo_algoritmo == "continuo":
+            return rng.uniform(0.0, 1.0, size=(int(pop_size), int(ind_size)))
+        return np.asarray([rng.permutation(self.n) for _ in range(int(pop_size))], dtype=int)
+
+    # decodificar_asignacion transforma la representacion interna (individuo) en permutacion
+    # en continuo aplica argsort y en combinatorio valida directamente
+    def decodificar_asignacion(self, solution):
+        if self.tipo_algoritmo == "combinatorio":
+            arr = np.asarray(solution)
+            return self._normaliza_permutacion(arr)
+
         arr = np.asarray(solution, dtype=float)
         if arr.ndim != 1 or arr.shape[0] != self.n:
             raise ValueError("La solucion debe tener forma (n,)")
         return np.argsort(arr, kind="mergesort")
 
-    def evaluate_permutation(self, permutation: np.ndarray) -> float:
-        perm = np.asarray(permutation, dtype=int)
-        if perm.ndim != 1 or perm.shape[0] != self.n:
+    # _normaliza_permutacion comprueba que la permutacion sea valida
+    # sin truncados silenciosos de flotantes no enteros
+    def _normaliza_permutacion(self, permutation):
+        arr = np.asarray(permutation)
+
+        if arr.ndim != 1 or arr.shape[0] != self.n:
             raise ValueError("La permutacion debe tener forma (n,)")
+
+        if np.issubdtype(arr.dtype, np.floating):
+            if not np.all(np.isfinite(arr)):
+                raise ValueError("La permutacion no es valida")
+            if not np.all(arr == np.floor(arr)):
+                raise ValueError("La permutacion debe contener solo enteros")
+        elif not np.issubdtype(arr.dtype, np.integer):
+            raise ValueError("La permutacion debe contener solo enteros")
+
+        perm = arr.astype(int, copy=False)
         if np.unique(perm).shape[0] != self.n or np.min(perm) < 0 or np.max(perm) >= self.n:
             raise ValueError("La permutacion no es valida")
+        return perm
+
+    # evaluar_permutacion calcula el coste qap para una permutacion valida
+    def evaluar_permutacion(self, permutation):
+        perm = self._normaliza_permutacion(permutation)
 
         # Costo QAP: sum_i sum_j flujo[i,j] * distance[p(i), p(j)]
         dist_perm = self.distance[np.ix_(perm, perm)]
         return float(np.sum(self.flujo * dist_perm))
 
-    def fitness(self, solution: np.ndarray):
-        arr = np.asarray(solution, dtype=float)
+    # fitness devuelve el coste para un individuo o para una poblacion
+    # respetando la representacion asociada al tipo de algoritmo
+    def fitness(self, solution):
+        arr = np.asarray(solution)
         if arr.ndim == 1:
-            perm = self.decode_assignment(arr)
-            return self.evaluate_permutation(perm)
+            if self.tipo_algoritmo == "continuo":
+                perm = self.decodificar_asignacion(arr)
+                return self.evaluar_permutacion(perm)
+            return self.evaluar_permutacion(arr)
         if arr.ndim == 2:
-            return np.asarray([self.fitness(ind) for ind in arr], dtype=float)
+            if self.tipo_algoritmo == "continuo":
+                return np.asarray([self.fitness(ind) for ind in arr], dtype=float)
+            return np.asarray([self.evaluar_permutacion(ind) for ind in arr], dtype=float)
         raise ValueError("solution debe tener forma (n,) o (m, n)")
