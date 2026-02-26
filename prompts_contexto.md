@@ -16,7 +16,6 @@ hoy mismo tuve la primera reunion con el tutor para asentar las bases del proyec
 - librerias:
   - scikitlearn (técnicas de machine learning, donde, entre las recomendadas por el profesor, se encuentran las bayesianas y las neural networks, donde la complejidad de estas ultimas no va a ser muy grande ya que van a ser entrenadas de manera online durante el proceso iterativo del algoritmo utilizado como metaheuristica a partir de las buenas y malas soluciones obtenidas)
   - pyade (https://github.com/xKuZz/pyade), que será utilizada ya que cuenta directamente con la implementación de algoritmos DE
-  - DEAP (https://github.com/DEAP/deap), que será utilizada expresamente para aprovechar las facilidades que ofrece a la hora de obtener estadisticas y métricas de los algoritmos segun sus resultados, util para comparar el rendimiento de una mejora u otra y poder establecer un ranking posteriormente.
   - en un principio, solo se han mencionado estas.
 
 en cuanto a los papers que pueden ser utiles revisar y extraer información de ayuda, aunque algo genéricos se encuentran:

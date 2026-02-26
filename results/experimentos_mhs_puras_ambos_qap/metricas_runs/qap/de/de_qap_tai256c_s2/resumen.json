@@ -1,0 +1,21 @@
+{
+  "metadata": {
+    "algoritmo": "de",
+    "problema": "qap",
+    "instancia": "tai256c",
+    "n": 256,
+    "seed": 2
+  },
+  "resumen": {
+    "generaciones_registradas": 100,
+    "evaluaciones_totales": 10000,
+    "min_final": 48549914.0,
+    "promedio_final": 49181251.4,
+    "desv_std_final": 311542.49044783605,
+    "mediana_final": 49197431.0,
+    "max_final": 49922080.0,
+    "mejor_hasta_ahora": 48549914.0,
+    "mejor_min_observado": 48549914.0,
+    "tiempo_total_s": 2.154480415993021
+  }
+}

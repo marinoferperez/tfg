@@ -57,7 +57,7 @@ class GeneticAlgorithmContinuo:
     #   * problem : problema con método fitness
     # devuelve mejor_solucion y mejor_fitness
 
-    def optimize(self, limites, problem, callback_metricas=None):
+    def optimize(self, limites, problem, callback_metricas = None):
         limites = np.asarray(limites, dtype=float)
         dim = limites.shape[0]
         max_evals = self.max_evals if self.max_evals is not None else 10000 * dim
@@ -70,13 +70,9 @@ class GeneticAlgorithmContinuo:
         evals = self.tam_poblacion
         generacion = 0
 
-        # registro opcional de metricas iniciales (poblacion inicial)
+        # callback (opcional) para registrar la poblacion inicial
         if callback_metricas is not None:
-            callback_metricas(
-                generacion=generacion,
-                fitness=fitness.copy(),
-                evaluaciones=evals,
-            )
+            callback_metricas(generacion = generacion, fitness = fitness.copy(), evaluaciones = evals)
 
         # cada it evalua a 2 hijos
         while evals + 2 <= max_evals:
@@ -118,10 +114,9 @@ class GeneticAlgorithmContinuo:
 
             generacion += 1
             if callback_metricas is not None:
-                callback_metricas(
-                    generacion=generacion,
-                    fitness=fitness.copy(),
-                    evaluaciones=evals,
+                callback_metricas(generacion = generacion,
+                    fitness = fitness.copy(),     # se pasa una copia ya que en cada iteracion el fitness cambia
+                    evaluaciones = evals,
                 )
 
         mejor_idx = int(np.argmin(fitness))

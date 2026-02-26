@@ -2,7 +2,6 @@
 
 import numpy as np
 
-
 class GeneticAlgorithmCombinatorio:
     # constructor del AGE
     # --------------------
@@ -71,7 +70,7 @@ class GeneticAlgorithmCombinatorio:
     # optimize ejecuta AGE sobre el problema combinatorio concreto
     #   * problem : problema con método fitness
     # devuelve mejor_solucion y mejor_fitness
-    def optimize(self, problem):
+    def optimize(self, problem, callback_metricas = None):
         dim = int(problem.get_size())
         max_evals = self.max_evals if self.max_evals is not None else 10000 * dim
 
@@ -81,6 +80,15 @@ class GeneticAlgorithmCombinatorio:
         fitness = np.asarray([problem.fitness(ind) for ind in poblacion], dtype=float)
         # el numero de evals va a ser igual al tamaño de la poblacion
         evals = self.tam_poblacion
+        generacion = 0
+
+        # callback (opcional) para registrar la poblacion inicial
+        if callback_metricas is not None:
+            callback_metricas(
+                generacion = generacion,
+                fitness = fitness.copy(),
+                evaluaciones = evals,
+            )
 
         # cada it evalua a 2 hijos
         while evals + 2 <= max_evals:
@@ -119,6 +127,14 @@ class GeneticAlgorithmCombinatorio:
             if mejor_fit < fitness[peor_idx]:
                 poblacion[peor_idx] = mejor_hijo
                 fitness[peor_idx] = mejor_fit
+
+            generacion += 1
+            if callback_metricas is not None:
+                callback_metricas(
+                    generacion = generacion,
+                    fitness = fitness.copy(),
+                    evaluaciones = evals,
+                )
 
         mejor_idx = int(np.argmin(fitness))
         mejor_solucion = poblacion[mejor_idx].copy()

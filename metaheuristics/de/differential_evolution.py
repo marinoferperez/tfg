@@ -57,7 +57,7 @@ class DifferentialEvolution:
     #   * problem : problema con método fitness
     # devuelve mejor_solucion y mejor_fitness
 
-    def optimize(self, limites, problem):
+    def optimize(self, limites, problem, callback_metricas=None):
         dim = limites.shape[0]
         self.evals = 0
         self._max_evals_reales = None
@@ -95,6 +95,22 @@ class DifferentialEvolution:
 
         # se asigna la funcion que llama al fitness del problema
         params['func'] = self.evalua_solucion
+        params['callback'] = None
+
+        # callback opcional para registrar la evolucion por generacion
+        if callback_metricas is not None:
+            def callback_pyade(**estado):
+                fitness_actual = estado.get('fitness')
+                if fitness_actual is None:
+                    return
+
+                callback_metricas(
+                    generacion=int(estado.get('current_generation', 0)) + 1,
+                    fitness=np.asarray(fitness_actual, dtype=float).copy(),
+                    evaluaciones=int(self.evals),
+                )
+
+            params['callback'] = callback_pyade
 
         mejor_solucion, mejor_fitness = pyade.de.apply(**params)
         return mejor_solucion, float(mejor_fitness)

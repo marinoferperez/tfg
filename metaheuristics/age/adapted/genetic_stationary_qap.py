@@ -1,41 +1,97 @@
-"""
-Adaptacion de AGE (estacionario) al problema combinatorio QAP.
-
-QAP se modela en minimizacion.
-"""
-
 import numpy as np
+import time
+from pathlib import Path
 
 from metaheuristics.age.genetic_stationary_combinatorial import GeneticAlgorithmCombinatorio
 from metaheuristics.problems.qap_problem import QAPProblem
+from metaheuristics.metrics import RecolectorMetricasDEAP, CallbackMetricas
 
 class GeneticStationaryQAP:
     def __init__(self, **age_kwargs):
         self.age = GeneticAlgorithmCombinatorio(**age_kwargs)
 
-    def optimize(self, qap_path=None, flow_matrix=None, distance_matrix=None, seed=42):
+    def optimize(self, qap_path = None, mat_flujo = None, mat_dist = None, seed = 42, registrar_metricas = False, 
+                ruta_metricas = None, run_id = None):
         seed = int(seed)
         self.age.rng = np.random.default_rng(seed)
 
+        # ----------------------------
+        # construccion del problema
+        # ----------------------------
+        # se carga el problema QAP
+        # o
+        # se define manualmente con la matriz de flujo y distancias
         if qap_path is not None:
-            problema = QAPProblem.from_qaplib(path=qap_path, seed=seed, tipo_algoritmo="combinatorio")
+            problema = QAPProblem.from_qaplib(path = qap_path, seed = seed, tipo_algoritmo = "combinatorio")
+            instancia = Path(qap_path).stem
         else:
-            if flow_matrix is None or distance_matrix is None:
-                raise ValueError("Debes pasar qap_path o (flow_matrix, distance_matrix)")
+            if mat_flujo is None or mat_dist is None:
+                raise ValueError("Debes pasar qap_path o (mat_flujo, mat_dist)")
 
             problema = QAPProblem(
-                mat_flujo=flow_matrix,
-                mat_distancias=distance_matrix,
-                seed=seed,
-                tipo_algoritmo="combinatorio",
+                mat_flujo = mat_flujo,
+                mat_distancias = mat_dist,
+                seed = seed,
+                tipo_algoritmo = "combinatorio",
             )
+            instancia = "custom"
 
-        mejor_sol, mejor_fitness = self.age.optimize(problem=problema)
-        mejor_permutacion = np.asarray(mejor_sol, dtype=int)
+        # ----------------------------
+        # registro de métricas (DEAP)
+        # ----------------------------
+        recolector = None
+        callback_metricas = None
 
-        return {
+        if registrar_metricas:
+            recolector = RecolectorMetricasDEAP()
+            tiempo_inicio = time.perf_counter()
+            callback_metricas = CallbackMetricas(recolector, tiempo_inicio)
+
+        # ----------------------------
+        # ejecucion del algoritmo AGE
+        # ----------------------------
+        mejor_sol, mejor_fitness = self.age.optimize(problem = problema, callback_metricas = callback_metricas)
+        resultado = {
             "mejor_sol": mejor_sol,
             "mejor_fitness": float(mejor_fitness),
-            "best_qap_cost": float(mejor_fitness),
-            "mejor_permutacion": mejor_permutacion.astype(int).tolist(),
         }
+
+        # ----------------------------
+        # postprocesado de métricas
+        # ----------------------------
+        if registrar_metricas:
+            metricas_logbook = recolector.obtener_logbook()
+            metricas_resumen = recolector.obtener_resumen_final()
+
+            metricas_resumen["mejor_fitness"] = float(mejor_fitness)
+
+            resultado["metricas_logbook"] = metricas_logbook
+            resultado["metricas_resumen"] = metricas_resumen
+
+            if ruta_metricas is not None:
+                if run_id is None:
+                    run_id = (
+                        f"age_qap_{instancia}_"
+                        f"n{int(problema.get_size())}_"
+                        f"s{seed}"
+                    )
+                ruta_base = Path(ruta_metricas) / run_id
+                ficheros_metricas = recolector.guardar_csv_json(
+                    ruta_base = ruta_base,
+                    metadata = {
+                        "algoritmo": "age",
+                        "problema": "qap",
+                        "instancia": str(instancia),
+                        "n": int(problema.get_size()),
+                        "tam_poblacion": int(self.age.tam_poblacion),
+                        "prob_cruce": float(self.age.prob_cruce),
+                        "prob_mutacion": float(self.age.prob_mutacion),
+                        "tam_torneo": int(self.age.tam_torneo),
+                        "max_evals": int(self.age.max_evals) if self.age.max_evals else None,
+                        "seed": int(seed),
+                    },
+                )
+                resultado["ruta_metricas"] = str(ruta_base)
+                resultado["ficheros_metricas"] = ficheros_metricas
+
+        return resultado
