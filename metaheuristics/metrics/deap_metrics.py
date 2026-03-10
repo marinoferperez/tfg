@@ -29,18 +29,14 @@ class RecolectorMetricasDEAP:
             "evaluaciones",
             "generacion",
             "tam_poblacion",
-            "tam_poblacion_sin_inf",
-            "num_inf",
-            "min",
+            "min/mejor_hasta_ahora",
             "promedio",
             "desv_std",
             "mediana",
             "max",
-            "mejor_hasta_ahora",
             "tiempo_s",
         ]
         self.logbook.header = list(self._cabecera_base)
-        self._mejor_hasta_ahora = None
         self._diversidad_por_generacion = {}
         # k fijo para comparabilidad entre algoritmos/runs en QAP.
         # Se ignora cualquier valor distinto recibido por parámetro.
@@ -144,24 +140,13 @@ class RecolectorMetricasDEAP:
             tam_poblacion = int(fitness.size)
 
         # limpieza de posibles infs para DE 
-        num_inf = int(np.isinf(fitness).sum())
         fitness_sin_inf = fitness[np.isfinite(fitness)]
-        tam_poblacion_sin_inf = int(fitness_sin_inf.size)
 
         # si el tamaño es nulo -> no hay fitness finitos 
         if fitness_sin_inf.size == 0: fitness_sin_inf = np.array([float("inf")])
 
         registro = self.stats.compile(fitness_sin_inf)
-        mejor_actual = float(np.min(fitness_sin_inf)) # minimizacion
 
-        if self._mejor_hasta_ahora is None:
-            self._mejor_hasta_ahora = mejor_actual
-        else:
-            self._mejor_hasta_ahora = min(self._mejor_hasta_ahora, mejor_actual)
-
-        if mejor_hasta_ahora is None:
-            mejor_hasta_ahora = self._mejor_hasta_ahora
-        
         div_dist_euclidea = float('nan')
         div_media_hamming = float('nan')
         registro_div = {}
@@ -195,14 +180,11 @@ class RecolectorMetricasDEAP:
             evaluaciones = int(evaluaciones),
             generacion = int(generacion),
             tam_poblacion = int(tam_poblacion),
-            tam_poblacion_sin_inf = int(fitness_sin_inf.size), # ind con fit infinito que no han contribuido en el calc de métricas
-            num_inf = int(num_inf),                           # num indiv con fitness inf
-            min = float(registro["min"]),                      # mejor fitness en la pob actual
+            **{"min/mejor_hasta_ahora": float(registro["min"])}, # minimizacion
             promedio = float(registro["promedio"]),            # media del fitness de la pob -> mide calidad global
             desv_std = float(registro["desv_std"]),            # dispersion del fitness -> std baja + min no mejora -> estancamiento
             mediana = float(registro["mediana"]),              # valor tipico de la pob -> robusto a outliers   
             max = float(registro["max"]),                      # peor fitness 
-            mejor_hasta_ahora = float(mejor_hasta_ahora),      # mejor fit encontrado hasta ese momento -> en la ultima it = min
             tiempo_s = float(tiempo_s),
         )
 
@@ -244,23 +226,16 @@ class RecolectorMetricasDEAP:
             }
 
         ultimo = historial[-1] # ultima generacion de pob
-        # minimos = [float(fila["min"]) for fila in historial]
-
-        hubo_inf = any(int(f.get("num_inf", 0)) > 0 for f in historial)
-        total_inf = sum(int(f.get("num_inf", 0)) for f in historial)
-
         resumen = {
             "generaciones_registradas": int(len(historial)),
             "evaluaciones_totales": int(ultimo["evaluaciones"]),
-            "min_final": float(ultimo["min"]),
+            "min_final": float(ultimo["min/mejor_hasta_ahora"]),
             "promedio_final": float(ultimo["promedio"]),
             "desv_std_final": float(ultimo["desv_std"]),
             "mediana_final": float(ultimo["mediana"]),
             "max_final": float(ultimo["max"]),
-            "mejor_hasta_ahora": float(ultimo["mejor_hasta_ahora"]),
+            "mejor_hasta_ahora": float(ultimo["min/mejor_hasta_ahora"]),
             "tiempo_total_s": float(ultimo["tiempo_s"]),
-            "hubo_inf": bool(hubo_inf),
-            "total_inf": int(total_inf),
         }
         return resumen
 
@@ -284,7 +259,6 @@ class RecolectorMetricasDEAP:
 
         with ruta_logbook_csv.open("w", encoding="utf-8", newline="") as f_csv:
             campos = list(self.logbook.header)
-
             writer = csv.DictWriter(f_csv, fieldnames=campos, lineterminator="\n")
             writer.writeheader()
             writer.writerows(historial)

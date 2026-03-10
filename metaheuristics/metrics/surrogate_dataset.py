@@ -9,8 +9,27 @@ class SurrogateDataset:
     def __init__(self, algoritmo, problema, seed, run_info = None):
         self.algoritmo = str(algoritmo)
         self.problema = str(problema)
+        algoritmo_norm = self.algoritmo.strip().lower()
+        problema_norm = self.problema.strip().lower()
         self.seed = int(seed)
         self.run_info = dict(run_info) if isinstance(run_info, dict) else {}
+
+        # Política de almacenamiento para el dataset de surrogate:
+        # - AGE-QAP: solo perm
+        # - DE-QAP: x y perm
+        # - CEC2017 (AGE/DE): solo x
+        if problema_norm == "qap" and algoritmo_norm == "age":
+            self._guardar_x = False
+            self._guardar_perm = True
+        elif problema_norm == "qap" and algoritmo_norm == "de":
+            self._guardar_x = True
+            self._guardar_perm = True
+        elif problema_norm == "cec2017":
+            self._guardar_x = True
+            self._guardar_perm = False
+        else:
+            self._guardar_x = True
+            self._guardar_perm = False
 
         self.filas = []
     
@@ -19,9 +38,10 @@ class SurrogateDataset:
             "eval_id": int(eval_id),
             "generacion": int(generacion),
             "fitness": float(fitness),
-            "x": np.asarray(x).tolist(),
         }
-        if perm is not None:
+        if self._guardar_x:
+            fila["x"] = np.asarray(x).tolist()
+        if self._guardar_perm and perm is not None:
             fila["perm"] = np.asarray(perm).astype(int).tolist()
 
         self.filas.append(fila)
@@ -90,17 +110,21 @@ class SurrogateDataset:
             "fitness": np.asarray([float(f.get("fitness", float("nan"))) for f in self.filas], dtype=np.float64),
         }
 
-        if self.filas:
-            payload["x"] = np.asarray([np.asarray(f.get("x", []), dtype=float) for f in self.filas], dtype=np.float64)
-        else:
-            payload["x"] = np.empty((0, 0), dtype=np.float64)
+        if self._guardar_x:
+            if self.filas:
+                payload["x"] = np.asarray([np.asarray(f.get("x", []), dtype=float) for f in self.filas], dtype=np.float64)
+            else:
+                payload["x"] = np.empty((0, 0), dtype=np.float64)
 
-        incluir_perm = any("perm" in fila for fila in self.filas)
+        incluir_perm = self._guardar_perm
         incluir_div_euclidea = any("div_dist_euclidea" in fila for fila in self.filas)
         incluir_div_hamming = any("div_media_hamming" in fila for fila in self.filas)
 
         if incluir_perm:
-            payload["perm"] = np.asarray([np.asarray(f.get("perm", []), dtype=int) for f in self.filas], dtype=np.int64)
+            if self.filas:
+                payload["perm"] = np.asarray([np.asarray(f.get("perm", []), dtype=int) for f in self.filas], dtype=np.int64)
+            else:
+                payload["perm"] = np.empty((0, 0), dtype=np.int64)
         if incluir_div_euclidea:
             payload["div_dist_euclidea"] = np.asarray(
                 [float(f.get("div_dist_euclidea", float("nan"))) for f in self.filas],

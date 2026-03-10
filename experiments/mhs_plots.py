@@ -124,6 +124,8 @@ def cargar_curva_desde_logbook(ruta_metricas):
             evals = int(float(fila["evaluaciones"]))
             if str(fila.get("mejor_hasta_ahora", "")).strip() != "":
                 mejor = float(fila["mejor_hasta_ahora"])
+            elif str(fila.get("min/mejor_hasta_ahora", "")).strip() != "":
+                mejor = float(fila["min/mejor_hasta_ahora"])
             elif str(fila.get("min", "")).strip() != "":
                 mejor = float(fila["min"])
             else:
@@ -348,6 +350,8 @@ def cargar_diversidad_y_mejora_futura_desde_logbook(ruta_metricas, metrica, delt
                 continue
 
             txt_fit = str(fila.get("mejor_hasta_ahora", "")).strip()
+            if txt_fit == "":
+                txt_fit = str(fila.get("min/mejor_hasta_ahora", "")).strip()
             if txt_fit == "":
                 txt_fit = str(fila.get("min", "")).strip()
             if txt_fit == "":
