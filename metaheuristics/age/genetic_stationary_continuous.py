@@ -1,13 +1,14 @@
 # implementación del algoritmo AGE para problemas continuos.
 
 import numpy as np
+from metaheuristics.metrics.surrogate_dataset import SurrogateDataset
 
 class GeneticAlgorithmContinuo:
     # constructor del AGE
     # --------------------
     # construye el algoritmo con los valores utilizados comúnmente en la literatura
 
-    def __init__(self, tam_poblacion=50, prob_cruce=0.7, prob_mutacion=0.1, sigma=0.3, alpha=0.45, tam_torneo=2, max_evals=None, seed=42):
+    def __init__(self, tam_poblacion = 50, prob_cruce = 0.7, prob_mutacion = 0.1, sigma = 0.3, alpha = 0.45, tam_torneo = 2, max_evals = None, seed = 42):
         self.tam_poblacion = tam_poblacion
         self.prob_cruce = prob_cruce
         self.prob_mutacion = prob_mutacion
@@ -57,22 +58,41 @@ class GeneticAlgorithmContinuo:
     #   * problem : problema con método fitness
     # devuelve mejor_solucion y mejor_fitness
 
-    def optimize(self, limites, problem, callback_metricas = None):
+    def optimize(self, limites, problem, callback_metricas = None, dataset = None):
         limites = np.asarray(limites, dtype=float)
         dim = limites.shape[0]
         max_evals = self.max_evals if self.max_evals is not None else 10000 * dim
 
         # se crea la poblacion/solucion inicial aleatoriamente respetando los limites
         poblacion = problem.create_population(self.rng, self.tam_poblacion, dim, limites)
+        
+        # al ser la version continua, no tenemos que guardar ninguna permutacion
+        fitness_list = []
+        for ind in poblacion:
+            fit = float(problem.fitness(ind))
+            fitness_list.append(fit)
+            if dataset is not None:
+                dataset.individuo_to_dataset(
+                    eval_id = len(fitness_list),
+                    generacion = 0,
+                    x = ind,
+                    fitness = fit
+                )
+
         # se calcula el fitness de la poblacion inicial.
-        fitness = np.asarray([problem.fitness(ind) for ind in poblacion], dtype=float)
+        fitness = np.asarray(fitness_list, dtype=float)
         # el numero de evals va a ser igual al tamaño de la poblacion
         evals = self.tam_poblacion
         generacion = 0
 
         # callback (opcional) para registrar la poblacion inicial
         if callback_metricas is not None:
-            callback_metricas(generacion = generacion, fitness = fitness.copy(), evaluaciones = evals)
+            callback_metricas(
+                generacion = generacion,
+                fitness = fitness.copy(),
+                evaluaciones = evals,
+                poblacion = np.asarray(poblacion).copy(),
+            )
 
         # cada it evalua a 2 hijos
         while evals + 2 <= max_evals:
@@ -95,7 +115,23 @@ class GeneticAlgorithmContinuo:
             hijo2 = self.mutacion_gaussiana(hijo2, limites)
 
             fit_hijo1 = float(problem.fitness(hijo1))
+            if dataset is not None:
+                dataset.individuo_to_dataset(
+                    eval_id = evals + 1,    # ids de eval unicos x muestra en cada it
+                    generacion = generacion,
+                    x = hijo1,
+                    fitness = fit_hijo1
+                )
+
             fit_hijo2 = float(problem.fitness(hijo2))
+            if dataset is not None:
+                dataset.individuo_to_dataset(
+                    eval_id = evals + 2,
+                    generacion = generacion,
+                    x = hijo2,
+                    fitness = fit_hijo2
+                )
+
             evals += 2
 
             # se elige el mejor hijo (minimizacion)
@@ -113,10 +149,13 @@ class GeneticAlgorithmContinuo:
                 fitness[peor_idx] = mejor_fit
 
             generacion += 1
+
             if callback_metricas is not None:
-                callback_metricas(generacion = generacion,
+                callback_metricas(
+                    generacion = generacion,
                     fitness = fitness.copy(),     # se pasa una copia ya que en cada iteracion el fitness cambia
                     evaluaciones = evals,
+                    poblacion = np.asarray(poblacion).copy(),
                 )
 
         mejor_idx = int(np.argmin(fitness))

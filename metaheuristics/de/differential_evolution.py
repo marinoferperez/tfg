@@ -37,6 +37,10 @@ class DifferentialEvolution:
         self._max_evals_reales = None
         self._problem = None
 
+        self._dataset = None
+        self._perm_decodificador = None
+        self._generacion_actual = 0
+
     # evalua_solucion incrementa el contador de evaluaciones cada vez que se ejecuta
     # la funcion objetivo (fitness) y devuelve el fitness (float)
 
@@ -49,19 +53,41 @@ class DifferentialEvolution:
         if self._max_evals_reales is not None and self.evals >= self._max_evals_reales:
             return float("inf")
 
+        fit = float(self._problem.fitness(solution))
         self.evals += 1
-        return float(self._problem.fitness(solution))
+        
+        if self._dataset is not None:
+            perm = None
+            if self._perm_decodificador is not None:
+                perm = self._perm_decodificador(solution)
+            
+            self._dataset.individuo_to_dataset(
+                eval_id = int(self.evals),
+                generacion = int(getattr(self, "_generacion_actual", 0)),
+                x = np.asarray(solution, dtype = float),
+                fitness = float(fit),
+                perm = perm
+            )
+        
+        return fit
+
+        # return float(self._problem.fitness(solution))
 
     # optimize ejecuta DE sobre el problema concreto
     #   * limites : array (dim, 2) con [min, max] por dim
     #   * problem : problema con método fitness
     # devuelve mejor_solucion y mejor_fitness
 
-    def optimize(self, limites, problem, callback_metricas=None):
+    def optimize(self, limites, problem, callback_metricas = None, dataset = None, perm_decodificador = None):
         dim = limites.shape[0]
         self.evals = 0
         self._max_evals_reales = None
         self._problem = problem
+
+        ####
+
+        self._dataset = dataset 
+        self._perm_decodificador = perm_decodificador
 
         # "get_default_params(dim)" devuelve un diccionario de parámetros asociados al DE:
         #   * population_size = tamaño de la poblacion/número de individuos
@@ -95,22 +121,9 @@ class DifferentialEvolution:
 
         # se asigna la funcion que llama al fitness del problema
         params['func'] = self.evalua_solucion
-        params['callback'] = None
-
         # callback opcional para registrar la evolucion por generacion
         if callback_metricas is not None:
-            def callback_pyade(**estado):
-                fitness_actual = estado.get('fitness')
-                if fitness_actual is None:
-                    return
-
-                callback_metricas(
-                    generacion=int(estado.get('current_generation', 0)) + 1,
-                    fitness=np.asarray(fitness_actual, dtype=float).copy(),
-                    evaluaciones=int(self.evals),
-                )
-
-            params['callback'] = callback_pyade
+            params['callback'] = callback_metricas
 
         mejor_solucion, mejor_fitness = pyade.de.apply(**params)
         return mejor_solucion, float(mejor_fitness)

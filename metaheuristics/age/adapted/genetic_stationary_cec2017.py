@@ -4,7 +4,7 @@ from pathlib import Path
 
 from metaheuristics.age.genetic_stationary_continuous import GeneticAlgorithmContinuo
 from metaheuristics.problems.cec2017_problem import CEC2017Problem
-from metaheuristics.metrics import RecolectorMetricasDEAP, CallbackMetricas
+from metaheuristics.metrics import RecolectorMetricasDEAP, CallbackMetricasAGE, SurrogateDataset
 
 class GeneticStationaryCEC2017:
     def __init__(self, **age_kwargs):
@@ -18,7 +18,7 @@ class GeneticStationaryCEC2017:
         # construccion del problema
         # ----------------------------
         # se carga el problema CEC (funcid, dim)
-        problema = CEC2017Problem(funcid=funcid, dim=dim, algname=algname, lib_path=lib_path, seed=seed)
+        problema = CEC2017Problem(funcid = funcid, dim = dim, algname = algname, lib_path = lib_path, seed = seed)
         problema.prepare_run()
 
         # ----------------------------
@@ -27,10 +27,19 @@ class GeneticStationaryCEC2017:
         recolector = None
         callback_metricas = None
 
+        #####
+
+        dataset = None
         if registrar_metricas:
             recolector = RecolectorMetricasDEAP()
             tiempo_inicio = time.perf_counter()
-            callback_metricas = CallbackMetricas(recolector, tiempo_inicio)
+            callback_metricas = CallbackMetricasAGE(recolector, tiempo_inicio)
+            dataset = SurrogateDataset(
+                algoritmo = "age",
+                problema = "cec2017",
+                seed = seed,
+                run_info = {"funcid": int(funcid), "dim": int(dim)},
+            )
 
         # ----------------------------
         # ejecucion del algoritmo AGE
@@ -38,7 +47,8 @@ class GeneticStationaryCEC2017:
         mejor_sol, mejor_fitness = self.age.optimize(
             limites = problema.get_bounds(),
             problem = problema,
-            callback_metricas = callback_metricas
+            callback_metricas = callback_metricas,
+            dataset = dataset      #######
         )
 
         mejor_error = problema.cec_error(mejor_fitness)
@@ -73,7 +83,6 @@ class GeneticStationaryCEC2017:
                         "funcid": int(funcid),
                         "dim": int(dim),
                         "seed": int(seed),
-                        "algname": str(algname),
                         "tam_poblacion": int(self.age.tam_poblacion),
                         "prob_cruce": float(self.age.prob_cruce),
                         "prob_mutacion": float(self.age.prob_mutacion),
@@ -83,7 +92,11 @@ class GeneticStationaryCEC2017:
                         "alpha": float(self.age.alpha)
                     },
                 )
+                if dataset is not None:
+                    dataset.anotar_diversidad_por_generacion(recolector.obtener_diversidad_por_generacion())
+                ficheros_dataset = dataset.guardar_csv_json(ruta_base) if dataset is not None else None
                 resultado["ruta_metricas"] = str(ruta_base)
                 resultado["ficheros_metricas"] = ficheros_metricas
+                resultado["ficheros_dataset"] = ficheros_dataset
 
         return resultado

@@ -4,14 +4,13 @@ from pathlib import Path
 
 from metaheuristics.age.genetic_stationary_combinatorial import GeneticAlgorithmCombinatorio
 from metaheuristics.problems.qap_problem import QAPProblem
-from metaheuristics.metrics import RecolectorMetricasDEAP, CallbackMetricas
+from metaheuristics.metrics import RecolectorMetricasDEAP, CallbackMetricasAGE, SurrogateDataset
 
 class GeneticStationaryQAP:
     def __init__(self, **age_kwargs):
         self.age = GeneticAlgorithmCombinatorio(**age_kwargs)
 
-    def optimize(self, qap_path = None, mat_flujo = None, mat_dist = None, seed = 42, registrar_metricas = False, 
-                ruta_metricas = None, run_id = None):
+    def optimize(self, qap_path = None, mat_flujo = None, mat_dist = None, seed = 42, registrar_metricas = False, ruta_metricas = None, run_id = None):
         seed = int(seed)
         self.age.rng = np.random.default_rng(seed)
 
@@ -42,18 +41,34 @@ class GeneticStationaryQAP:
         recolector = None
         callback_metricas = None
 
+        #####
+
+        dataset = None
+
         if registrar_metricas:
             recolector = RecolectorMetricasDEAP()
             tiempo_inicio = time.perf_counter()
-            callback_metricas = CallbackMetricas(recolector, tiempo_inicio)
+            callback_metricas = CallbackMetricasAGE(recolector, tiempo_inicio)
+            dataset = SurrogateDataset(
+                algoritmo = "age",
+                problema = "qap",
+                seed = seed,
+                run_info = {"instancia": str(instancia)},
+            )
+
+        # if registrar_metricas:
+        #     recolector = RecolectorMetricasDEAP()
+        #     tiempo_inicio = time.perf_counter()
+        #     callback_metricas = CallbackMetricasAGE(recolector, tiempo_inicio)
+
 
         # ----------------------------
         # ejecucion del algoritmo AGE
         # ----------------------------
-        mejor_sol, mejor_fitness = self.age.optimize(problem = problema, callback_metricas = callback_metricas)
+        mejor_sol, mejor_fitness = self.age.optimize(problem = problema, callback_metricas = callback_metricas, dataset = dataset)
         resultado = {
             "mejor_sol": mejor_sol,
-            "mejor_fitness": float(mejor_fitness),
+            "mejor_fitness": float(mejor_fitness)
         }
 
         # ----------------------------
@@ -83,6 +98,9 @@ class GeneticStationaryQAP:
                         "problema": "qap",
                         "instancia": str(instancia),
                         "n": int(problema.get_size()),
+                        "k_pares_hamming": int(getattr(recolector, "_k_pares_hamming", 200)),
+                        "hamming_fuente": "permutacion",
+                        "hamming_normalizada_01": True,
                         "tam_poblacion": int(self.age.tam_poblacion),
                         "prob_cruce": float(self.age.prob_cruce),
                         "prob_mutacion": float(self.age.prob_mutacion),
@@ -91,7 +109,13 @@ class GeneticStationaryQAP:
                         "seed": int(seed),
                     },
                 )
+                # resultado["ruta_metricas"] = str(ruta_base)
+                # resultado["ficheros_metricas"] = ficheros_metricas
+                if dataset is not None:
+                    dataset.anotar_diversidad_por_generacion(recolector.obtener_diversidad_por_generacion())
+                ficheros_dataset = dataset.guardar_csv_json(ruta_base) if dataset is not None else None
                 resultado["ruta_metricas"] = str(ruta_base)
                 resultado["ficheros_metricas"] = ficheros_metricas
+                resultado["ficheros_dataset"] = ficheros_dataset
 
         return resultado

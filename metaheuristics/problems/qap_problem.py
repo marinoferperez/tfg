@@ -1,12 +1,3 @@
-"""
-Problema QAP (Quadratic Assignment Problem) para usar con metaheuristicas.
-
-Se mantiene la formulacion natural de minimizacion del QAP.
-Representacion interna configurable segun algoritmo:
-* continuo: vector real decodificado por argsort.
-* combinatorio (permutacion): permutacion directa.
-"""
-
 from pathlib import Path
 import re
 import numpy as np
@@ -15,7 +6,7 @@ class QAPProblem:
     # constructor del problema qap
     # ----------------------------
     # valida matrices y configura la representacion segun tipo_algoritmo
-    def __init__(self, mat_flujo, mat_distancias, seed=42, tipo_algoritmo="continuo"):
+    def __init__(self, mat_flujo, mat_distancias, seed = 42, tipo_algoritmo = "continuo"):
         flujo = np.asarray(mat_flujo, dtype=float)
         dist = np.asarray(mat_distancias, dtype=float)
 
@@ -40,17 +31,14 @@ class QAPProblem:
             raise ValueError("tipo_algoritmo debe ser 'continuo' o 'combinatorio'")
 
 
-        self.bounds = None
+        self.limites = None
         if self.tipo_algoritmo == "continuo":
-            self.bounds = np.tile(np.array([[0.0, 1.0]], dtype=float), (self.n, 1))
+            # cualquier rango de valores sirve -> nos importa el orden
+            self.limites = np.tile(np.array([[0.0, 1.0]], dtype=float), (self.n, 1))
 
     # from_qaplib carga una instancia qaplib (.dat) y construye el problema
     @classmethod
     def from_qaplib(cls, path, seed=42, tipo_algoritmo="continuo"):
-        """
-        Carga una instancia QAPLIB (.dat) en formato numerico clasico:
-        n, seguido de n*n valores de flujo y n*n valores de distancia.
-        """
         file_path = Path(path)
         if not file_path.exists():
             raise FileNotFoundError(f"No existe el fichero QAP: '{file_path}'")
@@ -81,27 +69,31 @@ class QAPProblem:
             tipo_algoritmo=tipo_algoritmo,
         )
 
-    # get_bounds devuelve limites del espacio de busqueda
+    # get_limites devuelve limites del espacio de busqueda
     # para continuo devuelve [0,1]^n y para combinatorio devuelve None
+    def get_limites(self):
+        return self.limites
+
+    # alias retrocompatible con problemas continuos que exponen get_bounds()
     def get_bounds(self):
-        return self.bounds
+        return self.get_limites()
 
     # get_size devuelve n (dimension del problema)
     def get_size(self):
         return self.dim
 
     # create_population genera individuos iniciales segun la representacion elegida
-    def create_population(self, rng=None, pop_size=50, ind_size=None, bounds=None):
-        if rng is None:
-            rng = self.rng
-        if ind_size is None:
-            ind_size = self.n
-        if int(ind_size) != self.n:
-            raise ValueError("ind_size debe coincidir con n")
+    # def create_population(self, rng=None, pop_size=50, ind_size=None, limites=None):
+    #     if rng is None:
+    #         rng = self.rng
+    #     if ind_size is None:
+    #         ind_size = self.n
+    #     if int(ind_size) != self.n:
+    #         raise ValueError("ind_size debe coincidir con n")
 
-        if self.tipo_algoritmo == "continuo":
-            return rng.uniform(0.0, 1.0, size=(int(pop_size), int(ind_size)))
-        return np.asarray([rng.permutation(self.n) for _ in range(int(pop_size))], dtype=int)
+    #     if self.tipo_algoritmo == "continuo":
+    #         return rng.uniform(0.0, 1.0, size=(int(pop_size), int(ind_size)))
+    #     return np.asarray([rng.permutation(self.n) for _ in range(int(pop_size))], dtype=int)
 
     # decodificar_asignacion transforma la representacion interna (individuo) en permutacion
     # en continuo aplica argsort y en combinatorio valida directamente
@@ -116,7 +108,7 @@ class QAPProblem:
         return np.argsort(arr, kind="mergesort")
 
     # _normaliza_permutacion comprueba que la permutacion sea valida
-    # sin truncados silenciosos de flotantes no enteros
+    # sin truncados silenciosos de flotantes no enteros -> limpia
     def _normaliza_permutacion(self, permutation):
         arr = np.asarray(permutation)
 

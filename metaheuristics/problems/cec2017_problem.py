@@ -1,19 +1,18 @@
 import ctypes
+import numpy as np
 from pathlib import Path
 
-import numpy as np
-
 class CEC2017Problem:
-    _VALID_DIMS = {2, 5, 10, 30, 50, 100}
+    DIMS_VALIDAS = {2, 5, 10, 30, 50, 100}
 
-    def __init__(self, funcid, dim, algname="age_stationary", lib_path=None, seed=42):
+    def __init__(self, funcid, dim, algname = "age_stationary", lib_path = None, seed = 42):
         self.dim = int(dim)
         self.seed = int(seed)
         self.rng = np.random.default_rng(self.seed)
 
         if not 1 <= int(funcid) <= 30:
             raise ValueError("funcid debe estar en [1, 30]")
-        if int(dim) not in self._VALID_DIMS:
+        if int(dim) not in self.DIMS_VALIDAS:
             raise ValueError("dim debe ser una de {2, 5, 10, 30, 50, 100}")
 
         self.funcid = int(funcid)
@@ -74,7 +73,6 @@ class CEC2017Problem:
         self._lib.cec17_fitness.restype = ctypes.c_double
 
     def prepare_run(self):
-        """Inicializa la función CEC2017 para una nueva ejecución."""
         self._ensure_input_data_available()
         results_dir = Path.cwd() / f"results_{self.algname}"
         results_dir.mkdir(parents=True, exist_ok=True)
