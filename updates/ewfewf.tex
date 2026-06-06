@@ -1,0 +1,152 @@
+
+\section{Técnicas surrogadas}
+
+%% Riesgos: No olvides mencionar el error de aproximación. Si el modelo es malo, guiará a la metaheurística hacia un "óptimo falso". Esto justifica por qué necesitamos la hibridación online (para re-entrenar el modelo).
+
+% definicion 
+% idea general
+% familias de modelos
+% modelos principales
+% ventajas y riesgos 
+
+\begin{definicion}
+    Sea \(f:\mathcal{X}\rightarrow\mathbb{R}\) una función objetivo costosa de evaluar. Un \textit{surrogate model} es una función aproximada \(\hat{f}:\mathcal{X}\rightarrow\mathbb{R}\), construida a partir de un conjunto finito de muestras
+    \[
+        \mathcal{D}=\{(\mathbf{x}_i,f(\mathbf{x}_i))\}_{i=1}^{n},
+    \]
+    con el objetivo de proporcionar información útil sobre el comportamiento de \(f\) de forma computacionalmente más eficiente. En muchos casos, esta información se materializa como una función aproximada \(\hat{f}:\mathcal{X}\rightarrow\mathbb{R}\), aunque también puede adoptar otras formas orientadas a comparar, clasificar o priorizar soluciones.
+\end{definicion}
+
+En problemas de optimización con funciones costosas, como los basados en simulación, la evaluación repetida de la función objetivo puede suponer un coste computacional elevado o incluso prohibitivo \cite{queipo2005surrogate,forrester2009recent}. En este contexto, las técnicas surrogadas permiten sustituir parcial o temporalmente la función real por una aproximación de menor complejidad, de modo que el proceso de búsqueda pueda orientarse utilizando una representación más barata de evaluar.
+
+Aunque los modelos surrogados suelen plantearse como aproximaciones de la función objetivo, su utilidad en optimización no se limita necesariamente a predecir con precisión el valor numérico de \(f\). En muchos casos, resulta suficiente con que proporcionen información útil para orientar la búsqueda, por ejemplo preservando el orden relativo entre soluciones, discriminando entre candidatas prometedoras y no prometedoras o apoyando decisiones de selección sin necesidad de reproducir exactamente la función original \cite{jin2011surrogate,tong2021surrogate}.
+
+El interés principal de estos métodos es que permiten reutilizar la información obtenida en evaluaciones previas para guiar la búsqueda hacia regiones realmente prometedoras, manteniendo una representación útil del comportamiento del problema con un coste de evaluación mucho menor \cite{queipo2005surrogate,forrester2009recent,jin2011surrogate}. Esto resulta especialmente útil cuando cada evaluación implica ejecutar un simulador, resolver un problema físico o analizar un modelo complejo. Además, su flexibilidad hace posible adaptarlos a distintos tipos de formulaciones, desde enfoques regresivos orientados a aproximar valores hasta estrategias basadas en clasificación o en comparaciones relativas entre soluciones.
+
+No obstante, su utilización también plantea limitaciones importantes. Si el surrogate no está bien ajustado, puede inducir al algoritmo de optimización a explorar regiones poco prometedoras, establecer un orden incorrecto entre soluciones o descartar candidatas que en realidad serían buenas. Asimismo, muchos modelos presentan dificultades para generalizar fuera de las zonas en las que han sido entrenados, lo que restringe su utilidad en espacios de búsqueda muy amplios o con una estructura altamente no lineal \cite{forrester2009recent,bhosekar2018advances}. Por ello, la eficacia de estos métodos depende tanto de la calidad del modelo construido como del tipo de información que se pretenda extraer de él y del modo en que se integre dentro del proceso de optimización.
+
+En el contexto de la optimización, y en particular dentro de algoritmos evolutivos y metaheurísticos, los surrogates pueden desempeñar papeles muy distintos según el modo en que se utilicen y el tipo de información que proporcionen al algoritmo de búsqueda \cite{jin2011surrogate,tong2021surrogate}. Por ello, antes de describir los modelos utilizados comúnmente, resulta conveniente introducir una visión general de las principales taxonomías utilizadas en la literatura para clasificar este tipo de técnicas.
+
+\subsection{Taxonomía general de las técnicas surrogadas}
+
+La literatura especializada no clasifica los modelos surrogados siguiendo un único criterio, sino que suele hacerlo desde perspectivas complementarias. En algunos casos, la clasificación se centra en el papel funcional que desempeña el surrogate dentro del proceso de optimización, mientras que en otros se corresponde con el tipo de información que el modelo es capaz de predecir sobre las soluciones candidatas. Ambas perspectivas son útiles, ya que permiten entender tanto cómo se utiliza el surrogate como qué tipo de apoyo proporciona al algoritmo de búsqueda.
+
+\subsubsection{Integración del surrogate en la optimización}
+
+Una de las formas más extendidas de clasificar las técnicas surrogadas, propuesta en \cite{bliek2022sustainableSBO}, consiste en atender al modo en que el modelo sustituto se integra dentro del proceso de optimización. Desde esta perspectiva, el surrogate no se distingue únicamente por su naturaleza estadística o de aprendizaje, sino por el papel funcional que desempeña respecto de la función objetivo original y del algoritmo de búsqueda. Así, pueden distinguirse enfoques en los que el surrogate se actualiza de forma iterativa durante la optimización, otros en los que sustituye completamente a la función costosa una vez entrenado, y también estrategias en las que se reutiliza información de procesos previos o se combina con otras formas de intervención o decisión.
+
+Esta clasificación resulta especialmente útil porque permite diferenciar no solo cómo se construye el surrogate, sino también cuándo se consulta, qué tipo de interacción mantiene con la función real y qué grado de acoplamiento presenta con el optimizador. En consecuencia, ofrece una visión más operativa del uso de modelos sustitutos en optimización que otras taxonomías centradas exclusivamente en el tipo de modelo de regresión o clasificación empleado.
+
+\paragraph{Sequential Model-Based Optimization (SMBO)}
+
+El enfoque \textit{Sequential Model-Based Optimization} se caracteriza por la alternancia iterativa entre el surrogate y la función objetivo costosa. En una primera fase se evalúa un conjunto inicial de soluciones sobre la función real con el fin de construir un conjunto de entrenamiento. A partir de esos datos se ajusta un modelo sustituto, que posteriormente se utiliza para proponer nuevas soluciones prometedoras. Dichas soluciones son evaluadas de nuevo en la función real y la información obtenida se incorpora al conjunto de entrenamiento para actualizar el surrogate.
+
+La característica distintiva de este esquema es que el modelo no sustituye de forma definitiva a la función costosa, sino que se refina progresivamente a medida que avanza la búsqueda. De este modo, el surrogate actúa como un mecanismo auxiliar que orienta la exploración y reduce el número de evaluaciones reales necesarias, por lo que este tipo de métodos suele identificarse con estrategias \textit{online}.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.95\textwidth]{./figuras/clasificacion_surrogates/smbo.png}
+    \caption{Framework simplificado de un algoritmo SMBO típico obtenido de \cite{bliek2022sustainableSBO}.}
+    \label{fig:smbo}
+\end{figure}
+
+La Figura~\ref{fig:smbo} muestra este ciclo de realimentación continua entre surrogate, optimización y evaluación real, donde cada nueva evaluación contribuye a mejorar la calidad del modelo.
+
+\paragraph{Predict-then-Optimise (PtO)}
+
+En el enfoque \textit{Predict-then-Optimise}, el surrogate se entrena previamente a partir de un conjunto de muestras evaluadas sobre la función real y, una vez construido, pasa a sustituir completamente a la función costosa durante la fase de optimización. En este caso, el algoritmo de búsqueda opera directamente sobre el modelo sustituto, como si éste fuese la verdadera función objetivo.
+
+La principal ventaja de este esquema radica en que, tras el entrenamiento inicial, la búsqueda puede desarrollarse sin recurrir continuamente a la función real, lo que reduce de forma drástica el coste computacional. Sin embargo, la calidad del resultado final depende en gran medida de la fidelidad global del surrogate, ya que cualquier sesgo o error acumulado en el modelo afectará directamente a la solución obtenida. Por este motivo, este enfoque suele asociarse a estrategias \textit{offline}.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=1.00\textwidth]{./figuras/clasificacion_surrogates/pto.png}
+    \caption{Framework de Predict-then-Optimise (PtO) típico obtenido de \cite{bliek2022sustainableSBO}.}
+    \label{fig:pto}
+\end{figure}
+
+La Figura~\ref{fig:pto} ilustra esta separación entre la fase de construcción del surrogate y la fase posterior de optimización, sin actualización iterativa del modelo durante la búsqueda.
+
+\paragraph{Otras formas de integración}
+
+Además de los dos esquemas anteriores, la literatura recoge otras formas de integración del surrogate dentro del proceso de optimización \cite{bliek2022sustainableSBO}. El enfoque \textit{Optimise-then-Predict} (OtP) se orienta al aprovechamiento de información obtenida en optimizaciones previas para construir modelos reutilizables en problemas futuros similares. Por su parte, \textit{Predict-then-Interact} (PtI) emplea el surrogate como herramienta de apoyo a la intervención humana, de modo que el modelo no guía únicamente una optimización automática, sino también la toma de decisiones por parte del usuario.
+
+Asimismo, en problemas jerárquicos o anidados, los surrogates pueden utilizarse para aproximar subproblemas internos, como ocurre en ciertos esquemas de optimización bi-nivel. También existen enfoques en los que la propia construcción del surrogate se automatiza mediante procedimientos de \textit{Automated Machine Learning} o en los que se combinan varios modos de uso dentro de un mismo método, dando lugar a estrategias mixtas. Aunque estas variantes amplían el panorama de integración posible, en este trabajo resultan especialmente relevantes los esquemas SMBO y PtO, por su conexión directa con los enfoques \textit{online} y \textit{offline} considerados posteriormente.
+
+
+
+\subsubsection{Tipo de predicción}
+
+Otra forma útil de clasificar los modelos surrogados se basa en la naturaleza de la información que proporcionan sobre las soluciones candidatas. Desde esta perspectiva, la diferencia fundamental no reside en el algoritmo de aprendizaje utilizado, sino en si el surrogate intenta aproximar directamente el valor numérico de la función objetivo o si, por el contrario, modela únicamente relaciones relativas entre soluciones, como su orden, preferencia o pertenencia a una determinada clase \cite{tong2021surrogate}.
+
+Esta distinción es crucial en optimización con surrogates, ya que condiciona tanto el diseño del modelo como su integración dentro del algoritmo evolutivo. En algunos problemas interesa aproximar con la mayor fidelidad posible la función objetivo, mientras que en otros basta con determinar qué soluciones son mejores que otras sin necesidad de conocer su fitness exacto. En este contexto, la literatura distingue entre modelos de \textit{absolute fitness} y modelos de \textit{relative fitness}, cada uno con subcategorías específicas \cite{tong2021surrogate}.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.7\textwidth]{./figuras/clasificacion_surrogates/clasificacion_sgs.png}
+    \caption{Clasificación de las técnicas surrogadas según el tipo de predicción, adaptada de \cite{tong2021surrogate}.}
+    \label{fig:clasificacion_sgs}
+\end{figure}
+
+\medskip
+\noindent\textbf{\large Modelos de fitness absoluto}\par
+\smallskip
+
+Los \textit{absolute fitness models} tratan de aproximar directamente el valor de la función objetivo de una solución candidata. Su propósito consiste en construir una función sustituta \(\hat{F}\) que reproduzca, con la mayor fidelidad posible, la relación entre el vector de decisión \(\mathbf{x}\) y su fitness real \(F(\mathbf{x})\). Se trata de la formulación más clásica en optimización basada en surrogates, ya que permite reemplazar evaluaciones costosas por predicciones numéricas explícitas del fitness.
+
+\smallskip
+\noindent\textbf{Modelos basados en regresión}\par
+\smallskip
+
+Dentro de los modelos de fitness absoluto, los \textit{regression-based models} constituyen la familia más común. Su objetivo es ajustar un modelo que aproxime el mapeo entre las variables de decisión y el valor escalar de fitness. Dado un conjunto de entrenamiento de la forma
+\[
+    D=\{(\mathbf{x}_1,y_1),(\mathbf{x}_2,y_2),\dots,(\mathbf{x}_n,y_n)\},
+\]
+donde \(y_i=F(\mathbf{x}_i)\), el surrogate se construye buscando minimizar la relación entre los valores reales y las predicciones del modelo.
+
+En esta categoría se incluyen, por ejemplo, la regresión polinómica, Kriging, las funciones de base radial, redes neuronales o métodos de ensamblado adaptados a regresión. Su ventaja principal es que proporcionan una estimación explícita del fitness, lo que permite utilizarlos directamente en operadores de selección, reemplazo o preevaluación dentro de algoritmos evolutivos.
+
+\smallskip
+\noindent\textbf{Modelos basados en similitud}\par
+\smallskip
+
+Los \textit{similarity-based models} también pertenecen a la categoría de fitness absoluto, pero estiman el fitness de nuevas soluciones a partir de su cercanía o relación con muestras previamente evaluadas. En lugar de aprender una función global explícita, estos enfoques basan la predicción en relaciones locales dentro del espacio de búsqueda. Su comportamiento depende, en gran medida, de la métrica de distancia empleada y de la distribución de las muestras disponibles.
+
+\medskip
+\noindent\textbf{\large Modelos de fitness relativo}\par
+\smallskip
+
+Los \textit{relative fitness models} no intentan predecir directamente el valor numérico de la función objetivo, sino estimar información relativa entre soluciones candidatas. En lugar de responder a la pregunta “¿cuál es el fitness de esta solución?”, estos modelos tratan de responder cuestiones como “¿qué solución es mejor?”, “¿cuál ocupa una posición más alta en el ranking?” o “¿a qué categoría de calidad pertenece esta muestra?”. Este enfoque resulta especialmente interesante en contextos donde el valor exacto del fitness es difícil de estimar o menos relevante que la capacidad de discriminar correctamente entre candidatos.
+
+\smallskip
+\noindent\textbf{Modelos basados en ranking}\par
+\smallskip
+
+Los \textit{rank-based models} constituyen una primera subcategoría dentro de los modelos de fitness relativo. Su objetivo es estimar el orden relativo de las soluciones, es decir, aprender qué candidatos deberían situarse por delante de otros en términos de calidad. En optimización evolutiva, esta aproximación puede resultar suficiente cuando el algoritmo necesita principalmente información de preferencia para seleccionar, reemplazar o priorizar individuos. Su interés radica en que, en muchos problemas, preservar correctamente el orden relativo entre soluciones puede ser más importante, y también menos costoso que ajustar con precisión sus valores absolutos \cite{yuxue2024effective}.
+
+\smallskip
+\noindent\textbf{Modelos basados en clasificación}\par
+\smallskip
+
+La segunda subcategoría de los modelos de fitness relativo es la formada por los \textit{classification-based models}. En este caso, el surrogate asigna las soluciones a distintas clases o categorías, por ejemplo distinguiendo entre individuos prometedores y no prometedores, o separando regiones de alta y baja calidad en el espacio de búsqueda. Este enfoque puede ser muy útil cuando el objetivo principal es filtrar candidatos \cite{jinglu2022classification,lin2023classification}, concentrar evaluaciones costosas en soluciones de interés o guiar el proceso de exploración.
+
+% \section{Hibridación entre metaheurísticas y modelos surrogate}
+
+% integración offline/online
+% papel del surrogate en la busqueda de soluciones
+% enfoques de hibridación offline
+% ....
+% enfoques de hibridación online
+% surrogate como filtro de soluciones candidatas
+% surrogate como guía para la generación de nuevas soluciones
+% surrogate como mecanismo de selección entre operadores o estrategias de búsqueda
+
+%%%%%
+
+% probability-based-strategy:  probabilidad aleatoria de no usar el surrogate
+% baseline strategy: se usa el surrogate en todas las evaluaciones - SIEMPRE
+% candidate diversity strategy: 
+% quality distance strategy: diferencia entre el fitness estimado del challenger y el fitness del challenged
+
+
+Una vez analizados los pilares conceptuales de la optimización y el modelado predictivo, se evidencia que la hibridación de algoritmos evolutivos junto con modelos de aprendizaje automático y técnicas subrogadas ofrece un marco robusto para mitigar el coste computacional. En los capítulos sucesivos se abordará cómo la literatura científica reciente ha combinado ambas disciplinas (Capítulo 4) y se detallarán las arquitecturas algorítmicas específicas, el banco de problemas CEC2017 y los modelos de regresión seleccionados como referencia para la fase experimental de este trabajo (Capítulo 5).

@@ -16,7 +16,7 @@
 
 %% hay que adaptarlo cuando vayamos incrementando el contenido experimental: ahora mismo solo referencia a las dos estrategias offline que vamos a evaluar.
 
-En este capítulo se describe el protocolo experimental seguido para evaluar las técnicas subrogadas consideradas en este trabajo y su integración en el bucle de optimización. El objetivo es establecer un procedimiento homogéneo que permita comparar su comportamiento de forma controlada y reproducible a partir de las trayectorias generadas por las metaheuristicas de referencia.
+En este capítulo se describe el protocolo experimental seguido para evaluar las técnicas subrogadas consideradas en este trabajo y su integración en el bucle de optimización. El objetivo es establecer un procedimiento homogéneo que permita comparar su comportamiento de forma controlada y reproducible a partir de las trayectorias generadas por las metaheurísticas de referencia.
 
 
 Para ello, se presenta en primer lugar el benchmark utilizado y se detallan las condiciones bajo las que se ejecutan las metaheurísticas encargadas de generar
@@ -200,7 +200,7 @@ Las implementaciones no proceden de una única biblioteca. AGE se ha implementad
 
     \item \textbf{DE:} se emplea la variante DE/rand/1/bin proporcionada por
           \texttt{PyADE}. Salvo el tamaño de la población, se conservan los valores definidos por defecto en la
-          implementación utilizada (vease en la Tabla \ref{tab:parametros_de}).
+          implementación utilizada (véase en la Tabla~\ref{tab:parametros_de}).
 
           \begin{table}[htbp]
               \centering
@@ -222,7 +222,7 @@ Las implementaciones no proceden de una única biblioteca. AGE se ha implementad
           \end{table}
 
     \item \textbf{SHADE:} se parte igualmente de la implementación disponible en
-          \texttt{PyADE}. Se mantiene su configuración base, excepto por el tamaño de la población común fijado para los experimentos (vease en la Tabla \ref{tab:parametros_shade}).
+          \texttt{PyADE}. Se mantiene su configuración base, excepto por el tamaño de la población común fijado para los experimentos (vease en la Tabla~\ref{tab:parametros_shade}).
 
           \begin{table}[htbp]
               \centering
@@ -312,7 +312,7 @@ de \textit{SciPy}\footnote{\url{https://scipy.org/}}; XGBoost, basado en su bibl
 \textit{Python}\footnote{\url{https://xgboost.readthedocs.io/}}; y las técnicas clásicas Kriging y PCE, implementadas mediante
 \textit{Surrogate Modeling Toolbox} (SMT)\footnote{\url{https://smt.readthedocs.io/}}.
 
-Tal y como se comento en la Sección \ref{sec:tecnicas_subrogadas}, Kriging y PCE se incorporan como técnicas clásicas de referencia, por lo que no forman parte del mismo protocolo experimental aplicado inicialmente al resto de regresores.
+Tal y como se comentó en la Sección \ref{sec:tecnicas_subrogadas}, Kriging y PCE se incorporan como técnicas clásicas de referencia, por lo que no forman parte del mismo protocolo experimental aplicado inicialmente al resto de regresores.
 
 Para garantizar una comparación justa y no sobreajustada a los problemas de optimización de CEC2017, metaheurística o semilla, se mantienen algunos parámetros en sus valores por defecto y se modifican aquellos que sí merecen ser ajustados para evitar comportamientos inesperados. La configuración no predeterminada empleada en cada modelo se recoge en la Tabla~\ref{tab:surrogate_models_config}.
 
@@ -585,109 +585,78 @@ sus resultados en el capítulo siguiente.
 \section{Estrategia \textit{online} para la integración subrogada}
 \label{sec:diseno_online}
 
-La integración \textit{online} se evalúa a partir del mecanismo de filtrado
-definido en la Sección~\ref{sec:estrategia_online_integracion_surrogate}. A
-diferencia de la evaluación \textit{offline}, en este caso las predicciones del
-subrogado pueden modificar la trayectoria seguida por la metaheurística. Por
-ello, la hibridación debe analizarse como una variante modificada de la
-metaheurística original: los criterios de comparación de modelos definidos en la
-Sección~\ref{subsec:criterio_comparacion_modelos} dejan de ser el criterio
-principal, y el análisis pasa a centrarse en el rendimiento final del proceso de
-optimización y en el coste añadido por la integración.
+La integración \textit{online} se evalúa a partir del mecanismo de filtrado definido en la Sección~\ref{sec:estrategia_online_integracion_surrogate}. A diferencia de la evaluación \textit{offline}, en esta fase las predicciones del
+subrogado pueden modificar la trayectoria seguida por la metaheurística. Por ello, la comparación deja de centrarse únicamente en la calidad de ordenación y predictiva del modelo y pasa a tratar la hibridación como una variante modificada del proceso de optimización.
 
+Con el fin de mantener acotado el coste experimental, la integración
+\textit{online} no se aplica a todos los modelos candidatos. Se reserva para el modelo y la estrategia de entrenamiento que resulten seleccionados tras la evaluación \textit{offline} y el ajuste fino de hiperparámetros. De este modo, la fase \textit{online} se concentra en estudiar si el subrogado finalmente seleccionado resulta útil cuando sus predicciones intervienen en la toma de decisiones de las distintas metaheurísticas consideradas.
 
-En este trabajo, la estrategia no se evalúa sobre todos los modelos candidatos,
-sino sobre aquel que resulte seleccionado tras la comparación \textit{offline}
-y el ajuste fino de hiperparámetros. Esta decisión evita multiplicar el coste
-experimental de la integración y reserva la fase \textit{online} para el modelo
-que haya mostrado el mejor compromiso entre capacidad de ordenación, error y
-coste computacional.
-
-Como se expuso en la Seccion \ref{sec:estrategia_online_integracion_surrogate},
-el protocolo \textit{online} queda determinado por varios elementos:
+A partir de este esquema, el protocolo \textit{online} queda determinado por las siguientes decisiones experimentales:
 
 \begin{enumerate}
-    \item \textbf{Periodo inicial de calentamiento.} Antes de utilizar el
-          subrogado como filtro, es necesario disponer de un conjunto mínimo de
-          soluciones evaluadas mediante la función objetivo real. Si
-          \(E_{\max}\) representa el presupuesto total de evaluaciones y
+    \item \textbf{Periodo inicial de calentamiento.} Antes de activar el subrogado como filtro, es necesario disponer de un conjunto mínimo de evaluaciones reales sobre el que ajustar el primer modelo para que pueda generar predicciones útiles. Por este motivo, si \(E_{\max}\) representa el presupuesto total de evaluaciones y
           \(\alpha_{\text{warm}}\) la proporción reservada para este tramo, el
           número de evaluaciones iniciales viene dado por
           \[
               E_{\text{warm}} = \alpha_{\text{warm}} E_{\max}.
           \]
-          Durante este periodo el modelo permanece inactivo y las evaluaciones
-          reales generadas proporcionan las muestras necesarias para ajustar el
-          primer subrogado.
+          En esta fase, la metaheurística sigue su flujo de evaluación real, y
+          las muestras generadas se incorporan al conjunto disponible para el
+          entrenamiento posterior.
 
-    \item \textbf{Conjunto de entrenamiento del subrogado.} Una vez superado el
-          periodo inicial, el modelo solo puede actualizarse utilizando
-          evaluaciones reales ya observadas durante la propia ejecución. La
-          construcción de este conjunto debe respetar el orden temporal de la
-          búsqueda, evitando incorporar información futura o evaluaciones no
-          confirmadas por la función objetivo real. La forma concreta de seleccionar estas muestras se define a partir del
-          análisis temporal realizado previamente en la evaluación \textit{offline}.
+          En coherencia con la división temporal utilizada en la evaluación \textit{offline}, este periodo inicial se fija en el \(20\%\) del presupuesto total de evaluaciones (\(\alpha_{\text{warm}}=0.20\)).
 
-    \item \textbf{Frecuencia de actualización.} Reentrenar el modelo tras cada
-          nueva evaluación real puede aumentar innecesariamente el coste
-          computacional, mientras que actualizarlo con poca frecuencia puede
-          dejarlo desfasado respecto a la región explorada. Por ello, se estudia
-          una frecuencia de reentrenamiento expresada como proporción del tamaño
-          de la ventana de entrenamiento.
+    \item \textbf{Conjunto de entrenamiento.} Durante la ejecución
+          \textit{online}, el modelo solo se entrena con evaluaciones reales ya
+          observadas. La construcción de este conjunto mantiene el orden temporal
+          de la búsqueda y queda determinada por la estrategia de entrenamiento
+          seleccionada tras la evaluación \textit{offline}.
 
-
-    \item \textbf{Probabilidad de uso del filtro.} El subrogado no se aplica
-          necesariamente a todos los candidatos generados. Para cada candidato
-          se extrae \(u \sim \mathcal{U}(0,1)\) y el filtro se consulta solo si
+    \item \textbf{Frecuencia de actualización.} Para evitar reentrenamientos
+          excesivamente frecuentes que supongan un coste computacional excesivo o modelos desfasados, se estudian distintas
+          frecuencias de actualización expresadas como proporción del conjunto
+          temporal de entrenamiento. Los valores considerados son \(0.25\),
+          \(0.50\) y \(0.75\).
+    \item \textbf{Probabilidad de uso del filtro.} El subrogado no se aplica necesariamente a todos los candidatos generados. Para cada candidato generado se extrae \(u \sim \mathcal{U}(0,1)\), y el filtro se consulta solo si
           \[
               u < p_{\text{sub}},
           \]
-          donde \(p_{\text{sub}}\) controla la proporción esperada de candidatos
-          sometidos a preevaluación subrogada. Cuando esta condición no se
-          cumple, el candidato sigue el flujo de evaluación real de la
-          metaheurística original.
+          donde \(p_{\text{sub}}\) controla la proporción esperada de candidatos sometidos a preevaluación subrogada. Cuando esta condición no se cumple, el candidato sigue el flujo de evaluación real de la metaheurística original.
 
-    \item \textbf{Tratamiento tras reinicio.} Si se activa el mecanismo de
-          reinicio, la población puede cambiar de forma brusca al
-          conservar el mejor individuo y regenerar aleatoriamente el resto. Por
-          este motivo, se estudia la necesidad de un periodo de enfriamiento
-          durante el cual el subrogado no se utiliza como filtro. Si
-          \(e_{\text{reinicio}}\) representa la evaluación en la que se registra
-          el último reinicio, el filtro permanece desactivado mientras
-          \[
-              e - e_{\text{reinicio}} < E_{\text{cool}},
-          \]
-          donde \(E_{\text{cool}}\) representa el número de evaluaciones reales
-          de espera tras el reinicio.
+          Se consideran los valores \(p_{\text{sub}} \in \{0.00, 0.25, 0.50,
+          0.75\}\), donde \(0.00\) representa la variante sin intervención
+          subrogada.
+
+
+    \item \textbf{Tratamiento tras reinicio.} Si se activa el reinicio, la
+          distribución de soluciones puede cambiar de forma brusca, reduciendo
+          temporalmente la representatividad del modelo. Por ello, se estudia un
+          periodo de enfriamiento durante el que el filtro permanece desactivado
+          y solo se incorporan evaluaciones reales al conjunto disponible. Se
+          consideran \(0\), \(50\), \(100\) y \(500\) evaluaciones reales,
+          equivalentes a \(0\), \(1\), \(2\) y \(10\) tamaños de población para
+          \(N=50\), donde \(0\) representa la variante sin enfriamiento.
 \end{enumerate}
 
+Al tratarse como variantes de las metaheurísticas originales, las ejecuciones \textit{online} mantienen las condiciones generales definidas en la Tabla~\ref{tab:parametros_comunes_metaheuristicas}. No obstante, para la calibración de los parámetros de integración se emplea un subconjunto reducido de funciones y semillas, distinto al utilizado en las fases previas.
 
-Para estudiar cada uno de estos parámetros, se consideran distintas pruebas experimentales bajo el siguiente orden:
+Esta fase no busca una optimización exhaustiva, sino seleccionar una
+configuración homogénea y computacionalmente viable para las distintas
+metaheurísticas. Por ello, las decisiones experimentales se evalúan sobre las funciones \(f_3\), \(f_5\), \(f_9\), \(f_{15}\), \(f_{19}\), \(f_{24}\) y \(f_{27}\), junto con \(10\) semillas independientes no utilizadas en la generación de trayectorias ni en la evaluación \textit{offline}. Esta separación reduce el riesgo de ajustar la configuración de la hibridación a las mismas ejecuciones usadas en las fases anteriores.
+
+La comparación entre variantes sigue el criterio agregado definido en la
+Sección~\ref{sec:metaheuristicas}, basado en medias y rankings medios sobre CEC2017. En este caso, dicho criterio se aplica para comparar configuraciones de hibridación y no metaheurísticas independientes. Además, se consideran contadores propios de la integración, como el número de reentrenamientos, el tiempo dedicado al modelo y el porcentaje de candidatos rechazados por el filtro.
+
+Una vez seleccionada la configuración, la evaluación final se realiza de nuevo sobre las \(30\) funciones de CEC2017, utilizando un conjunto de \(51\) semillas distinto tanto al empleado en la calibración \textit{online} como al utilizado en la generación de trayectorias y evaluación \textit{offline}. En esta fase, la variante híbrida se compara en primer lugar con la metaheurística original sin intervención subrogada, lo que permite medir si el filtro aporta una mejora real frente al algoritmo base bajo las mismas condiciones experimentales. Además, se incluyen como referencia las hibridaciones basadas en Kriging y PCE, descritas en la Sección~\ref{sec:tecnicas_subrogadas_clasicas}, con el fin de contrastar el modelo seleccionado frente a técnicas subrogadas clásicas ampliamente utilizadas en optimización asistida por modelos.
+
+Los resultados de las distintas decisiones experimentales y las comparaciones descritas se presentan en el Capítulo~\ref{chap:experimentacion}.
 
 % Si el subrogado se usa inmediatamente, puede estar entrenado sobre una distribución que ya no representa la nueva población.
 
 % Por ello se introduce un periodo de enfriamiento o cooldown, durante el cual se priorizan evaluaciones reales antes de volver a confiar en el modelo.
 
-\begin{enumerate}
-    \item Al depender del comportamiento de las metaheurísticas consideradas, la incorporación de un mecanismo de reinicio que afecte a la dinámica de estas puede afectar la confianza del modelo. Por ello, se requiere del estudio de un periodo de enfriamiento (\textit{cooldown}) durante el cual se prioricen evaluaciones reales antes de volver a utilizarlo.
-\end{enumerate}
+
 % - indicar que la estrategia se evaluara con el modelo seleccionado en el capitulo 7 tras la fase offline y su correspondiente ajuste de hiperparametros
-
-% - metaheuristicas consideradas
-% - benchmark, dimension, poblacion, presupuesto, semillas (diria que no es necesario)
-% - parametros que se estudiaran:
-%     - periodo de calentamiento
-%     - tamaño de ventana
-%     - frecuencia de reentrenamietno
-%     - probabildiad de uso del subrogado
-%     - numero de candidatos preevaluados
-%     - posible pausa tras reinicio
-
-% - que métricas vamos a utilizar para realizar comparaciones
-% - criterio para seleccionar una configuración homogénea
-
-% todo ello sin resultados y sin decir todavia que valores son los mejores
-
 
 
 % La selección de la configuración online no se realiza únicamente a partir del menor error medio, sino atendiendo al compromiso entre rendimiento final, robustez entre metaheurísticas y funciones, y coste computacional añadido por el uso del subrogado. Dado que el objetivo es definir una estrategia homogénea de hibridación, se priorizan aquellas configuraciones que presentan buen comportamiento agregado y rankings estables, evitando decisiones condicionadas por una única función o metaheurística.
@@ -1175,12 +1144,12 @@ resultados en el capítulo siguiente.
     \hline
 
     \texttt{--surrogate-model}
-                       & \texttt{rbf}
+                       & \texttt{Modelo seleccionado}
                        & Modelo subrogado empleado por el filtro \textit{online}.                                              \\
     \hline
 
     \makecell[l]{\texttt{--modelo-params-}                                                                                     \\\texttt{json}}
-                       & \makecell[l]{Configuración RBF                                                                        \\ajustada}
+                       & \makecell[l]{Configuración del modelo seleccionado.}
                        & Fichero JSON con los hiperparámetros del modelo subrogado. Si se omite y
     el modelo es \texttt{rbf}, se utiliza la configuración ajustada.                                                           \\
     \hline
