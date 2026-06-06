@@ -226,9 +226,13 @@ results/
 # Datos temporales y humo
 tmp/
 
-# Datos CEC2017 (licencia restringida) y symlink
-cec2017real/
-input_data
+# Datos CEC2017 (licencia restringida) y symlink raíz
+/cec2017real/
+/input_data
+
+# Artefactos de compilación dentro del submódulo cec2017real
+metaheuristics/problems/cec2017/cec2017real/build/
+metaheuristics/problems/cec2017/cec2017real/results_*/
 
 # Datos QAP
 data/qapdata/
