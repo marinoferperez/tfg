@@ -1,0 +1,57 @@
+\chapter{Implementación}
+\label{chap:implementacion}
+
+
+
+\section{Arquitectura general}
+\section{Integración del benchmark CEC2017}
+\section{Adaptación de las metaheurísticas}
+\section{Registro y organización de las trayectorias}
+\section{Integración de los modelos subrogados}
+\section{Organización de los experimentos y resultados}
+
+\section{Adaptación de los algoritmos}
+
+\begin{enumerate}
+    \item \textbf{Algoritmo Genético Estacionario} La primera metaheurística de estudio es \textbf{AGE}, implementada en su totalidad en \textbf{Python} y el conjunto de problemas benchmark que ejecuta se encuentra implementado en \textbf{C++} pero con \textbf{wrappers de Python}, lo que permite unificar ambas implementaciones sin problema. El código fuente utilizado de \textbf{CEC2017} se encuentra disponible en un repositorio propio del tutor de este trabajo y que ha compartido con el alumno.
+\end{enumerate}
+
+
+
+
+\section{Estrategias \textit{offline} para la evaluación subrogada}
+
+\subsection{Partición temporal de las trayectorias}
+
+Cada trayectoria generada por las metaheurísticas se organiza en \textbf{cinco bloques temporales consecutivos}, cada uno de ellos correspondiente al \textbf{20\,\% del presupuesto total de evaluaciones}. Dado que cada ejecución comprende \(E_{\max} = 100\,000\) evaluaciones, cada bloque agrupa \(20\,000\) muestras, ordenadas cronológicamente según el instante en que fueron generadas durante la búsqueda. Los bloques se identifican por el intervalo porcentual que ocupan dentro de la trayectoria: \textbf{1--20\,\%}, \textbf{21--40\,\%}, \textbf{41--60\,\%}, \textbf{61--80\,\%} y \textbf{81--100\,\%}.
+
+Este esquema permite abordar el aprendizaje sobre trayectorias desde dos perspectivas complementarias —la acumulativa y la no acumulativa— analizando cómo varía la utilidad del subrogado en función de la cantidad y la procedencia temporal de las muestras disponibles.
+
+\subsection{Construcción de los conjuntos de entrenamiento}
+
+Las dos estrategias \textit{offline} introducidas en la Sección~\ref{sec:metodologia_estrategias_offline} del Capítulo~\ref{chap:algo_tecnicas_ref} se diferencian exclusivamente por cómo se construye el conjunto de entrenamiento en cada ajuste. En la \textbf{estrategia no acumulativa}, el modelo se entrena únicamente con las muestras del bloque actual, sin incorporar información de etapas anteriores, de modo que el tamaño del conjunto de entrenamiento se mantiene constante en \(20\,000\) muestras independientemente del bloque considerado. En la \textbf{estrategia acumulativa}, el conjunto de entrenamiento crece progresivamente: el primer ajuste utiliza el bloque 1, el segundo incorpora también el bloque 2, y así sucesivamente, alcanzando \(80\,000\) muestras en el último ajuste. La Tabla~\ref{tab:pares_entrenamiento_validacion} recoge los pares entrenamiento--validación resultantes para cada bloque y estrategia.
+
+\begin{table}[H]
+    \centering
+    \begin{tabular}{l l r l r}
+        \toprule
+        \textbf{Bloque} & \textbf{Intervalo} & \multicolumn{1}{c}{\makecell[c]{\textbf{Entrenamiento}                       \\ \textbf{no acum.}}} & \textbf{Intervalo} & \multicolumn{1}{c}{\makecell[c]{\textbf{Entrenamiento} \\ \textbf{acum.}}} \\
+        \midrule
+        $B_1$           & 1--20\,\%          & 20\,000                                                & 1--20\,\% & 20\,000 \\
+        $B_2$           & 21--40\,\%         & 20\,000                                                & 1--40\,\% & 40\,000 \\
+        $B_3$           & 41--60\,\%         & 20\,000                                                & 1--60\,\% & 60\,000 \\
+        $B_4$           & 61--80\,\%         & 20\,000                                                & 1--80\,\% & 80\,000 \\
+        $B_5$           & 81--100\,\%        & \multicolumn{3}{c}{no se emplea para entrenar}                               \\
+        \bottomrule
+    \end{tabular}
+    \caption{Tamaño del conjunto de entrenamiento por bloque y estrategia.}
+    \label{tab:pares_entrenamiento_validacion}
+\end{table}
+
+El bloque 5 queda excluido de cualquier ajuste en ambas estrategias, ya que su finalidad es proporcionar el conjunto de validación para los modelos entrenados con el bloque 4.
+
+\subsection{Construcción del conjunto de validación}
+
+En ambas estrategias, el conjunto de validación se construye extrayendo aleatoriamente \textbf{5000 muestras} del bloque temporal inmediatamente posterior al último utilizado para el entrenamiento. Este tamaño equivale al 25\,\% del tamaño de un bloque individual y permanece fijo en todos los casos, garantizando que el número de muestras empleado para la evaluación sea constante e independiente del tamaño del conjunto de entrenamiento.
+
+La selección de las 5000 muestras se realiza de forma \textbf{determinista}: el generador de números aleatorios utilizado se inicializa con una semilla derivada de tres valores fijos —el parámetro global \texttt{random\_state=42}, la semilla de la trayectoria y el identificador del bloque de validación—. Esta construcción garantiza que, para una misma trayectoria, el conjunto de validación asociado a cada bloque sea idéntico independientemente del modelo evaluado o de la estrategia de entrenamiento considerada, lo que permite comparar los resultados de distintos modelos sobre exactamente las mismas muestras de referencia.

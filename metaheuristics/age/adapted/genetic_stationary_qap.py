@@ -4,7 +4,7 @@ from pathlib import Path
 
 from metaheuristics.age.genetic_stationary_combinatorial import GeneticAlgorithmCombinatorio
 from metaheuristics.problems.qap_problem import QAPProblem
-from metaheuristics.metrics import RecolectorMetricasDEAP, CallbackMetricasAGE, SurrogateDataset
+from metaheuristics.metrics import CallbackMetricasAGE, SurrogateDataset
 
 class GeneticStationaryQAP:
     def __init__(self, **age_kwargs):
@@ -46,6 +46,7 @@ class GeneticStationaryQAP:
         dataset = None
 
         if registrar_metricas:
+            from metaheuristics.metrics import RecolectorMetricasDEAP
             recolector = RecolectorMetricasDEAP()
             tiempo_inicio = time.perf_counter()
             callback_metricas = CallbackMetricasAGE(recolector, tiempo_inicio)

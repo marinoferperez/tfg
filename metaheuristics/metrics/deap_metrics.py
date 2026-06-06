@@ -1,10 +1,10 @@
 # utilidades de metrica basadas en DEAP (Statistics + Logbook).
 
-import csv
-import json
 from pathlib import Path
 import numpy as np
 from deap import tools
+
+from preprocesado_de_datos.utils.path_utils import escribir_csv_dicts, escribir_json
 
 class RecolectorMetricasDEAP:
     # constructor del recolector de metricas
@@ -13,7 +13,7 @@ class RecolectorMetricasDEAP:
     def __init__(
         self,
         seed = 42,
-        k_pares_hamming = 200,
+        filtrar_evals_no_crecientes = False,
     ):
         # con statitics se recogen estadisticas
         self.stats = tools.Statistics(lambda x: x)
@@ -38,10 +38,10 @@ class RecolectorMetricasDEAP:
         ]
         self.logbook.header = list(self._cabecera_base)
         self._diversidad_por_generacion = {}
-        # k fijo para comparabilidad entre algoritmos/runs en QAP.
-        # Se ignora cualquier valor distinto recibido por parámetro.
-        self._k_pares_hamming = int(k_pares_hamming)
-        self._rng = np.random.default_rng(seed) 
+        self._rng = np.random.default_rng(seed)
+        self._rangos_generacion = {}
+        self._filtrar_evals_no_crecientes = bool(filtrar_evals_no_crecientes)
+        self._ultima_eval_registrada = None
         
 
     # ---------- diversidad (continuo) ----------
@@ -54,54 +54,11 @@ class RecolectorMetricasDEAP:
         dists = np.linalg.norm(poblacion - centroide, axis=1)
         return float(np.mean(dists))
 
-    # ---------- diversidad (permutaciones) ----------
-
-    # _diversidad_media_hamming (normalizada) mide cuantas posiciones difieren entre dos sol (permutaciones)
-    # si las perm son muy parecidas -> hamming baja -> baja diversidad
-
-    def _hamming(self, a, b):
-        a_arr = np.asarray(a)
-        b_arr = np.asarray(b)
-        if np.issubdtype(a_arr.dtype, np.floating) or np.issubdtype(b_arr.dtype, np.floating):
-            distintos = ~np.isclose(a_arr, b_arr, rtol=0.0, atol=1e-12, equal_nan=True)
-            return int(np.sum(distintos))
-        return int(np.sum(a_arr != b_arr))
-
-    def _diversidad_media_hamming(self, permuts, k_pares):
-        # permuts: (N, n) int
-        if permuts.ndim != 2 or permuts.shape[0] < 2:
+    def _diversidad_dist_euclidea_normalizada(self, diversidad, dimension, rango_inf=-100.0, rango_sup=100.0):
+        dimension = int(dimension)
+        if dimension <= 0:
             return float("nan")
-
-        N, n = permuts.shape
-        if n <= 0:
-            return float("nan")
-        # número de pares posibles
-        total_pairs = N * (N - 1) // 2
-        if total_pairs <= 0:
-            return float("nan")
-
-        k = min(int(k_pares), int(total_pairs))
-        if k <= 0:
-            return float("nan")
-
-        # si se piden todos los pares, devolvemos media exacta
-        if k == total_pairs:
-            hs = []
-            for i in range(N - 1):
-                for j in range(i + 1, N):
-                    hs.append(self._hamming(permuts[i], permuts[j]))
-            return (float(np.mean(hs)) / float(n)) if hs else float("nan")
-
-        # si se piden menos pares, muestreamos pares unicos (i < j)
-        pares = set()
-        while len(pares) < k:
-            i, j = self._rng.choice(N, size=2, replace=False)
-            if i > j:
-                i, j = j, i
-            pares.add((int(i), int(j)))
-
-        hs = [self._hamming(permuts[i], permuts[j]) for i, j in pares]
-        return (float(np.mean(hs)) / float(n)) if hs else float("nan")
+        return float(diversidad) / dimension
 
     # registrar añade una entrada de metricas al logbook
     # tomando el vector de fitness de la poblacion actual
@@ -121,8 +78,7 @@ class RecolectorMetricasDEAP:
         mejor_hasta_ahora = None,
         fitness_vector = None,
         poblacion = None,
-        permutaciones = None,
-        vectores_hamming = None,
+        sobrescribir_ultima = False,
     ):
         # compatibilidad: algunas llamadas antiguas usan fitness_vector
         if fitness is None:
@@ -145,33 +101,33 @@ class RecolectorMetricasDEAP:
         # si el tamaño es nulo -> no hay fitness finitos 
         if fitness_sin_inf.size == 0: fitness_sin_inf = np.array([float("inf")])
 
+        if sobrescribir_ultima and len(self.logbook) > 0:
+            self.logbook.pop(-1)
+            if len(self.logbook) > 0:
+                self._ultima_eval_registrada = int(self.logbook[-1]["evaluaciones"])
+            else:
+                self._ultima_eval_registrada = None
+
+        if self._filtrar_evals_no_crecientes and self._ultima_eval_registrada is not None:
+            if int(evaluaciones) <= int(self._ultima_eval_registrada):
+                return
+
         registro = self.stats.compile(fitness_sin_inf)
 
-        div_dist_euclidea = float('nan')
-        div_media_hamming = float('nan')
         registro_div = {}
 
-        # La métrica de diversidad se infiere por el tipo de representación
-        # que recibe el recolector en cada algoritmo:
-        # continuo -> distancia euclídea, combinatorio -> Hamming media.
-        base_hamming = None
-        if vectores_hamming is not None:
-            base_hamming = np.asarray(vectores_hamming)
-        elif permutaciones is not None:
-            base_hamming = np.asarray(permutaciones)
-
-        if base_hamming is not None and base_hamming.ndim == 2 and base_hamming.shape[0] >= 2:
-            div_media_hamming = self._diversidad_media_hamming(base_hamming, k_pares=self._k_pares_hamming)
-            registro_div["div_media_hamming"] = float(div_media_hamming)
-        elif poblacion is not None:
+        if poblacion is not None:
             pop = np.asarray(poblacion)
             if pop.ndim == 2 and pop.shape[0] >= 2:
                 pop_f = pop.astype(float, copy=False)
                 mask = np.all(np.isfinite(pop_f), axis=1)
                 pop_f = pop_f[mask]
                 if pop_f.shape[0] >= 2:
-                    div_dist_euclidea = self._diversidad_dist_euclidea(pop_f)
-                    registro_div["div_dist_euclidea"] = float(div_dist_euclidea)
+                    div = float(self._diversidad_dist_euclidea(pop_f))
+                    registro_div["div_dist_euclidea"] = div
+                    registro_div["div_dist_euclidea_normalizada"] = float(
+                        self._diversidad_dist_euclidea_normalizada(div, pop_f.shape[1])
+                    )
 
         if registro_div:
             self._diversidad_por_generacion[int(generacion)] = dict(registro_div)
@@ -187,6 +143,7 @@ class RecolectorMetricasDEAP:
             max = float(registro["max"]),                      # peor fitness 
             tiempo_s = float(tiempo_s),
         )
+        self._ultima_eval_registrada = int(evaluaciones)
 
     # _serializa_valor convierte tipos numpy a tipos nativos de Python
     # def _serializa_valor(self, valor):
@@ -214,6 +171,25 @@ class RecolectorMetricasDEAP:
 
     def obtener_diversidad_por_generacion(self):
         return dict(sorted(self._diversidad_por_generacion.items(), key=lambda kv: kv[0]))
+
+    def anotar_rangos_generacion(self, rangos_generacion):
+        self._rangos_generacion = dict(sorted(dict(rangos_generacion).items(), key=lambda kv: kv[0]))
+
+    def anotar_diversidad_generacion(self, generacion, payload):
+        try:
+            gen = int(generacion)
+        except (TypeError, ValueError):
+            return
+        if not isinstance(payload, dict):
+            return
+
+        limpio = {}
+        if "div_dist_euclidea" in payload and payload["div_dist_euclidea"] is not None:
+            limpio["div_dist_euclidea"] = float(payload["div_dist_euclidea"])
+        if "div_dist_euclidea_normalizada" in payload and payload["div_dist_euclidea_normalizada"] is not None:
+            limpio["div_dist_euclidea_normalizada"] = float(payload["div_dist_euclidea_normalizada"])
+        if limpio:
+            self._diversidad_por_generacion[gen] = limpio
 
     # obtener_resumen_final devuelve un resumen de la ultima generaion
     # y algunos agregados utiles para analizar la ejecucion
@@ -254,19 +230,43 @@ class RecolectorMetricasDEAP:
             "resumen": resumen,
         }
 
-        ruta_logbook_csv = base / "logbook.csv"
+        identificador = None
+        if metadata_limpia:
+            algoritmo = str(metadata_limpia.get("algoritmo", "mh")).strip().lower()
+            problema = str(metadata_limpia.get("problema", "problema")).strip().lower()
+            if problema == "cec2017":
+                funcid = metadata_limpia.get("funcid")
+                dim = metadata_limpia.get("dim")
+                if funcid is not None and dim is not None:
+                    identificador = f"{algoritmo}_{problema}_f{int(funcid)}_d{int(dim)}"
+        if identificador is None:
+            identificador = "mh_resultados"
+
+        ruta_logbook_csv = base / f"resultados_{identificador}.csv"
         ruta_resumen_json = base / "resumen.json"
 
-        with ruta_logbook_csv.open("w", encoding="utf-8", newline="") as f_csv:
-            campos = list(self.logbook.header)
-            writer = csv.DictWriter(f_csv, fieldnames=campos, lineterminator="\n")
-            writer.writeheader()
-            writer.writerows(historial)
+        historial_enriquecido = []
+        for entrada in historial:
+            fila = dict(entrada)
+            gen = int(fila["generacion"])
+            rango = self._rangos_generacion.get(gen, {})
+            div = self._diversidad_por_generacion.get(gen, {})
+            fila["eval_id_inicio"] = rango.get("eval_id_inicio")
+            fila["eval_id_fin"] = rango.get("eval_id_fin")
+            fila["div_dist_euclidea"] = div.get("div_dist_euclidea")
+            fila["div_dist_euclidea_normalizada"] = div.get("div_dist_euclidea_normalizada")
+            historial_enriquecido.append(fila)
 
-        with ruta_resumen_json.open("w", encoding="utf-8") as f_resumen:
-            json.dump(payload_resumen, f_resumen, ensure_ascii=False, indent=2)
+        fieldnames = list(self.logbook.header) + [
+            "eval_id_inicio",
+            "eval_id_fin",
+            "div_dist_euclidea",
+            "div_dist_euclidea_normalizada",
+        ]
+        escribir_csv_dicts(ruta_logbook_csv, historial_enriquecido, fieldnames=fieldnames)
+        escribir_json(ruta_resumen_json, payload_resumen)
 
         return {
-            "logbook_csv": str(ruta_logbook_csv),
+            "resultados_csv": str(ruta_logbook_csv),
             "resumen_json": str(ruta_resumen_json),
         }

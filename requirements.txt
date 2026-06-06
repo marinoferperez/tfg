@@ -1,4 +1,4 @@
 numpy
-pyade
-deap
+git+https://github.com/xKuZz/pyade.git
 matplotlib
+xgboost

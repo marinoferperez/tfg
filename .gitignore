@@ -205,3 +205,71 @@ cython_debug/
 marimo/_static/
 marimo/_lsp/
 __marimo__/
+
+# ─── Proyecto TFG ───────────────────────────────────────────────────────────
+
+# PDFs de referencia bibliográfica (copyright)
+docs/*.pdf
+docs/tgs_anteriores/
+docs/muy_importante/
+
+# Resultados antiguos (formato previo al actual)
+results_age/
+results_de/
+
+# Archivos sueltos fuera de lugar
+metaheuristics/age/adapted/*.pdf
+
+# Resultados experimentales (73 GB de HDF5 y CSVs)
+results/
+
+# Datos temporales y humo
+tmp/
+
+# Datos CEC2017 (licencia restringida) y symlink
+cec2017real/
+input_data
+
+# Datos QAP
+data/qapdata/
+
+# macOS
+.DS_Store
+**/.DS_Store
+
+# Archivos HDF5 y datos binarios grandes
+*.h5
+*.hdf5
+
+# PDFs compilados (regenerables desde .tex)
+Memoria.pdf
+
+# Artefactos de compilación LaTeX
+*.aux
+*.log
+*.out
+*.toc
+*.lof
+*.lot
+*.fls
+*.fdb_latexmk
+*.synctex.gz
+*.blg
+*.bbl
+*.nav
+*.snm
+*.vrb
+memoria/tmp/
+
+# Informes generados
+informes/
+
+# Caché de matplotlib y fuentes
+.mplconfig/
+.cache/
+
+# Archivos de sesión de Claude Code (memoria personal del proyecto)
+.claude/
+
+# Excel de trabajo (los .csv y .tex en /memoria/tablas/ son suficientes)
+*.xlsx

@@ -1,0 +1,256 @@
+import numpy as np
+
+from metaheuristics.age.genetic_stationary_continuous import GeneticAlgorithmContinuo
+from metaheuristics.metrics.reinicio_elitista import (
+    ControlReinicioElitista,
+    seleccionar_indice_elitista,
+)
+
+class GeneticAlgorithmContinuoOnline(GeneticAlgorithmContinuo):
+    """
+    Variante online de AGE.
+
+    Mantiene la logica original del AGE estacionario:
+        - genera dos hijos;
+        - evalua los hijos que corresponda;
+        - escoge el mejor hijo evaluado;
+        - lo compara contra el peor individuo de la poblacion.
+
+    La unica diferencia es que, antes de gastar una evaluacion real en cada hijo, se consulta al controlador subrogado.
+    """
+
+    def _evaluar_individuo_real(self, problem, individuo, eval_id, generacion, dataset, controlador, evaluacion_filtrada_por_subrogado):
+        """
+        Evalua realmente un individuo y registra la muestra tanto en el dataset
+        offline como en el controlador online.
+        """
+        fit = float(problem.fitness(individuo))
+
+        if dataset is not None:
+            dataset.individuo_to_dataset(
+                eval_id=int(eval_id),
+                generacion=int(generacion),
+                x=np.asarray(individuo, dtype=float),
+                fitness=float(fit),
+            )
+
+        if evaluacion_filtrada_por_subrogado:
+            controlador.registrar_evaluacion_tras_subrogado(individuo, fit)
+        else:
+            controlador.registrar_evaluacion_directa(individuo, fit)
+
+        return fit
+
+    def optimize(self, limites, problem, controlador_subrogado, callback_metricas=None, dataset=None):
+        if controlador_subrogado is None:
+            raise ValueError("AGE online requiere un controlador_subrogado.")
+
+        limites = np.asarray(limites, dtype=float)
+        dim = limites.shape[0]
+        max_evals = int(self.max_evals if self.max_evals is not None else 10000 * dim)
+
+        self.eventos_reinicio_elitista = []
+        if self.reinicio_elitista:
+            self._control_reinicio_elitista = ControlReinicioElitista(
+                self.reinicio_elitista_ratio_estabilidad_diversidad,
+                max_evals=max_evals,
+                ratio_paciencia=self.reinicio_elitista_ratio_paciencia,
+                ventana_evaluaciones=self.reinicio_elitista_ventana_evaluaciones,
+            )
+        else:
+            self._control_reinicio_elitista = None
+
+        poblacion = self._generar_poblacion_uniforme(limites, self.tam_poblacion)
+
+        fitness_list = []
+        for ind in poblacion:
+            eval_id = controlador_subrogado.evals_reales + 1
+            fit = self._evaluar_individuo_real(
+                problem=problem,
+                individuo=ind,
+                eval_id=eval_id,
+                generacion=0,
+                dataset=dataset,
+                controlador=controlador_subrogado,
+                evaluacion_filtrada_por_subrogado=False,
+            )
+            fitness_list.append(fit)
+
+        # se calcula el fitness de la poblacion inicial.
+        fitness = np.asarray(fitness_list, dtype=float)
+        evals = controlador_subrogado.evals_reales
+
+        # callback (opcional) para registrar la poblacion inicial
+        if callback_metricas is not None:
+            callback_metricas(
+                generacion=0,
+                fitness=fitness.copy(),
+                evaluaciones=evals,
+                poblacion=poblacion.copy(),
+            )
+
+        generacion = 0
+
+        while evals < max_evals:
+            idx_p1 = self.torneo(fitness)
+            idx_p2 = self.torneo(fitness)
+            padre1 = poblacion[idx_p1]
+            padre2 = poblacion[idx_p2]
+
+            if self.rng.random() < self.prob_cruce:
+                hijo1, hijo2 = self.cruce_blx(padre1, padre2, limites)
+            else:
+                hijo1 = padre1.copy()
+                hijo2 = padre2.copy()
+
+            hijo1 = self.mutacion_gaussiana(hijo1, limites)
+            hijo2 = self.mutacion_gaussiana(hijo2, limites)
+
+            generacion += 1
+
+            peor_idx_inicial = int(np.argmax(fitness))
+            fitness_ref = float(fitness[peor_idx_inicial])
+            hijos_evaluados = []
+
+            for hijo in (hijo1, hijo2):
+                if evals >= max_evals:
+                    break
+
+                decision = controlador_subrogado.decidir_evaluacion(
+                    candidato=hijo,
+                    fitness_ref=fitness_ref,
+                    generacion=generacion,
+                )
+
+                if not decision.debe_evaluar:
+                    continue
+
+                eval_id = evals + 1
+                fit_hijo = self._evaluar_individuo_real(
+                    problem=problem,
+                    individuo=hijo,
+                    eval_id=eval_id,
+                    generacion=generacion,
+                    dataset=dataset,
+                    controlador=controlador_subrogado,
+                    evaluacion_filtrada_por_subrogado=decision.uso_subrogado,
+                )
+
+                evals = controlador_subrogado.evals_reales
+                hijos_evaluados.append((hijo, fit_hijo))
+
+            if not hijos_evaluados:
+                continue
+
+            mejor_hijo, mejor_fit = min(hijos_evaluados, key=lambda item: item[1])
+
+            peor_idx = int(np.argmax(fitness))
+            if mejor_fit < fitness[peor_idx]:
+                poblacion[peor_idx] = mejor_hijo
+                fitness[peor_idx] = mejor_fit
+
+            if callback_metricas is not None:
+                callback_metricas(
+                    generacion=generacion,
+                    fitness=fitness.copy(),
+                    evaluaciones=evals,
+                    poblacion=poblacion.copy(),
+                )
+
+            poblacion, fitness, evals, reiniciado = self._aplicar_reinicio_elitista_online(
+                poblacion=poblacion,
+                fitness=fitness,
+                limites=limites,
+                problem=problem,
+                evals=evals,
+                generacion=generacion,
+                max_evals=max_evals,
+                dataset=dataset,
+                controlador=controlador_subrogado,
+            )
+
+            if reiniciado and callback_metricas is not None:
+                callback_metricas(
+                    generacion=generacion,
+                    fitness=fitness.copy(),
+                    evaluaciones=evals,
+                    poblacion=poblacion.copy(),
+                    sobrescribir_ultima=True,
+                )
+
+        mejor_idx = int(np.argmin(fitness))
+        return poblacion[mejor_idx].copy(), float(fitness[mejor_idx])
+
+    def _aplicar_reinicio_elitista_online(self, poblacion, fitness, limites, problem, evals, generacion, max_evals, dataset, controlador):
+        """
+        Reinicio elitista para AGE online.
+
+        Los individuos nuevos generados por reinicio se evaluan siempre con la
+        funcion real. No se filtran con el subrogado porque la poblacion debe
+        quedar completamente valida tras el reinicio.
+        """
+        if self._control_reinicio_elitista is None:
+            return poblacion, fitness, evals, False
+
+        if not self._control_reinicio_elitista.debe_reiniciar(
+            fitness=fitness,
+            poblacion=poblacion,
+            evaluaciones=int(evals),
+            generacion=generacion,
+            bounds=limites,
+        ):
+            return poblacion, fitness, evals, False
+
+        diagnostico = self._control_reinicio_elitista.diagnostico_reinicio()
+
+        n_nuevos = int(self.tam_poblacion) - 1
+        evals_restantes = int(max_evals) - int(evals)
+        if n_nuevos <= 0 or evals_restantes < n_nuevos:
+            return poblacion, fitness, evals, False
+
+        elite_idx = seleccionar_indice_elitista(fitness)
+        elite = np.asarray(poblacion[elite_idx], dtype=float).copy()
+        elite_fit = float(fitness[elite_idx])
+
+        nueva_poblacion = np.empty_like(poblacion)
+        nuevo_fitness = np.empty_like(fitness)
+        nueva_poblacion[0] = elite
+        nuevo_fitness[0] = elite_fit
+
+        nuevos = self._generar_poblacion_uniforme(limites, n_nuevos)
+
+        for idx, individuo in enumerate(nuevos, start=1):
+            eval_id = controlador.evals_reales + 1
+            nueva_poblacion[idx] = individuo
+            nuevo_fitness[idx] = self._evaluar_individuo_real(
+                problem=problem,
+                individuo=individuo,
+                eval_id=eval_id,
+                generacion=generacion,
+                dataset=dataset,
+                controlador=controlador,
+                evaluacion_filtrada_por_subrogado=False,
+            )
+
+        evals_despues = controlador.evals_reales
+
+        self._control_reinicio_elitista.registrar_estado_post_reinicio(
+            fitness=nuevo_fitness,
+            evaluaciones=int(evals_despues),
+        )
+
+        evento = dict(diagnostico)
+        evento.update(
+            {
+                "generacion": int(generacion),
+                "evaluaciones_antes_reinicio": int(evals),
+                "evaluaciones_despues_reinicio": int(evals_despues),
+                "indice_individuo_preservado": int(elite_idx),
+                "fitness_preservado": float(elite_fit),
+                "mejor_fitness": float(elite_fit),
+            }
+        )
+        self.eventos_reinicio_elitista.append(evento)
+        controlador.registrar_reinicio()
+
+        return nueva_poblacion, nuevo_fitness, evals_despues, True

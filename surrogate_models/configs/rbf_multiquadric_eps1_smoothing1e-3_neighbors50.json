@@ -1,0 +1,7 @@
+{
+  "degree": -1,
+  "epsilon": 1.0,
+  "kernel": "multiquadric",
+  "neighbors": 50,
+  "smoothing": 0.001
+}

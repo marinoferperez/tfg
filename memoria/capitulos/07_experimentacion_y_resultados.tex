@@ -1,0 +1,682 @@
+\chapter{Experimentación y resultados}
+\label{chap:experimentacion}
+
+%% que resultados se obtienen
+
+En este capítulo se presentan los resultados obtenidos a partir del procedimiento experimental descrito en el Capítulo~\ref{chap:metodologia_experimental}. El análisis se organiza de forma progresiva, comenzando por el comportamiento de las metaheurísticas consideradas y avanzando posteriormente hacia la evaluación de los modelos subrogados y su integración en el proceso de optimización.
+
+En primer lugar, se analiza el comportamiento de AGE, DE y SHADE con el fin de identificar posibles fases de estancamiento y valorar el efecto del reinicio elitista sobre las trayectorias generadas. A continuación, se comparan las estrategias \textit{offline} de evaluación de modelos subrogados, se seleccionan las técnicas más prometedoras y se realiza su ajuste de hiperparámetros. Finalmente, se estudia la integración \textit{online} del modelo seleccionado dentro del bucle de optimización.
+
+
+% ============================================================
+\section{Estancamiento de las metaheurísticas y evaluación del reinicio elitista}
+\label{sec:resultados_reinicio}
+% ============================================================
+
+En esta primera parte del análisis se estudia el comportamiento de AGE, DE y SHADE en ausencia de reinicio, con el objetivo de comprobar si sus trayectorias mantienen una dinámica suficientemente informativa durante todo el presupuesto de evaluaciones. Una vez identificado el problema de estancamiento, se evalúa el criterio de reinicio definido en el Capítulo~\ref{chap:algo_tecnicas_ref}.
+
+Este análisis tiene un papel auxiliar dentro del trabajo: el objetivo principal no es optimizar el criterio de reinicio en sí mismo, sino evitar que las trayectorias utilizadas posteriormente para la evaluación de subrogados queden dominadas por fases largas de convergencia prematura. Por tanto, la finalidad no es comparar las metaheurísticas entre sí, sino determinar si cada una de ellas necesita un mecanismo de reactivación y qué ventana de estancamiento resulta aceptable para generar datos más útiles sin deteriorar de forma relevante la calidad final.
+
+
+% ------------------------------------------------------------
+\subsection{Motivación del reinicio}
+\label{subsec:motivacion_reinicio}
+% ------------------------------------------------------------
+
+
+En ausencia de reinicio, la dinámica de cada metaheurística determina por completo la distribución de las muestras generadas. Cuando la búsqueda deja de producir mejoras relevantes antes de agotar dicho presupuesto, las evaluaciones posteriores tienden a concentrarse en torno a valores de \textit{fitness} muy similares, lo que reduce la variabilidad disponible para entrenar y validar modelos subrogados.
+
+La Figura~\ref{fig:convergencia_sin_reinicio} muestra las curvas de convergencia promedio para tres funciones con características de paisaje diferentes. En \(f_1\), los algoritmos alcanzan rápidamente una zona estable; en \(f_{10}\), el comportamiento es más gradual, pero también aparecen tramos prolongados con poca mejora; finalmente, en \(f_{29}\), las curvas presentan una caída inicial casi instantánea seguida de una evolución prácticamente plana. Con estos ejemplos se verifica como gran parte relevante de la trayectoria generada por una metaheurística puede quedar dominada por fases de mejora muy reducida o incluso inexistentes.
+
+La consecuencia directa de este estancamiento sobre la calidad de los datos generados se aprecia al analizar la distribución del error por bloques temporales. La Figura~\ref{fig:bloques_sin_reinicio} divide el presupuesto en cinco bloques del 20\% y muestra la distribución del error logarítmico en cada uno de ellos para una función representativa.
+
+Como se observa en la figura, los primeros bloques presentan una distribución amplia que cubre distintas regiones del espacio de búsqueda. Sin embargo, a medida que aumenta el número de evaluaciones, las muestras se concentran progresivamente en un rango estrecho de valores. Desde la perspectiva del aprendizaje subrogado, estas muestras tardías son menos discriminativas, ya que el modelo recibe evaluaciones muy similares entre sí y dispone de menos información para distinguir soluciones de distinta calidad.
+
+\begin{figure}[H]
+    \centering
+    \begin{subfigure}[t]{0.8\textwidth}
+        \centering
+        \includegraphics[width=\textwidth]{figuras/plots_sin_reinicio/curva_convergencia_cec2017_f1.png}
+        \caption{\(f_1\)}
+        \label{fig:convergencia_sin_reinicio_f1}
+    \end{subfigure}
+    \hfill
+    \begin{subfigure}[t]{0.8\textwidth}
+        \centering
+        \includegraphics[width=\textwidth]{figuras/plots_sin_reinicio/curva_convergencia_cec2017_f10.png}
+        \caption{\(f_{10}\)}
+        \label{fig:convergencia_sin_reinicio_f10}
+    \end{subfigure}
+
+    \vspace{0.4cm}
+
+    \begin{subfigure}[t]{0.8\textwidth}
+        \centering
+        \includegraphics[width=\textwidth]{figuras/plots_sin_reinicio/curva_convergencia_cec2017_f29.png}
+        \caption{\(f_{29}\)}
+        \label{fig:convergencia_sin_reinicio_f29}
+    \end{subfigure}
+    \caption{Curvas de convergencia promedio sin reinicio en tres funciones representativas de CEC2017.}
+    \label{fig:convergencia_sin_reinicio}
+\end{figure}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=1.0\textwidth]{figuras/plots_sin_reinicio/por_run/f12/age/sin_reinicio/histograma_fitness_fases_cec2017_f12_s41_sin_reinicio_age.png}
+    \caption{Convergencia progresiva del error evaluada por bloques de la trayectoria: AGE sobre \(f_{12}\) (semilla 41).}
+    \label{fig:bloques_sin_reinicio}
+\end{figure}
+
+
+Para evitar que las trayectorias queden dominadas por estas fases de estancamiento, se incorpora el criterio de reinicio elitista descrito en el Capítulo~\ref{chap:algo_tecnicas_ref}. A continuación, se evalúan las distintas configuraciones propuestas en el Capítulo~\ref{chap:metodologia_experimental} de dicho criterio con el objetivo de identificar, para cada metaheurística, aquella que mejor equilibre la reactivación de la búsqueda con la preservación de la calidad final de las soluciones.
+
+
+% ------------------------------------------------------------
+\subsection{Evaluación de las configuraciones de reinicio}
+\label{subsec:evaluacion_reinicio}
+% ------------------------------------------------------------
+
+Una vez visualizado el problema del estancamiento, el objetivo no es establecer una clasificación global entre AGE, DE y SHADE, sino determinar si alguna configuración con reinicio resulta adecuada para generar las trayectorias que utilizarán posteriormente los modelos subrogados en las estrategias \textit{offline} y \textit{online}. En particular, se busca una configuración que reduzca el estancamiento sin introducir deterioros importantes en la calidad final.
+
+Como punto de partida, se analiza si es posible seleccionar una única ventana de estancamiento común para las tres metaheurísticas. Adoptar una configuración global reduciría el riesgo de ajustar el criterio de reinicio de forma específica a un algoritmo concreto o al propio banco de problemas CEC2017. Para ello, se comparan las configuraciones definidas en el
+Capítulo~\ref{chap:metodologia_experimental}: ventanas del \(1\%\), \(3\%\),
+\(5\%\), \(7\%\) y \(10\%\) del presupuesto total de evaluaciones, junto con la versión sin reinicio.
+
+Para cada metaheurística se consideran cuatro configuraciones:
+
+\begin{table}[H]
+    \centering
+    \begin{tabular}{llc}
+        \toprule
+        \textbf{Configuración} & \textbf{Descripción}       & \textbf{Ventana de estancamiento} \\
+        \midrule
+        ALG                    & Sin reinicio               & --                                \\
+        ALG-1                  & Reinicio con \(\rho=0.01\) & 1.000 evaluaciones                \\
+        ALG-3                  & Reinicio con \(\rho=0.03\) & 3.000 evaluaciones                \\
+        ALG-5                  & Reinicio con \(\rho=0.05\) & 5.000 evaluaciones                \\
+        ALG-7                  & Reinicio con \(\rho=0.07\) & 7.000 evaluaciones                \\
+        ALG-10                 & Reinicio con \(\rho=0.10\) & 10.000 evaluaciones               \\
+        \bottomrule
+    \end{tabular}
+    \caption[Configuraciones genéricas de reinicio consideradas para cada metaheurística.]{Configuraciones genéricas de reinicio consideradas para cada metaheurística, donde \textbf{ALG} representa AGE, DE o SHADE.}
+    \label{tab:configuraciones_reinicio_genericas}
+\end{table}
+
+Antes de analizar el impacto del reinicio, conviene evaluar empíricamente la agresividad del mecanismo. La Figura~\ref{fig:barplot_reinicios} muestra el número medio de reinicios activados por ejecución para cada configuración y metaheurística. Como era esperable, las ventanas de estancamiento menores provocan una activación más frecuente del mecanismo, por lo que esta información ayuda a interpretar los resultados posteriores sin sustituir a las comparaciones de calidad final.
+
+\begin{figure}[htbp]
+    \centering
+    \includegraphics[width=0.9\textwidth]{figuras/barplot_reinicios_por_ventana_estancamiento.png}
+    \caption{Número medio de reinicios elitistas por ejecución según la ventana de estancamiento \(\rho\).}
+    \label{fig:barplot_reinicios}
+\end{figure}
+
+La selección final se apoya en las comparaciones de rendimiento generadas con
+\textbf{TACOLAB}. Siguiendo el criterio metodológico definido en la
+Sección~\ref{subsec:criterio_comparacion_modelos}, se prioriza el ranking medio calculado por TACOLAB, que permite resumir la posición relativa de cada
+configuración sobre funciones con escalas de error heterogéneas. Las medias
+del error final, recogidas en el Apéndice~\ref{ap:tablas_tacolab_reinicio}, se utilizan como apoyo complementario para comprobar que la configuración
+seleccionada no introduce deterioros relevantes frente a la versión sin
+reinicio.
+
+Para estudiar esta evolución a lo largo de la ejecución, las Tablas~\ref{tab:ranking_reinicio_age}, \ref{tab:ranking_reinicio_de} y \ref{tab:ranking_reinicio_shade} muestran los rankings medios en distintos hitos del presupuesto de evaluaciones, siendo el 100\% el de mayor interés.
+
+\begin{table}[H]
+    \centering
+    \footnotesize
+    \setlength{\tabcolsep}{6pt}
+    \renewcommand{\arraystretch}{0.95}
+    \input{tablas/tacolab/age_tacolab_ranking.tex}
+    \caption{Ranking medio de TACOLAB para AGE en distintos hitos del presupuesto de evaluaciones.}
+    \label{tab:ranking_reinicio_age}
+\end{table}
+
+\begin{table}[H]
+    \centering
+    \footnotesize
+    \setlength{\tabcolsep}{6pt}
+    \renewcommand{\arraystretch}{0.95}
+    \input{tablas/tacolab/de_tacolab_ranking.tex}
+    \caption{Ranking medio de TACOLAB para DE en distintos hitos del presupuesto de evaluaciones.}
+    \label{tab:ranking_reinicio_de}
+\end{table}
+
+\begin{table}[H]
+    \centering
+    \footnotesize
+    \setlength{\tabcolsep}{6pt}
+    \renewcommand{\arraystretch}{0.95}
+    \input{tablas/tacolab/shade_tacolab_ranking.tex}
+    \caption{Ranking medio de TACOLAB para SHADE en distintos hitos del presupuesto de evaluaciones.}
+    \label{tab:ranking_reinicio_shade}
+\end{table}
+
+El análisis de estos datos revela que el impacto del reinicio y la ventana evaluada no es uniforme entre los distintos algoritmos. Para aquellas ventanas muy pequeñas, correspondientes al 1\% y 3\% del presupuesto, se produce un escenario de reactivación muy frecuente donde, para un algoritmo como AGE, esta regeneración constante resulta adecuada, siendo AGE-1 la clara ganadora en la comparación por media final, con el mejor resultado en 25 de las 30 funciones y obteniendo el mejor ranking en todos los hitos. En cambio, este mismo patrón no se reproduce en DE ni en SHADE (véase en la Figura~\ref{fig:reinicio_shade_f10}). Las configuraciones con ventanas del 1\% se colocan en los peores puestos desde el inicio al ser ser metaheurísticas que requieren un mayor margen de evaluaciones para explotar la información acumulada en la población antes de que resulte conveniente reactivar la búsqueda (véase en la Figura~\ref{fig:convergencia_sin_reinicio}).
+
+A medida que aumenta la ventana de estancamiento, el comportamiento cambia y las mejoras y empeoramientos vistos en las ventanas anteriores se pronuncian aún más. En DE y SHADE, las ventanas largas permiten preservar durante más tiempo la dinámica de búsqueda y conducen a los mejores rankings finales, especialmente con la configuración del 10\%. Por el contrario, en AGE una ventana tan amplia ralentiza su capacidad de respuesta, donde AGE-10 obtiene incluso un peor ranking final que la variante sin reinicio. Por tanto, no existe una ventana óptima común para las tres metaheurísticas ya que la configuración adecuada depende de la dinámica de búsqueda propia de cada algoritmo.
+
+Esta clara diferencia de necesidades se refleja visualmente en la Figura~\ref{fig:rendimiento_agregado_malla}, que confirma el análisis extraído de las tablas comparativas: la curva de AGE se deteriora a medida que la ventana se hace más grande, mientras que las trayectorias de DE y SHADE mejoran progresivamente hasta alcanzar su punto óptimo en los valores más altos.
+
+\begin{figure}[htbp]
+    \centering
+    \includegraphics[width=0.95\textwidth]{figuras/rendimiento_por_ventana_estancamiento.png}
+    \caption{Evolución del rendimiento agregado en función del tamaño de la ventana de estancamiento \(\rho\).}
+    \label{fig:rendimiento_agregado_malla}
+\end{figure}
+
+\begin{figure}[htbp]
+    \centering
+    \begin{subfigure}{0.95\textwidth}
+        \centering
+        \includegraphics[width=\textwidth]{figuras/reinicio/curva_convergencia_reinicio_cec2017_f10_shade.png}
+        \caption{Convergencia}
+    \end{subfigure}
+    \hfill
+    \begin{subfigure}{0.95\textwidth}
+        \centering
+        \includegraphics[width=\textwidth]{figuras/reinicio/curva_diversidad_reinicio_cec2017_f10_shade.png}
+        \caption{Diversidad}
+    \end{subfigure}
+    \caption{Ejemplo de reinicio en SHADE sobre \(f_{10}\) con \(\rho=0.01\).}
+    \label{fig:reinicio_shade_f10}
+\end{figure}
+
+
+
+% ============================================================
+\subsection{Conclusiones sobre la reactivación de la búsqueda}
+\label{subsec:conclusiones_reinicio_parcial}
+% ============================================================
+
+%% deberiamos decidir en esta si se usa ventana común o específica, justificandolo con los resultados.
+
+%% si finalmente elegimos ventanas distintas, tenemos que explicarlo como una excepcion motivada por los datos, no como punto de partida.
+
+A partir del análisis anterior, los resultados dejan claro que es inviable utilizar una única ventana de estancamiento común para todas las metaheurísticas.
+
+Por tanto, las configuraciones más adecuadas para cada algoritmo son:
+
+\begin{table}[H]
+    \centering
+    \small
+    \begin{tabular}{lc}
+        \toprule
+        \textbf{Algoritmo} & \textbf{Configuración} \\
+        \midrule
+        AGE                & AGE-1                  \\
+        DE                 & DE-10                  \\
+        SHADE              & SHADE-10               \\
+        \bottomrule
+    \end{tabular}
+    \caption{Configuraciones seleccionadas para la generación de trayectorias en la fase de subrogados.}
+    \label{tab:configuraciones_reinicio_seleccionadas}
+\end{table}
+
+Con las configuraciones fijadas, la siguiente fase evalúa las estrategias de entrenamiento \textit{offline} de los modelos subrogados sobre trayectorias menos dominadas por estancamiento y, por tanto, más adecuadas para analizar la capacidad predictiva de los modelos.
+
+\section{Estudio offline: técnicas \textit{subrogadas} y configuración de entrenamiento}
+\label{sec:estudio_offline}
+
+% Siguiendo el protocolo descrito en la
+% Sección~\ref{subsec:funciones_cribado_offline}, la comparativa inicial se
+% realiza sobre el subconjunto representativo de funciones seleccionado para
+% la fase de cribado.
+
+Esta sección tiene como objetivo determinar empíricamente qué combinación de modelo subrogado y estrategia de entrenamiento ofrece el mejor compromiso entre fidelidad ordinal, precisión métrica y eficiencia computacional. Para ello, se comparan de forma \textit{offline} las técnicas consideradas y las estructuras de aprendizaje definidas en el Capítulo \ref{chap:algo_tecnicas_ref}, utilizando para el entrenamiento las trayectorias históricas generadas por las configuraciones finales de las metaheurísticas seleccionadas.
+
+Siguiendo el protocolo definido en la
+Subsección~\ref{subsec:funciones_cribado_offline}, la comparación inicial de modelos se realiza sobre el subconjunto representativo de funciones seleccionado para el cribado \textit{offline}, manteniendo las \(51\) semillas empleadas en la generación de trayectorias.
+
+\subsection{Viabilidad Computacional y Estrategia Global}
+\label{subsec:viabilidad_estrategia_global}
+
+De cara a la futura integración \textit{online}, el coste computacional es muy relevante, especialmente el \textbf{tiempo de entrenamiento y predicción}. En este sentido, al llevar a cabo la ejecución de los distintos modelos de Aprendizaje Automático aplicados como técnicas de subrogado, el modelo \textit{Support Vector Regression} (SVR) evidenció limitaciones significativas dependiendo de la estrategia de entrenamiento empleada.
+
+Mientras que el volumen de datos se mantiene constante en bloques fijos del 20 \% del presupuesto para la estrategia no acumulativa, mantener un historial de muestras cuyo tamaño incrementa en cada paso cronológico como conjunto de entrenamiento descarta a SVR de la estrategia acumulativa. Al escalar su complejidad de forma no lineal ($\mathcal{O}(N^3)$) respecto al número de muestras, el tiempo de ejecución se volvió desconsiderado para cualquier función (vease en la Figura \ref{fig:viabilidad_svr_f4}).
+
+\begin{figure}[htbp]
+    \centering
+    \includegraphics[width=0.9\textwidth]{figuras/surrogates_offline/viabilidad_svr_tiempo_entrenamiento_f4.png}
+    \caption{Evolución del tiempo medio de entrenamiento de SVR sobre \(f_4\) para las estrategias acumulativa y no acumulativa.}
+    \label{fig:viabilidad_svr_f4}
+\end{figure}
+
+Para garantizar una comparación justa, los resultados globales de ambas estrategias presentados en esta sección se han computado agregando de forma exclusiva los modelos que finalizaron exitosamente ambas configuraciones.
+
+\input{tablas/resumen_global_por_estrategia_sin_svr.tex}
+
+Los resultados agregados de la Tabla~\ref{tab:comparativa_estrategias_offline} muestran una ventaja clara de la estrategia no acumulativa frente a la acumulativa. En concreto, la estrategia no acumulativa obtiene un valor medio de Spearman superior y logra reducir casi a la mitad tanto los errores normalizados como los tiempos de cómputo.
+
+Este comportamiento confirma los riesgos de mezclar muestras procedentes de fases anteriores, ya que aumenta el tamaño del conjunto de entrenamiento sin garantizar que aporten información útil para predecir el bloque futuro inmediato.
+
+Para comprobar que esta conclusión no se debe únicamente al comportamiento
+agregado de la tabla, la Figura~\ref{fig:evolucion_spearman_bloques_offline}
+muestra la evolución del coeficiente de Spearman a lo largo de los bloques
+temporales evaluados.
+
+\begin{figure}[htbp]
+    \centering
+    \includegraphics[width=0.8\textwidth]{figuras/surrogates_offline/evolucion_spearman_por_bloque_sin_svr.png}
+    \caption[Evolución de la correlación de Spearman media por bloque temporal para las estrategias acumulativa y no acumulativa.]{Evolución de la correlación de Spearman media por bloque temporal para las estrategias acumulativa y no acumulativa, excluyendo SVR por no completar la evaluación acumulativa.}
+    \label{fig:evolucion_spearman_bloques_offline}
+\end{figure}
+
+La Figura~\ref{fig:evolucion_spearman_bloques_offline} confirma que la ventaja de la estrategia no acumulativa no procede de un único bloque temporal. En el primer bloque ambas estrategias parten de valores prácticamente idénticos, ya que el conjunto de entrenamiento disponible es equivalente. Sin embargo, a partir del segundo bloque la estrategia no acumulativa obtiene de forma consistente valores superiores de Spearman. Esta diferencia se mantiene hasta los bloques finales,
+lo que indica que la ventaja observada en la tabla agregada no responde a un
+comportamiento puntual, sino a una tendencia sostenida durante la evaluación.
+
+Por tanto, el \textbf{enfoque no acumulativo} es la mejor opción al aislar al modelo de la influencia negativa del histórico y permitir que se concentre exclusivamente en la región temporal más reciente de la búsqueda. En consecuencia, los análisis posteriores se centran en la estrategia no acumulativa como protocolo de entrenamiento \textit{offline} de referencia.
+
+\subsection{Competición de Modelos y Evolución por Bloques}
+\label{subsec:comparacion_modelos}
+
+Tras justificar la estrategia no acumulativa como protocolo de evaluación ideal, este apartado profundiza en el comportamiento individual de cada modelo a lo largo de la optimización, reincorporando al modelo SVR en la comparativa.
+
+% La Figura~\ref{fig:evolucion_spearman_modelos_no_acumulativo} desglosa la evolución del coeficiente de Spearman para cada modelo bajo el esquema no acumulativo. Cada punto representa una evaluación temporal adelantada: el modelo se entrena con el último bloque disponible y se valida sobre el bloque inmediatamente posterior. Así, el punto situado en la cota del 60\% de presupuesto usado para entrenamiento corresponde al modelo ajustado con el tramo 40--60\% y validado sobre el bloque futuro 60--80\%.
+
+La Figura~\ref{fig:evolucion_spearman_modelos_no_acumulativo} muestra cómo cambia la capacidad de ordenación de cada modelo conforme avanza la trayectoria. El primer punto corresponde al entrenamiento con el bloque inicial 0--20\% y la validación sobre el bloque 20--40\%, por lo que representa la primera situación en la que podría utilizarse un subrogado tras una fase inicial de muestreo. Los puntos posteriores permiten observar si esa capacidad de ordenación se mantiene, mejora o se degrada conforme la búsqueda avanza hacia regiones más concretas del espacio.
+
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=1.0\textwidth]{figuras/surrogates_offline/evolucion_spearman_modelos_no_acumulativo.png}
+    \caption[Evolución de la correlación de Spearman media por bloques temporales bajo la estrategia no acumulativa.]{Evolución de la correlación de Spearman media por bloques temporales bajo la estrategia no acumulativa. Cada punto se obtiene entrenando con el bloque inmediatamente anterior al bloque evaluado.}
+    \label{fig:evolucion_spearman_modelos_no_acumulativo}
+\end{figure}
+
+Desde esta perspectiva temporal se observa una separación clara entre modelos. RSM parte con el mejor comportamiento desde el primer bloque y mantiene valores elevados durante toda la evaluación. RBF, en cambio, comienza con una correlación menor, pero mejora de forma marcada al pasar al bloque 40--60\% y, desde ese momento, se mantiene muy próximo a RSM. Esta evolución sugiere que RBF necesita trayectorias algo más estructuradas para explotar mejor la información local, mientras que RSM resulta más competitivo desde fases tempranas.
+
+El resto de modelos también mejora respecto al primer bloque, pero su evolución se estabiliza en niveles claramente inferiores, destacando SVR, MLP o Random Forest. Por tanto, la figura no solo permite identificar qué modelos alcanzan mejores valores finales, sino también en qué momento de la trayectoria empiezan a ser útiles como aproximadores subrogados.
+
+Para completar esta comparación y dotar de rigor cuantitativo las observaciones, la Tabla~\ref{tab:comparativa_modelos_bloques_informativos} incorpora las métricas agregadas de error y coste computacional definidas en el Capítulo~\ref{chap:metodologia_experimental}.
+
+\input{tablas/comparativa_modelos_offline}
+
+Al considerar estas métricas adicionales, la comparación entre RSM y RBF queda más equilibrada, aunque siguen siendo las alternativas más competitivas del conjunto de modelos evaluados. RSM mantiene una mayor capacidad de ordenación en la mayoría de bloques y presenta un tiempo de predicción muy reducido, pero su error normalizado es considerablemente más elevado. RBF, por su parte, obtiene un error menor y un tiempo de entrenamiento bajo, aunque su coste de predicción es superior. Por tanto, ninguno de los dos modelos domina al otro en todas las métricas, lo que justifica mantener ambos como candidatos para las siguientes fases experimentales.
+
+La viabilidad del resto de regresores se ve limitada por no satisfacer simultáneamente los criterios descritos en el capítulo anterior. Modelos como SVR ($1.38$~s), MLP ($1.56$~s) y Random Forest ($1.84$~s) mejoran conforme avanza la búsqueda, pero no alcanzan los valores de Spearman de RSM y RBF y requieren tiempos de entrenamiento muy altos. En cambio, LASSO y los modelos de \textit{boosting} presentan costes más contenidos, pero su capacidad para preservar el orden relativo entre soluciones resulta insuficiente.
+
+En consecuencia, tras validar empíricamente la ventaja de la estrategia no
+acumulativa, la integración \textit{online} se planteará siguiendo una lógica de \textbf{ventana deslizante}, utilizando la información más reciente de la trayectoria para entrenar el subrogado. Los valores obtenidos en el bloque 20--40\% muestran que el tramo inicial de calentamiento \(0\)--\(20\%\) ya permite construir un primer modelo con cierta capacidad de ordenación, especialmente en el caso de \textbf{RSM}. Sin embargo, la comparación conjunta de Spearman, error normalizado y coste computacional no permite descartar aún a \textbf{RBF}, que muestra un comportamiento más equilibrado en varias de las métricas agregadas.
+
+Por tanto, la fase de cribado reduce la comparativa a dos candidatos
+principales, \textbf{RSM} y \textbf{RBF}. El siguiente paso consiste en ajustar sus hiperparámetros para comprobar si alguno de ellos ofrece una ventaja más clara antes de abordar la integración \textit{online}.
+
+\subsection{Ajuste Fino de Hiperparámetros}
+
+El ajuste fino se plantea como una comparación controlada entre las
+configuraciones candidatas de \textbf{RBF} y \textbf{RSM}.
+
+Siguiendo el protocolo descrito en la Sección~\ref{sec:protocolo_ajuste_hiperparametros}, las configuraciones candidatas se comparan mediante \textbf{validación interna} dentro del propio bloque de entrenamiento y se evalúan posteriormente sobre el bloque temporal inmediatamente posterior.
+
+Dado que el coste de ambos modelos no es equivalente, el número de semillas
+empleado en el ajuste no se fija de forma uniforme. Como muestra la
+Tabla~\ref{tab:comparativa_modelos_bloques_informativos}, \textbf{RSM} presenta un tiempo medio de predicción muy reducido, por lo que su espacio de búsqueda se evalúa utilizando las \(51\) semillas disponibles. En cambio, \textbf{RBF} mantiene un tiempo de entrenamiento bajo, pero su tiempo medio de predicción es bastante superior. Por este motivo, su ajuste se realiza sobre un subconjunto fijo de \(10\) semillas, evitando que la exploración de hiperparámetros quede dominada por el coste de predicción.
+
+Los valores concretos del espacio de búsqueda para ambos modelos se recogen en la Tabla~\ref{tab:grid_hiperparametros_rbf_rsm}, evaluando 36 configuraciones para RBF y 3 para RSM en cada validación interna.
+
+\begin{table}[htbp]
+    \centering
+    \small
+    \setlength{\tabcolsep}{4pt}
+    \begin{tabular}{lll}
+        \toprule
+        \textbf{Modelo} & \textbf{Hiperparámetro} & \textbf{Valores}       \\
+        \midrule
+        RBF             & kernel                  & multiquadric, gaussian \\
+        RBF             & epsilon                 & 0.1, 1.0, 10.0         \\
+        RBF             & smoothing               & $10^{-3}$, $10^{-2}$   \\
+        RBF             & vecinos                 & 25, 50, 100            \\
+        RBF             & degree                  & -1                     \\
+        RSM             & degree                  & 1, 2, 3                \\
+        \bottomrule
+    \end{tabular}
+    \caption{Espacio de búsqueda utilizado en el ajuste fino de hiperparámetros.}
+    \label{tab:grid_hiperparametros_rbf_rsm}
+\end{table}
+
+
+La Tabla~\ref{tab:ajuste_interno_rsm} y la Tabla~\ref{tab:ajuste_interno_rbf} resumen las configuraciones más relevantes. En el caso de \textbf{RSM} se muestran las \textbf{tres configuraciones} evaluadas mientras que, para \textbf{RBF}, debido a un espacio de búsqueda mayor, se recogen las \textbf{cinco mejores configuraciones} según Spearman. Esta selección permite observar si la configuración con mayor correlación ordinal resulta también adecuada al considerar el error normalizado y el coste computacional.
+
+\begin{table}[H]
+    \centering
+    \small
+    \begin{tabular}{l|ccccc}
+        \toprule
+        \textbf{Grado} & \textbf{Spearman} & \textbf{nRMSE}   & \textbf{nMAE}    & \textbf{Entren. (s)} & \textbf{Pred. (s)} \\
+        \midrule
+        1              & 0.1010            & 102437.7634      & 102411.6769      & \textbf{0.0041}      & \textbf{0.0003}    \\
+        2              & 0.5171            & \textbf{37.6751} & \textbf{15.8988} & 0.0210               & 0.0013             \\
+        3              & \textbf{0.5397}   & 12806.1889       & 3726.0165        & 0.1217               & 0.0036             \\
+        \bottomrule
+    \end{tabular}
+    \caption{Resultados de validación interna para las configuraciones evaluadas de RSM.}
+    \label{tab:ajuste_interno_rsm}
+\end{table}
+
+\begin{table}[H]
+    \centering
+    \small
+    \setlength{\tabcolsep}{4pt}
+    \begin{adjustbox}{max width=\textwidth}
+        \begin{tabular}{ll|rrrrr}
+            \toprule
+            \textbf{Smoothing} & \textbf{Vecinos} & \textbf{Spearman} & \textbf{nRMSE}   & \textbf{nMAE}   & \textbf{Entren. (s)} & \textbf{Pred. (s)} \\
+            \midrule
+            \(10^{-3}\)        & 100              & \textbf{0.5060}   & \textbf{31.0542} & \textbf{5.6335} & 0.0030               & 0.4034             \\
+            \(10^{-2}\)        & 25               & 0.5032            & 189.0826         & 165.9680        & 0.0030               & \textbf{0.1654}    \\
+            \(10^{-3}\)        & 50               & 0.5024            & 33.3857          & 9.6081          & 0.0030               & 0.2395             \\
+            \(10^{-3}\)        & 25               & 0.5002            & 39.9942          & 17.7802         & 0.0030               & 0.1660             \\
+            \(10^{-2}\)        & 50               & 0.4971            & 108.0347         & 83.7609         & 0.0030               & 0.2390             \\
+            \bottomrule
+        \end{tabular}
+    \end{adjustbox}
+    \caption[Cinco mejores configuraciones de RBF según Spearman interno.]{Cinco mejores configuraciones de RBF según Spearman interno. En todas ellas se utiliza \(\text{kernel}=\textit{multiquadric}\), \(\epsilon=1.0\) y \(\text{degree}=-1\).}
+    \label{tab:ajuste_interno_rbf}
+\end{table}
+
+Los resultados muestran que la configuración con mayor Spearman obtenido en la validación interna no siempre representa la opción más equilibrada para una integración \textit{online}. En \textbf{RBF}, la configuración con \(100\) vecinos obtiene el \textbf{mejor Spearman} y también los \textbf{mejores valores de error} entre las configuraciones mostradas. Sin embargo, la variante con \(50\) vecinos y el mismo núcleo \textit{multiquadric} mantiene un comportamiento prácticamente equivalente y un \textbf{tiempo de predicción claramente inferior}.
+
+En \textbf{RSM}, la configuración con grado \(3\) obtiene el \textbf{mayor Spearman}, pero presenta errores normalizados demasiado elevados, al igual que con grado \(1\), y un mayor tiempo de entrenamiento. Por ello, aunque reduce levemente la capacidad de ordenación, el grado \(2\) muestra un compromiso más sólido entre error, Spearman y coste computacional.
+
+
+Por tanto, aplicando el criterio definido en la Subsección~\ref{subsec:criterio_comparacion_modelos}, no se selecciona la configuración con mayor Spearman, sino aquella que ofrece un compromiso más adecuado entre capacidad de ordenación y coste computacional, utilizando el error normalizado como métricas secundarias:
+
+\begin{table}[H]
+    \centering
+    \small
+    \begin{adjustbox}{max width=\textwidth}
+        \begin{tabular}{ll}
+            \toprule
+            \textbf{Modelo} & \textbf{Configuración seleccionada}                                                                             \\
+            \midrule
+            RSM             & degree \(=2\)                                                                                                   \\
+            RBF             & kernel \textit{multiquadric}, \(\epsilon=1.0\), \textit{smoothing} \(=10^{-3}\), \(50\) vecinos, degree \(=-1\) \\
+            \bottomrule
+        \end{tabular}
+    \end{adjustbox}
+    \caption{Configuraciones seleccionadas tras el ajuste fino de hiperparámetros.}
+    \label{tab:configuraciones_finales_ajuste_fino}
+\end{table}
+
+Para cerrar el ajuste de hiperparámetros, la Tabla~\ref{tab:comparativa_defecto_ajustado} compara las configuraciones seleccionadas frente a las iniciales empleadas en el cribado de modelos bajo las mismas condiciones.
+
+Como la configuración final para RSM se corresponde con la misma definida en la Tabla \ref{tab:grid_hiperparametros_rbf_rsm}, se muestra únicamente RBF:
+
+\begin{table}[H]
+    \centering
+    \small
+    \setlength{\tabcolsep}{4pt}
+    \begin{adjustbox}{max width=\textwidth}
+        \begin{tabular}{llrrrrr}
+            \toprule
+            \textbf{Modelo} & \textbf{Configuración} & \textbf{Spearman} & \textbf{nRMSE}   & \textbf{nMAE}   & \textbf{Entren. (s)} & \textbf{Pred. (s)} \\
+            \midrule
+            RBF             & Inicial                & 0.4771            & \textbf{22.1669} & \textbf{2.9463} & 0.0045               & 0.4570             \\
+            \midrule
+            RBF             & Ajustada               & \textbf{0.5288}   & 29.8760          & 6.0312          & \textbf{0.0035}      & \textbf{0.3415}    \\
+            \bottomrule
+        \end{tabular}
+    \end{adjustbox}
+    \caption[Comparación agregada entre la configuración inicial y la seleccionada de RBF tras el ajuste de hiperparámetros] {Comparación agregada entre la configuración inicial y la seleccionada de RBF tras el ajuste de hiperparámetros sobre las funciones utilizadas en el cribado \textit{offline}.}
+    \label{tab:comparativa_defecto_ajustado}
+\end{table}
+
+La versión ajustada confirma la mejora de las propiedades relevantes para la integración \textit{online}, a pesar de un incremento de los errores normalizados. El siguiente paso consiste en comprobar si este comportamiento es generalizado o sesgado al subconjunto de funciones evaluadoz.
+
+\section{Resultados de los modelos ajustados}
+
+Con las configuraciones fijadas, se comprueba si el comportamiento observado se mantiene al ampliar el conjunto de evaluación.
+
+La Tabla~\ref{tab:comparativa_configuraciones_ajustadas} recoge los resultados agregados obtenidos por RSM y RBF tras aplicar las configuraciones seleccionadas sobre la suite completa CEC2017 y las \(51\) semillas empleadas en la generación de trayectorias.
+
+\begin{table}[H]
+    \centering
+    \small
+    \setlength{\tabcolsep}{4pt}
+    \begin{adjustbox}{max width=\textwidth}
+        \begin{tabular}{lccccc}
+            \toprule
+            \textbf{Modelo} & \textbf{Spearman} & \textbf{nRMSE}                  & \textbf{nMAE}                   & \textbf{Entren. (s)} & \textbf{Pred. (s)} \\
+            \midrule
+            RSM             & 0.3588            & \(5.9898 \times 10^{11}\)       & \(5.0876 \times 10^{11}\)       & 0.0242               & \textbf{0.0014}    \\
+            RBF             & \textbf{0.5074}   & \(\mathbf{1.2389 \times 10^9}\) & \(\mathbf{9.5968 \times 10^8}\) & \textbf{0.0057}      & 0.7076             \\
+            \bottomrule
+        \end{tabular}
+    \end{adjustbox}
+    \caption{Comparación agregada de las configuraciones seleccionadas para RSM y RBF sobre todas las funciones de CEC2017 y las 51 semillas.}
+    \label{tab:comparativa_configuraciones_ajustadas}
+\end{table}
+
+Los resultados confirman que \textbf{RBF supera a RSM} en correlación de Spearman, que constituye el criterio principal de comparación definido en el Capítulo~\ref{chap:metodologia_experimental}. Para comprobar si esta diferencia agregada se mantiene de forma homogénea o depende de familias concretas del benchmark, la Figura~\ref{fig:heatmap_spearman_final_cec2017} desagrega el coeficiente de Spearman por función y modelo.
+
+\begin{figure}[htbp]
+    \centering
+    \includegraphics[width=1\textwidth]{figuras/surrogates_offline/heatmap_spearman_final_cec2017.png}
+    \caption[Mapa de calor del coeficiente de correlación de Spearman medio por función y modelo]{Mapa de calor del coeficiente de correlación de Spearman medio por función y modelo. El valor anotado en cada celda corresponde al Spearman medio agregado sobre las semillas, los bloques de validación y las metaheurísticas consideradas.}
+    \label{fig:heatmap_spearman_final_cec2017}
+\end{figure}
+
+A partir de esta figura se observa que ninguno de los dos modelos presenta un comportamiento uniforme en todo el benchmark. Sin embargo, RBF mantiene valores de correlación más estables en un mayor número de funciones, incluidas varias funciones híbridas y compuestas. RSM, por el contrario, concentra su rendimiento en funciones de baja complejidad y muestra una degradación más acusada en problemas de mayor complejidad estructural.
+
+No obstante, los valores medios de nRMSE y nMAE de la
+Tabla~\ref{tab:comparativa_configuraciones_ajustadas} resultan elevados en comparación con los observados durante el cribado. Para determinar si este comportamiento es general o está provocado por valores extremos (\textit{outliers}), la Figura~\ref{fig:boxplot_nrmse_final_cec2017} muestra la distribución de los errores en escala logarítmica y la Figura~\ref{fig:heatmap_nrmse_final_cec2017} localiza las funciones que concentran los valores más extremos (\textit{outliers}).
+
+\begin{figure}[htbp]
+    \centering
+    \includegraphics[width=0.9\textwidth]{figuras/surrogates_offline/boxplot_nrmse_final_cec2017.png}
+    \caption{Distribución de nRMSE en escala logarítmica para las configuraciones finales de RSM y RBF sobre CEC2017 completa.}
+    \label{fig:boxplot_nrmse_final_cec2017}
+\end{figure}
+
+\begin{figure}[htbp]
+    \centering
+    \includegraphics[width=1\textwidth]{figuras/surrogates_offline/heatmap_nrmse_final_cec2017.png}
+    \caption{Mapa de calor del nRMSE medio por función y modelo en escala logarítmica.}
+    \label{fig:heatmap_nrmse_final_cec2017}
+\end{figure}
+
+El \textit{boxplot} demuestra que la media está dominada por \textit{outliers}. La distribución para ambos modelos presenta colas pronunciadas mientras que la mediana se sitúa en rangos más moderados.
+
+Por otro lado, el \textit{heatmap} identifica \(f_2\) como la principal responsable, cuyos valores de nRMSE superan en varios órdenes de magnitud al resto del benchmark en ambos modelos, especialemente para RSM, lo que justifica medias de error superiores. Este comportamiento es coherente con lo indicado en la Sección~\ref{subsec:suite_cec2017}, donde \(f_2\) fue excluida en revisiones posteriores de CEC2017 debido a sus inestabilidades numéricas. En este trabajo se mantiene para respetar la definición experimental del Capítulo~\ref{chap:metodologia_experimental}.
+
+Teniendo en cuenta el análisis realizado, RBF muestra el comportamiento más
+adecuado para continuar con la integración \textit{online}. Aunque sus errores
+medios se ven afectados por valores extremos, especialmente en \(f_2\), el
+modelo mantiene una mayor capacidad de ordenación que RSM sobre la suite
+completa. Esta diferencia es especialmente relevante en el contexto de este
+trabajo, ya que el objetivo del subrogado no es sustituir de forma exacta a la
+función objetivo, sino apoyar la búsqueda preservando el orden relativo entre
+soluciones candidatas. Además, su tiempo de entrenamiento es reducido, por lo
+que el coste de reajustar el modelo durante la búsqueda no resulta
+especialmente limitante. Su principal desventaja se encuentra en el tiempo de
+predicción, superior al de RSM, aunque este incremento se considera asumible frente a la
+mejora obtenida en la capacidad ordinal.
+
+Este análisis permite extraer una conclusión más general sobre las técnicas
+evaluadas, siempre dentro del escenario experimental considerado. Para las
+trayectorias generadas sobre CEC2017 con dimensión \(D=10\) y tamaño de
+población \(50\), una mayor complejidad del modelo no se traduce
+necesariamente en una mejor utilidad como subrogado. En particular, los modelos
+clásicos como RBF o RSM parecen adaptarse mejor al criterio principal de
+evaluación con un coste computacional controlado, mientras que los modelos de
+aprendizaje automático considerados, como los modelos basados en árboles o
+redes neuronales, no alcanzan una mejora suficiente en Spearman como para
+compensar su complejidad o su coste.
+
+Por tanto, se selecciona \textbf{RBF} como el modelo subrogado para la
+fase \textit{online}. RSM queda descartado como alternativa final pese a su bajo
+tiempo de predicción, ya que su capacidad de ordenación es menor y su
+comportamiento resulta menos estable al ampliar la evaluación al benchmark
+completo.
+
+\subsection{Validación del escenario de evaluación}
+
+Tras seleccionar la mejor técnica subrogada sobre trayectorias con reinicio, se comprueba si la elección de un escenario sin reinicio conduciría a conclusiones diferentes o si, por el contrario, dichas trayectorias producen una evaluación menos informativa.
+
+La Tabla~\ref{tab:comparativa_reinicio_surrogate} contrasta los resultados de RBF cuando las metaheurísticas operan con y sin reinicio.
+
+\begin{table}[H]
+    \centering
+    \small
+    \begin{adjustbox}{max width=\textwidth}
+        \begin{tabular}{lccccc}
+            \toprule
+            \textbf{Escenario} & \textbf{Spearman} & \textbf{nRMSE}                  & \textbf{nMAE}                   & \textbf{Entren. (s)} & \textbf{Pred. (s)} \\
+            \midrule
+            Con reinicio       & \textbf{0.5074}   & \(\mathbf{1.2389 \times 10^9}\) & \(\mathbf{9.5968 \times 10^8}\) & 0.0057               & 0.7076             \\
+            Sin reinicio       & 0.5023            & \(7.0201 \times 10^{10}\)       & \(5.1973 \times 10^{10}\)       & \textbf{0.0047}      & \textbf{0.3944}    \\
+            \bottomrule
+        \end{tabular}
+    \end{adjustbox}
+    \caption[Comparación de métricas de RBF con y sin reinicio de las metaheurísticas]{Comparación de métricas de RBF con y sin reinicio de las metaheurísticas. Medias calculadas sobre todas las funciones, semillas y bloques de validación.}
+    \label{tab:comparativa_reinicio_surrogate}
+\end{table}
+
+Los resultados agregados muestran que el escenario con reinicio consigue una capacidad de ordenación ligeramente superior y reduce notablemente los errores medios normalizados respecto a las trayectorias sin reinicio. Aunque este último presenta menores tiempos de entrenamiento y predicción, esta reducción de coste no implica necesariamente una evaluación más adecuada del subrogado para la integración \textit{online}.
+
+Como se demostró en la Sección \ref{sec:resultados_reinicio}, las trayectorias pueden quedar dominadas por fases prolongadas de estancamiento, en las que las muestras de validación presentan valores de \textit{fitness} muy similares entre sí. En esas condiciones, los errores normalizados pueden disminuir artificialmente sin que ello implique que el modelo haya aprendido una aproximación más útil para guiar la búsqueda.
+
+Este efecto se aprecia con claridad en \(f_4\). La Tabla~\ref{tab:ejemplo_f4_sin_reinicio} muestra la evolución del
+nMAE medio por bloque temporal para RBF sobre \(f_4\), comparando ambos
+escenarios.
+
+\begin{table}[H]
+    \centering
+    \small
+    \begin{tabular}{lcc}
+        \toprule
+        \textbf{Bloque de entrenamiento} & \textbf{Con reinicio} & \textbf{Sin reinicio} \\
+        \midrule
+        1--20\%                          & 0.1295                & 0.1267                \\
+        21--40\%                         & 0.1140                & 0.0012                \\
+        41--60\%                         & 0.0414                & 0.0006                \\
+        61--80\%                         & 0.0363                & 0.0004                \\
+        \bottomrule
+    \end{tabular}
+    \caption{nMAE medio de RBF sobre \(f_4\) con y sin reinicio por bloque temporal.}
+    \label{tab:ejemplo_f4_sin_reinicio}
+\end{table}
+
+En el primer bloque temporal, ambos escenarios presentan errores muy similares. Sin embargo, a partir del segundo bloque el error sin reinicio cae hasta valores prácticamente nulos, mientras que el escenario con reinicio mantiene errores mayores al conservar una trayectoria más variable.
+
+No obstante, este comportamiento no indica que el subrogado haya aprendido una aproximación más útil de la función objetivo, sino que la trayectoria ha alcanzado una región de estancamiento total. En este contexto, las muestras del bloque futuro presentan valores de \textit{fitness} muy próximos, por lo que la tarea de predicción pierde el sentido.
+
+Por tanto, las trayectorias con reinicio constituyen un escenario de evaluación
+más exigente y más representativo para el objetivo de este trabajo. Al reactivar
+la búsqueda, el reinicio mantiene una mayor variabilidad en las muestras
+generadas y evita que la evaluación del subrogado quede condicionada por tramos estancados. En consecuencia, la selección de RBF sobre el
+escenario con reinicio se considera metodológicamente más fiable para estudiar
+su posterior integración \textit{online}.
+
+
+\section{Evaluación de la estrategia \textit{online}}
+\label{sec:online}
+
+
+% - resultado de la seleccion offline del modelo (omitible)
+% - configuracion del modelo finalmente usado online (omitible)
+% - piloto de cooldown
+% - piloto de retrain_ratio
+% - piloto de p
+% - configuración online final seleccionada
+% - evaluacion final sobre 30 funciones y 51 semillasnuevas
+% - comparacion p=0.00 vs p=0.50
+% - comparacion con técnicas de referencia como kriging y pce
+% - discusion: mejora, coste añadido, rechazo de candidatos, comportamietno por metaheuristica.
+
+
+
+
+
+% A partir del protocolo descrito en la Sección~X, se evalúan los valores candidatos de cada parámetro. Los resultados muestran que cooldown=100, retrain_ratio=0.50 y p=0.50 ofrecen el mejor compromiso entre error final, ranking medio y coste computacional, por lo que se adoptan como configuración final para la evaluación online completa.
+
+
+
+
+
+
+
+% Con el modelo seleccionado y ajustado, esta sección conti en evaluar su integración dentro del bucle de optimización.
+
+% 4. [Tabla comparativa reinicio vs sin reinicio] → validación de que el escenario evaluado es el correcto
+
+
+
+
+% Por qué el Spearman alto sin reinicio es engañoso:
+
+% Cuando la metaheurística se estanca, la población converge a una región pequeña del espacio. Los valores de fitness de soluciones vecinas son muy similares y localmente suaves. Predecir el orden relativo de
+% puntos casi idénticos es un problema trivial para cualquier modelo — el Spearman sube porque la tarea es más fácil, no porque el subrogado sea más útil.
+
+% La evidencia más clara la tienes en las medianas de nRMSE: 0.0004 sin reinicio frente a 0.8389 con reinicio en las mismas funciones. Esa diferencia de tres órdenes de magnitud en el error típico es
+% precisamente la huella de ese efecto: sin reinicio, los valores de fitness son tan parecidos entre sí que los errores absolutos son mínimos.
+
+% El punto clave para tu TFG:
+
+% El escenario relevante para la integración online es el de trayectorias dinámicas — con reinicios, cambios de región y alta diversidad de muestras. Evaluar el subrogado sobre trayectorias estancadas produce
+% una estimación optimista que no se corresponde con el contexto real de uso. Por tanto, comparar ambos escenarios para elegir el modelo sería metodológicamente incorrecto.
+
+% Una matiz que conviene tener presente:
+
+% La diferencia en Spearman entre escenarios no es dramática (0.80 vs 0.74 en mediana), lo que refuerza el argumento: el subrogado no "pierde" capacidad porque hay reinicio, sino que se enfrenta a un problema
+% más exigente y realista. Eso es lo que hay que transmitir en el texto si decides incluir esta comparación.
+
+
+
+
+
+
+
+%% en los scripts tenemos un flag para introducir o no enfriamiento tras un reinicio.
+%% la idea a la hora de documentar los experiemntos es comenzar sin enfriamiento y posteriormente justificar la necesidad de ese enfriamiento. ais lo hacemos mas largo.
+
+%% es una decision experimental
+
+
+
+
+% ---
+
+% Resultados de los experimentos piloto.
+% Justificación de la configuración homogénea seleccionada.
+% Comparación final entre:
+% metaheurística base;
+% metaheurística con reinicio;
+% metaheurística con reinicio + subrogado online.
+% Análisis por metaheurística.
+% Análisis por función o familia CEC2017.
+% Evaluación del ahorro de evaluaciones reales.
+% Discusión de cuándo ayuda y cuándo perjudica.
+% Conclusión final sobre si la integración online es útil.
+
+% \subsection{Ajuste piloto de los parámetros online}
+% \subsection{Comparación frente a las metaheurísticas base}
+% \subsection{Impacto sobre la convergencia y el uso de evaluaciones reales}
+% \subsection{Análisis por metaheurística}
+% \subsection{Conclusiones de la integración online}
+
+
+
+
+
+%% criterio de reinicio - cooldown
+
+% por la definicion de criterio de reactivacion que se ha definido y por los resultados obtenidos en este mismo capitulo cuando hablamos de la motivacion del reinciio y analizamos graficas tras aplicarlo posteriromente, se podia ver que la poblacion cambiaba bruscamente, por ese motivo, se considera evaluar..
+
+% Si el subrogado se usa inmediatamente, puede estar entrenado sobre una distribución que ya no representa la nueva población.
+
+% Por ello se introduce un periodo de enfriamiento o cooldown, durante el cual se priorizan evaluaciones reales antes de volver a confiar en el modelo.
+
+% La inclusión de un periodo de enfriamiento tras el reinicio se justifica tanto
+% por la definición del propio mecanismo como por el comportamiento observado en
+% los experimentos anteriores. El reinicio elitista conserva únicamente la mejor
+% solución encontrada y regenera el resto de la población, por lo que introduce un
+% cambio abrupto en la distribución de candidatos disponibles. Este efecto ya se
+% aprecia en el análisis del reinicio realizado al comienzo de este capítulo,
+% donde la reactivación de la población modifica la dinámica de convergencia y de
+% diversidad. En consecuencia, utilizar inmediatamente un subrogado entrenado con
+% muestras anteriores al reinicio podría conducir a predicciones poco
+% representativas. Por este motivo, se incorpora como parámetro experimental un
+% periodo de enfriamiento durante el cual se retrasa el uso del subrogado y se
+% prioriza la generación de nuevas evaluaciones reales.

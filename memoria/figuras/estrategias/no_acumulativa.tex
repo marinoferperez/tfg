@@ -1,0 +1,84 @@
+\begin{figure}[H]
+    \centering
+    \begin{adjustbox}{max width=\textwidth}
+        \begin{tikzpicture}[
+                cell/.style={
+                        draw=black!65,
+                        minimum width=1.8cm,
+                        minimum height=0.72cm,
+                        align=center
+                    },
+                header/.style={cell, font=\bfseries},
+                train/.style={cell, fill=blue!25, font=\bfseries},
+                future/.style={cell, fill=green!22, font=\bfseries},
+                unused/.style={cell, fill=black!5},
+                rowlabel/.style={anchor=east, font=\small}
+            ]
+
+            % Cabecera
+            \node[header] at (0,0) {$B_1$};
+            \node[header] at (2,0) {$B_2$};
+            \node[header] at (4,0) {$B_3$};
+            \node[header] at (6,0) {$\cdots$};
+            \node[header] at (8,0) {$B_t$};
+            \node[header] at (10,0) {$B_{t+1}$};
+            \node[header] at (12,0) {$\cdots$};
+            \node[header] at (14,0) {$B_T$};
+
+            % Ajuste inicial
+            \node[rowlabel] at (-1.1,-1) {Ajuste en $B_1$};
+            \node[train]  at (0,-1) {E};
+            \node[future] at (2,-1) {V};
+            \node[unused] at (4,-1) {};
+            \node[unused] at (6,-1) {};
+            \node[unused] at (8,-1) {};
+            \node[unused] at (10,-1) {};
+            \node[unused] at (12,-1) {};
+            \node[unused] at (14,-1) {};
+
+            % Ajuste intermedio
+            \node[rowlabel] at (-1.1,-2) {Ajuste en $B_2$};
+            \node[unused] at (0,-2) {};
+            \node[train]  at (2,-2) {E};
+            \node[future] at (4,-2) {V};
+            \node[unused] at (6,-2) {};
+            \node[unused] at (8,-2) {};
+            \node[unused] at (10,-2) {};
+            \node[unused] at (12,-2) {};
+            \node[unused] at (14,-2) {};
+
+            % Ajuste genérico
+            \node[rowlabel] at (-1.1,-3) {Ajuste en $B_t$};
+            \node[unused] at (0,-3) {};
+            \node[unused] at (2,-3) {};
+            \node[unused] at (4,-3) {};
+            \node[unused] at (6,-3) {};
+            \node[train]  at (8,-3) {E};
+            \node[future] at (10,-3) {V};
+            \node[unused] at (12,-3) {};
+            \node[unused] at (14,-3) {};
+
+            % Leyenda centrada respecto a la figura
+            \matrix[
+            matrix of nodes,
+            draw=black,
+            line width=0.7pt,
+            inner xsep=8pt,
+            inner ysep=7pt,
+            column sep=5pt,
+            nodes={anchor=west, font=\small}
+            ] at (7,-4.25) {
+            |[train, minimum width=0.8cm, anchor=center]| E &
+            Entrenamiento &
+            |[future, minimum width=0.8cm, anchor=center]| V &
+            Validación futura &
+            |[unused, minimum width=0.8cm, anchor=center]| {} &
+            No usado \\
+            };
+
+        \end{tikzpicture}
+    \end{adjustbox}
+    \caption{Representación esquemática de la estrategia
+        \textit{offline} no acumulativa.}
+    \label{fig:offline_no_acumulativa}
+\end{figure}

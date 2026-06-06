@@ -1,0 +1,1269 @@
+\chapter{Algoritmos y técnicas de referencia}
+\label{chap:algo_tecnicas_ref}
+
+%% que se compara
+
+En este capítulo se presentan los algoritmos y técnicas que servirán como base para el desarrollo experimental del trabajo. En primer lugar, se describen las metaheurísticas consideradas como algoritmos de referencia, prestando atención a su funcionamiento general, sus operadores principales y el papel que desempeñan en la generación de trayectorias de búsqueda. A continuación, se introduce la estrategia de reinicio de población empleada para mitigar situaciones de estancamiento y favorecer la recuperación de diversidad durante la optimización.
+
+Además de los algoritmos de búsqueda, el capítulo recoge los modelos utilizados como técnicas subrogadas, diferenciando entre los modelos de aprendizaje automático considerados en la comparativa principal y las técnicas subrogadas clásicas que podrán emplearse posteriormente como referencia. Los fundamentos generales de las metaheurísticas, el aprendizaje automático y los modelos subrogados ya fueron presentados en el Capítulo~\ref{chap:fundamentos_teoricos}. Por tanto, aquí se adopta una perspectiva más operativa, centrada en los componentes concretos utilizados en el estudio. Finalmente, se definen las estrategias \textit{offline} utilizadas para evaluar los modelos sobre trayectorias previamente generadas y se presenta el esquema \textit{online} mediante el que el subrogado se integrará posteriormente dentro del bucle de optimización. La finalidad de este capítulo no es analizar todavía el rendimiento de las técnicas, sino fijar con claridad qué componentes intervienen en el estudio y cómo se relacionan con la fase experimental presentada en los capítulos posteriores.
+
+
+\section{Metaheurísticas consideradas}
+
+Las metaheurísticas consideradas en este trabajo constituyen las herramientas de búsqueda empleadas para generar las trayectorias de optimización que posteriormente serán utilizadas para el análisis de técnicas subrogadas. Todas ellas trabajan sobre soluciones representadas mediante vectores reales dentro del dominio de búsqueda y siguen una dinámica poblacional, en la que un conjunto de individuos evoluciona mediante operadores de generación, evaluación y reemplazo.
+
+La elección de \textbf{AGE}, \textbf{DE} y \textbf{SHADE} permite cubrir distintos niveles de complejidad y adaptación dentro de la optimización evolutiva:
+
+\begin{itemize}
+    \item \textbf{AGE} actúa como una referencia genética sencilla basada en reemplazo estacionario,
+    \item \textbf{DE} proporciona una referencia robusta y ampliamente utilizada en optimización continua,
+    \item \textbf{SHADE} extiende la evolución diferencial (DE) mediante un esquema adaptativo que ajusta dinámicamente sus parámetros de control.
+\end{itemize}
+
+De este modo, las trayectorias obtenidas permiten estudiar cómo varía la utilidad de los modelos subrogados en función de la dinámica de búsqueda que genera los datos. Al mismo tiempo, hacen posible comparar esquemas evolutivos con distintos mecanismos de generación y adaptación.
+
+%% herramientas de busqueda
+
+%% que es
+%% por que se usa
+%% como funciona a nivel operativo
+%% papel despues en los experimentos
+
+%% 1. motivacion y papel en el trabajo: por que se incluye
+%     - algoritmo base
+%     - referencia evolutiva
+%     - comparacion entre familias, etc...
+% 2. representación de la solución: individuos como vectores reales 
+% 3. funcionamiento general: describir el ciclo:
+%     - inicializacion
+%     - evaluacion
+%     - generacion de candidatos
+%     - selecction/reemplazo y parada
+% 4. operadores principales:
+%     - AGE: 
+%         - seleccion, cruce, mutacion, reemplazo estacionario
+%     - DE: 
+%         - mutacion diferencial, cruce binomial, seleccion greedy
+%     - SHADE: 
+%         - memoria histórica de parámetros, adaptacion de F y CR
+% 5. pseudocodigo
+% 6. relacion con el resto del tfg
+
+
+% --------
+
+% %% soporte visual:
+
+% - pseudocodigo para cada metaheurística compacto
+% - formulas principales de operadores: mutacion, cruce, selección
+% - esquema del reinicio de población
+
+
+\subsection{Algoritmo Genético Estacionario (AGE)}
+
+Los algoritmos genéticos (\textbf{AG}) constituyen uno de los enfoques clásicos y más conocidos dentro de las metaheurísticas evolutivas descritas en la Sección~\ref{subsec:mh_evolutivas}. Sus fundamentos modernos fueron consolidados por Holland en 1975 \cite{holland1975adaptation} y posteriormente difundidos y sistematizados por Goldberg \cite{goldberg1989genetic}. Estos algoritmos se basan en mantener una población de soluciones candidatas y generar nuevos individuos mediante operadores inspirados en la evolución biológica, principalmente la selección de progenitores, el cruce y la mutación.
+
+Dentro de esta familia, el \textbf{Algoritmo Genético Estacionario} o, según sus siglas, \textbf{AGE}, se caracteriza por actualizar la población de forma parcial y progresiva. Uno de los antecedentes clásicos de este enfoque es GENITOR, analizado por L. Darrell Whitley en 1989 \cite{whitley1989stationary}. A diferencia de un algoritmo genético generacional (AGG), donde la población se reemplaza de forma completa o casi completa en cada generación, en un esquema estacionario la descendencia generada compite con los individuos ya presentes en la población. Esta actualización parcial y gradual de la población permite conservar parte de la estructura poblacional previa e incorporar nuevas soluciones únicamente cuando mejoran la calidad del conjunto. A pesar de dichas diferencias, las fases de un \textbf{AG} se mantienen.
+
+En este trabajo, AGE se incluye como una referencia evolutiva sencilla frente a métodos diferenciales más especializados como DE y SHADE. Su utilización permite generar trayectorias basadas en operadores genéticos clásicos y analizar posteriormente si la utilidad de los modelos subrogados depende de la dinámica poblacional que produce los datos.
+
+Formalmente, cada individuo se representa mediante un vector real
+\(\mathbf{x}_i \in \mathbb{R}^D\), donde cada componente corresponde a una
+variable de decisión del problema de optimización continua. El
+Algoritmo~\ref{alg:age} recoge el pseudocódigo de la variante concreta de AGE utilizada en este trabajo. Aunque el esquema sigue siendo el de un algoritmo genético estacionario, el pseudocódigo fija las decisiones concretas empleadas en este trabajo, como los operadores utilizados sobre vectores reales y el criterio de reemplazo de la población.
+
+
+%% tenemos que revisar las memorias sueprvisads por daniel ya que en la mayoria se plantea algo de contexto previo al algoritmo, es deicr, antes de justificar por que lo utilizamos. 
+
+\begin{algorithm}[H]
+    \begin{algorithmic}[1]
+        \State $P \gets \textsc{GenerarPoblacionInicial}()$
+        \State $\textsc{Evaluar}(P)$
+        \While{no se cumpla el criterio de parada}
+        \State $p_1, p_2 \gets \textsc{SeleccionTorneo}(P)$
+        \If{$\operatorname{rand}() < p_c$}
+        \State $h_1, h_2 \gets \textsc{CruceBLX\_alpha}(p_1, p_2)$
+        \Else
+        \State $h_1 \gets p_1$
+        \State $h_2 \gets p_2$
+        \EndIf
+        \State $h_1 \gets \textsc{MutacionGaussiana}(h_1, p_m, \sigma)$
+        \State $h_2 \gets \textsc{MutacionGaussiana}(h_2, p_m, \sigma)$
+        \State $\textsc{Evaluar}(h_1, h_2)$
+        \State $h^\star \gets \textsc{SeleccionarMejorHijo}(h_1, h_2)$
+        \State $P \gets \textsc{ReemplazoEstacionario}(P, h^\star)$
+        \EndWhile
+        \State \Return mejor solución encontrada
+    \end{algorithmic}
+    \caption{Algoritmo Genético Estacionario (AGE).}
+    \label{alg:age}
+\end{algorithm}
+
+El flujo general descrito en el Algoritmo~\ref{alg:age} se representa esquemáticamente en la Figura~\ref{fig:flujo_age}. A partir de la población actual, AGE selecciona dos progenitores, genera descendencia mediante cruce y mutación, evalúa los nuevos individuos y actualiza parcialmente la población mediante un mecanismo de reemplazo estacionario.
+
+En las siguientes subsecciones se detallan los operadores concretos empleados en este trabajo.
+
+% \begin{figure}[H]
+%     \centering
+%     \includegraphics[width=0.95\textwidth]{figuras/algoritmos/flujo_age.png}
+%     \caption{Esquema general del funcionamiento de un algoritmo genético estacionario.}
+%     \label{fig:flujo_age}
+% \end{figure}
+
+
+
+\begin{figure}[H]
+    \centering
+    \begin{adjustbox}{max width=\textwidth}
+        \begin{tikzpicture}[
+            node distance=2.5cm and 6.5cm,
+            box/.style={
+                    draw=black,
+                    fill=white,
+                    rectangle,
+                    line width=0.8pt,
+                    minimum width=3.8cm,
+                    minimum height=1.6cm,
+                    align=center,
+                    font=\small
+                },
+            title/.style={
+                    font=\small\bfseries,
+                    below=2pt
+                },
+            arrow/.style={
+            -{Stealth[scale=1.2]},
+            color=red!70!black,
+            line width=1.3pt
+            },
+            labelMain/.style={
+                    font=\scriptsize\bfseries,
+                    color=black,
+                    align=center
+                },
+            labelSub/.style={
+                    font=\scriptsize\itshape,
+                    color=black!80,
+                    align=center
+                }
+            ]
+
+            % 1. Población Actual P_actual(t) (Superior Izquierda)
+            \node[box] (pActualT) {
+                \textbf{$P_{\text{actual}}(t)$} \\ \vspace{2pt}
+                $\mathbf{x}_1, \mathbf{x}_2, \dots, \mathbf{x}_M$
+            };
+
+            % 3. Padres P_padres (Superior Derecha)
+            \node[box, right=of pActualT] (pPadres) {
+                \textbf{$P_{\text{padres}}$} \\ \vspace{2pt}
+                $\mathbf{p}_1, \mathbf{p}_2$
+            };
+
+            % 5. Descendencia Intermedia P_intermedia (Centro Derecha)
+            \node[box, below=of pPadres] (pIntermedia) {
+                \textbf{$P_{\text{intermedia}}$} \\ \vspace{2pt}
+                $\mathbf{h}_1, \mathbf{h}_2$
+            };
+
+            % 7. Descendencia Mutada P_hijos (Inferior Derecha)
+            \node[box, below=of pIntermedia] (pHijos) {
+                \textbf{$P_{\text{hijos}}$} \\ \vspace{2pt}
+                $\mathbf{h}'_1, \mathbf{h}'_2$
+            };
+
+            % 8. Bloque de Selección del Mejor Hijo (Inferior Derecha)
+            \node[box, below=of pHijos, minimum width=5.2cm] (selMejor) {
+                \textbf{SELECCIÓN DEL MEJOR HIJO} \\ \vspace{2pt}
+                $\mathbf{h}^* = \arg\min_{\mathbf{h} \in \mathcal{H}} f(\mathbf{h})$ \\
+                $\mathcal{H} = \{\mathbf{h}'_1, \mathbf{h}'_2\}$
+            };
+
+            % 10. Población Siguiente P_actual(t+1) (Inferior Izquierda)
+            \node[box] (pActualT1) at (pActualT |- selMejor) {
+                \textbf{$P_{\text{actual}}(t+1)$} \\ \vspace{2pt}
+                $\mathbf{x}_1, \mathbf{x}_2, \dots, \mathbf{\color{blue!80!black}h^*}, \dots, \mathbf{x}_M$
+            };
+
+            % --- CONEXIONES Y ARROW LABELS ---
+
+            % 2. Flecha Selección por Torneo
+            \draw[arrow] (pActualT) -- (pPadres) node[midway, above=3pt, labelMain] {SELECCIÓN POR TORNEO}
+            node[midway, below=3pt, labelSub] {dos progenitores};
+
+            % 4. Flecha Cruce BLX-alpha
+            \draw[arrow] (pPadres) -- (pIntermedia) node[midway, right=4pt, labelMain, align=left] {CRUCE BLX-$\alpha$}
+            node[midway, right=4pt, yshift=-10pt, labelSub, align=left] {con probabilidad $p_c$};
+
+            % 6. Flecha Mutación Gaussiana
+            \draw[arrow] (pIntermedia) -- (pHijos) node[midway, right=4pt, yshift=5pt, labelMain, align=left] {MUTACIÓN GAUSSIANA}
+            node[midway, right=4pt, yshift=-16pt, labelSub, align=left] {por componente\\con probabilidad $p_m$};
+
+            % Conexión hacia el filtro del mejor hijo
+            \draw[arrow] (pHijos) -- (selMejor);
+
+            % 9. Flecha Reemplazo Estacionario
+            \draw[arrow] (selMejor) -- (pActualT1) node[midway, above=3pt, labelMain] {REEMPLAZO ESTACIONARIO}
+            node[midway, below=3pt, labelSub, text width=5.0cm] {$\mathbf{h}^*$ reemplaza al peor individuo únicamente si mejora su fitness};
+
+            % 11. Flecha de Retroalimentación Temporal (Retorno al inicio)
+            \draw[arrow] (pActualT1) -- (pActualT) node[midway, left=4pt, labelMain] {$t \leftarrow t + 1$};
+
+        \end{tikzpicture}
+    \end{adjustbox}
+    \caption{Esquema del flujo de ejecución del Algoritmo Genético Estacionario implementado.}
+    \label{fig:flujo_age}
+\end{figure}
+
+
+
+\subsubsection{Operador de selección}
+
+La selección de progenitores se realiza mediante \textbf{selección por torneo}, un mecanismo habitual en algoritmos genéticos por su sencillez y por permitir controlar la presión selectiva sobre la población. En cada selección se extrae aleatoriamente un subconjunto \(\mathcal{T}\subset P\) de individuos de la población y se escoge como progenitor aquel con mejor valor de fitness. Dado que los problemas considerados se formulan como problemas de minimización, el individuo seleccionado se define como
+
+\[
+    \mathbf{p} = \arg\min_{\mathbf{x}\in \mathcal{T}} f(\mathbf{x}).
+\]
+
+Este operador favorece la reproducción de soluciones de mayor calidad, pero mantiene un componente aleatorio al no comparar necesariamente todos los individuos de la población. De este modo, AGE introduce presión selectiva sin eliminar por completo la diversidad poblacional.
+
+\subsubsection{Operador de cruce}
+
+Una vez seleccionados los progenitores, la generación de descendencia se realiza mediante el operador de cruce \textbf{BLX-\(\alpha\)}, especialmente utilizado en algoritmos genéticos con codificación real, como es el caso \cite{eshelman1993interval,goldberg1991realcoded}. Sean \(\mathbf{p}^{(1)}\) y \(\mathbf{p}^{(2)}\) dos progenitores. Para cada componente \(j\), se definen los extremos del intervalo determinado por ambos padres como
+
+\[
+    c_{\min,j} = \min\{p^{(1)}_j,p^{(2)}_j\},
+    \qquad
+    c_{\max,j} = \max\{p^{(1)}_j,p^{(2)}_j\},
+\]
+
+y la amplitud del intervalo como
+
+\[
+    I_j = c_{\max,j} - c_{\min,j}.
+\]
+
+A partir de estos valores, la componente \(j\) del descendiente se genera muestreando de forma uniforme en un intervalo ampliado:
+
+\[
+    h_j \sim \mathcal{U}
+    \left(
+    c_{\min,j} - \alpha I_j,\,
+    c_{\max,j} + \alpha I_j
+    \right).
+\]
+
+El parámetro \(\alpha\) controla el grado de expansión del intervalo de búsqueda. Si \(\alpha=0\), el descendiente se genera dentro del intervalo delimitado por los progenitores. Para valores positivos, el intervalo se amplía y permite explorar regiones próximas a los padres, pero no necesariamente contenidas entre ellos.
+
+\subsubsection{Operador de mutación}
+
+Tras el cruce, los descendientes se someten a una \textbf{mutación gaussiana}, cuyo objetivo es introducir perturbaciones locales (ruido) que mantengan diversidad en la población y reduzcan el riesgo de convergencia prematura. Para cada componente \(j\) del individuo descendiente \(\mathbf{h}\), la mutación puede expresarse como
+
+\[
+    h'_j =
+    \begin{cases}
+        h_j + \sigma z_j & \text{con probabilidad } p_m,   \\
+        h_j              & \text{con probabilidad } 1-p_m,
+    \end{cases}
+\]
+\[
+    z_j \sim \mathcal{N}(0,1)
+\]
+
+El parámetro \(\sigma\) determina la magnitud de la perturbación introducida. Al tratarse de una mutación aplicada sobre codificación real, el operador modifica diréctamente las variables de decisión del problema. Como en el cruce, los valores resultantes se acotan al dominio permitido para garantizar la factibilidad de las soluciones generadas.
+
+\subsubsection{Operador de reemplazo}
+
+
+Finalmente, los descendientes generados se evalúan mediante la función objetivo y se selecciona el mejor de ellos. Si \(\mathbf{h}'_1\) y \(\mathbf{h}'_2\) son los dos hijos obtenidos tras aplicar la mutación, el candidato a incorporarse a la población se define como
+
+\[
+    \mathbf{h}^{\star}
+    =
+    \arg\min_{\mathbf{h}\in\{\mathbf{h}'_1,\mathbf{h}'_2\}} f(\mathbf{h}).
+\]
+
+El esquema de actualización es \textbf{estacionario}. En lugar de reemplazar toda la población, únicamente se considera la sustitución del peor individuo actual. Sea
+
+\[
+    \mathbf{x}^{\text{peor}}
+    =
+    \arg\max_{\mathbf{x}\in P} f(\mathbf{x})
+\]
+
+el individuo de peor calidad de la población. La nueva población se obtiene como
+
+\[
+    P' =
+    \begin{cases}
+        \left(P \setminus \{\mathbf{x}^{\text{peor}}\}\right)\cup\{\mathbf{h}^{\star}\},
+         & \text{si } f(\mathbf{h}^{\star}) < f(\mathbf{x}^{\text{peor}}), \\
+        P,
+         & \text{en otro caso}.
+    \end{cases}
+\]
+
+Este mecanismo mantiene constante el tamaño de la población y produce una renovación gradual, característica de los algoritmos genéticos estacionarios. Como consecuencia, AGE conserva parte de la estructura poblacional previa mientras incorpora nuevas soluciones únicamente cuando estas mejoran al peor individuo disponible.
+
+
+% \subsubsection{Descripción del Algoritmo Genético Estacionario (AGE)}
+
+% La selección de progenitores se realiza mediante \textbf{selección por torneo}. En este mecanismo se escoge aleatoriamente un subconjunto de individuos de la población y se selecciona como progenitor aquel con mejor valor de fitness, que en este caso corresponde al menor valor de la función objetivo. En este trabajo se utiliza un tamaño de torneo igual a 2, por lo que cada progenitor se obtiene comparando dos individuos seleccionados al azar. Este procedimiento introduce presión selectiva hacia soluciones de mayor calidad, manteniendo al mismo tiempo cierto componente estocástico en la elección de padres.
+
+% El operador de cruce empleado es \textbf{BLX-\(\alpha\)}, especialmente utilizado en algoritmos genéticos con codificación real. Para cada componente \(j\), si \(\mathbf{x}^{(1)}\) y \(\mathbf{x}^{(2)}\) son los dos progenitores, se define
+
+% \begin{align*}
+%     c_{\min} & = \min\{x_j^{(1)}, x_j^{(2)}\}, \\
+%     c_{\max} & = \max\{x_j^{(1)}, x_j^{(2)}\}, \\
+%     I_j      & = c_{\max} - c_{\min}
+% \end{align*}
+
+% El valor de la componente del descendiente se genera entonces como
+
+% \[
+%     y_j \sim \mathcal{U}\bigl( c_{\min} - \alpha I_j,\; c_{\max} + \alpha I_j \bigr)
+% \]
+
+% donde \(\alpha\) controla el grado de expansión del intervalo de muestreo. Cuando \(\alpha=0\), el descendiente se genera dentro del intervalo delimitado por los progenitores; para valores positivos, el intervalo se amplía, permitiendo explorar regiones próximas pero externas a las soluciones parentales.
+
+% Tras el cruce se aplica una \textbf{mutación gaussiana}, que introduce pequeñas perturbaciones aleatorias sobre las componentes del individuo. Si \(x_j\) representa una componente del descendiente, su valor mutado se calcula como
+% \[
+%     y_j = x_j + \sigma z \,, \qquad z \sim \mathcal{N}(0,1)
+% \]
+% donde \(\sigma\) controla la magnitud de la perturbación. Esta mutación contribuye a mantener diversidad en la población y reduce el riesgo de convergencia prematura.
+
+% Finalmente, los hijos generados se evalúan mediante la función objetivo y se selecciona el mejor de ellos. El reemplazo sigue un \textbf{esquema estacionario}: el mejor hijo reemplaza al peor individuo de la población únicamente si mejora su calidad. En términos de la formalización abstracta, en cada iteración se generan dos descendientes candidatos, por lo que \(\lambda = 2\), mientras que el tamaño de la población mantenida es \(\mu = 50\). Por tanto, se cumple que \(\lambda \ll \mu\), característica propia de los esquemas estacionarios. Además, como solo el mejor de los dos hijos puede incorporarse a la población, la renovación efectiva se produce de forma parcial y gradual. De este modo, la población no se reemplaza por completo en cada iteración, sino que evoluciona mediante incorporaciones puntuales de descendencia.
+
+\subsection{Differential Evolution (DE)}
+
+La segunda de las técnicas seleccionadas para estudiar en este trabajo es  \textit{Differential Evolution} (\textbf{DE}), introducido por Rainer Storn y Kenneth Price como una metaheurística evolutiva orientada a problemas de optimización continua. Una de sus primeras validaciones competitivas se presentó en el \textit{IEEE International Conference on Evolutionary Computation} de 1996 (ICEC'96), una de las conferencias precursoras del actual \textit{IEEE Congress on Evolutionary Computation} (CEC). En dicho trabajo, los autores aplicaron DE sobre las funciones de optimización continua propuestas en la competición del congreso \cite{storn1996icec}. Posteriormente, el algoritmo fue formalizado en mayor profundidad por los mismos autores \cite{storn1997de}.
+
+
+Al igual que AGE, \textbf{DE} mantiene una población de soluciones candidatas que evoluciona a lo largo de la ejecución. Sin embargo, su rasgo distintivo reside en que la generación de nuevos individuos no se basa en operadores genéticos clásicos, sino en la combinación de vectores y diferencias entre soluciones de la propia población. Estas diferencias vectoriales proporcionan información sobre la distribución actual de los individuos en el espacio de búsqueda y permiten construir nuevas soluciones siguiendo direcciones inducidas por la propia dinámica poblacional.
+
+Dentro del estudio, \textbf{DE} se incorpora como una referencia intermedia entre AGE y SHADE. Frente al esquema genético clásico empleado por AGE, permite estudiar trayectorias generadas mediante operadores diferenciales. Al mismo tiempo, sirve como punto de partida para analizar posteriormente SHADE, una variante más avanzada que introduce mecanismos adaptativos sobre la estructura básica de \textbf{DE}.
+
+En la literatura, \textit{Differential Evolution} no se presenta como un único esquema fijo, sino como una familia de estrategias que combinan distintas formas de mutación y cruce. Una notación habitual para describir una variante concreta es \texttt{DE/x/y/z} \cite{price2005differential}, donde:
+
+\begin{itemize}
+    \item \texttt{x} indica el vector base utilizado en la mutación,
+    \item \texttt{y} el número de diferencias empleadas,
+    \item \texttt{z} el tipo de cruce aplicado.
+\end{itemize}
+
+Por ejemplo, variantes como \texttt{DE/best/1/bin} utilizan el mejor individuo de la población como vector base, mientras que \texttt{DE/rand/2/bin} incorporan dos diferencias vectoriales. La variante considerada para el desarrollo experimental es \texttt{DE/rand/1/bin}, donde el vector base se selecciona aleatoriamente, se emplea una única diferencia vectorial y se aplica cruce binomial.
+
+Formalmente, cada individuo se representa mediante un vector real
+\(\mathbf{x}_{i,g} \in \mathbb{R}^D\), donde \(i\) identifica al individuo y
+\(g\) la generación actual. El Algoritmo~\ref{alg:de} recoge el pseudocódigo
+general de la variante \texttt{DE/rand/1/bin} utilizada en este trabajo.
+
+\begin{algorithm}[htbp]
+    \begin{algorithmic}[1]
+        \State $P_0 \gets \textsc{GenerarPoblacionInicial}()$
+        \State $\textsc{Evaluar}(P_0)$
+        \State $g \gets 0$
+        \While{no se cumpla el criterio de parada}
+        \For{cada individuo objetivo $\mathbf{x}_{i,g} \in P_g$}
+        \State $\mathbf{v}_{i,g} \gets \textsc{MutacionDiferencial}(P_g, i, F)$
+        \State $\mathbf{u}_{i,g} \gets \textsc{CruceBinomial}(\mathbf{x}_{i,g}, \mathbf{v}_{i,g}, CR)$
+        \State $\textsc{Evaluar}(\mathbf{u}_{i,g})$
+        \State $\mathbf{x}_{i,g+1} \gets \textsc{SeleccionGreedy}(\mathbf{x}_{i,g}, \mathbf{u}_{i,g})$
+        \EndFor
+        \State $P_{g+1} \gets \{\mathbf{x}_{i,g+1}\}_{i=1}^{N}$
+        \State $g \gets g + 1$
+        \EndWhile
+        \State \Return mejor solución encontrada
+    \end{algorithmic}
+    \caption{\textit{Differential Evolution} (DE).}
+    \label{alg:de}
+\end{algorithm}
+
+El pseudocódigo resume el funcionamiento de la variante
+\texttt{DE/rand/1/bin}. En cada generación, cada individuo objetivo genera un vector mutante a partir de la población actual, se combina con él mediante cruce binomial para producir un vector de prueba y, finalmente, se aplica una selección \textit{greedy} entre ambos. A continuación, se describe cada uno de estos operadores con mayor detalle.
+
+\subsubsection{Operador de mutación}
+
+Para cada individuo objetivo \(\mathbf{x}_{i,g}\), la estrategia \texttt{DE/rand/1} selecciona aleatoriamente tres índices \(r_0\), \(r_1\) y \(r_2\), diferentes entre sí y distintos de \(i\). A partir de los vectores correspondientes se construye un vector mutante mediante
+
+\[
+    \mathbf{v}_{i,g}
+    =
+    \mathbf{x}_{r_0,g}
+    +
+    F\left(
+    \mathbf{x}_{r_1,g}
+    -
+    \mathbf{x}_{r_2,g}
+    \right),
+\]
+
+donde \(F\) es el factor de escala que controla la amplitud de la perturbación diferencial. El término
+\(\mathbf{x}_{r_1,g}-\mathbf{x}_{r_2,g}\) define una dirección inducida por la distribución actual de la población, mientras que \(F\) regula la magnitud del desplazamiento aplicado sobre el vector base \(\mathbf{x}_{r_0,g}\).
+
+A diferencia de los operadores de mutación tradicionales, esta perturbación no se genera a partir de una distribución de probabilidad independiente de la población. Su dirección y magnitud dependen de la distancia existente entre individuos, por lo que el operador adapta implícitamente su comportamiento al estado actual de la búsqueda.
+
+
+\subsubsection{Operador de cruce}
+
+
+El vector mutante \(\mathbf{v}_{i,g}\) se combina con el individuo objetivo \(\mathbf{x}_{i,g}\) mediante un \textbf{cruce binomial}. Para cada componente \(j\), el vector de prueba \(\mathbf{u}_{i,g}\) se define como
+
+\[
+    u_{i,j,g}
+    =
+    \begin{cases}
+        v_{i,j,g}
+         & \text{si } \operatorname{rand}_j \leq CR
+        \text{ o } j=j_{\text{rand}},               \\
+        x_{i,j,g}
+         & \text{en otro caso},
+    \end{cases}
+\]
+
+donde \(CR \in [0,1]\) es la probabilidad de cruce y \(\operatorname{rand}_j\) es una variable aleatoria uniforme en el intervalo \([0,1]\). La posición \(j_{\text{rand}}\) garantiza que el vector de prueba herede al menos una componente del vector mutante.
+
+Este operador controla cuánta información procedente de la mutación diferencial se incorpora a la nueva solución. Valores elevados de \(CR\) favorecen una mayor presencia de componentes mutantes, mientras que valores reducidos conservan una proporción mayor de componentes del individuo objetivo.
+
+\subsubsection{Operador de selección}
+
+Finalmente, el vector de prueba compite directamente con el individuo objetivo mediante una \textbf{selección \textit{greedy}}. Dado que los problemas considerados son de minimización, el individuo incorporado a la siguiente generación se determina mediante
+
+\[
+    \mathbf{x}_{i,g+1}
+    =
+    \begin{cases}
+        \mathbf{u}_{i,g}
+         & \text{si } f(\mathbf{u}_{i,g})
+        \leq f(\mathbf{x}_{i,g}),         \\
+        \mathbf{x}_{i,g}
+         & \text{en otro caso}.
+    \end{cases}
+\]
+
+De este modo, cada vector de prueba reemplaza al individuo objetivo correspondiente únicamente cuando iguala o mejora su calidad. La selección favorece la conservación de las mejores soluciones encontradas, mientras que la mutación diferencial permite continuar explorando nuevas regiones a partir de las diferencias entre individuos. Este procedimiento se aplica a toda la población, manteniendo constante su tamaño y generando \(P_{g+1}\) a partir de \(P_g\).
+
+\subsection{Success-History based Adaptive Differential Evolution (SHADE)}
+
+La tercera y última metaheurística considerada en este trabajo es \textbf{SHADE}, una variante adaptativa de DE propuesta por Ryoji Tanabe y Alex Fukunaga en 2013 \cite{tanabe2013shade}. El algoritmo fue presentado en el \textit{IEEE Congress on Evolutionary Computation} (CEC 2013), donde se evaluó sobre las 28 funciones del benchmark correspondiente a dicha edición, además de otros conjuntos de referencia, mostrando un rendimiento competitivo frente a variantes previas de DE consideradas parte del \textit{estado del arte}, como \textbf{CoDE, EPSDE, JADE} y \textbf{dynNP-jDE}.
+
+Dentro del estudio, \textbf{SHADE} se incluye como la metaheurística más avanzada de las tres consideradas. Frente a AGE, basado en operadores genéticos clásicos, y DE, basado en parámetros de control fijos, \textbf{SHADE} permite analizar trayectorias generadas por un algoritmo diferencial adaptativo.
+
+Aunque conserva la estructura general de DE basada en mutación diferencial, cruce binomial y selección \textit{greedy}, SHADE incorpora una \textbf{memoria histórica} que almacena información sobre los valores exitosos del factor de escala \(F\) y de la probabilidad de cruce \(CR\). Esta información permite adaptar ambos parámetros durante la ejecución.
+
+Además de la adaptación histórica de \(F\) y \(CR\), \textbf{SHADE} emplea la estrategia de mutación \texttt{current-to-pbest/1} y mantiene un archivo externo de soluciones reemplazadas. Como se resume en el Algoritmo~\ref{alg:shade}, para cada individuo objetivo se generan dinámicamente los parámetros \(F_i\) y \(CR_i\), se construye un vector de prueba y se aplica una selección \textit{greedy}. Los parámetros asociados a las mejoras obtenidas se utilizan después para actualizar la memoria histórica y orientar las generaciones posteriores.
+
+\begin{algorithm}[htbp]
+    \begin{algorithmic}[1]
+        \State $P_0 \gets \textsc{GenerarPoblacionInicial}()$
+        \State $\textsc{Evaluar}(P_0)$
+        \State $M_F, M_{CR} \gets \textsc{InicializarMemoria}(H)$
+        \State $A \gets \emptyset$
+        \State $g \gets 0$
+        \While{no se cumpla el criterio de parada}
+        \State $S_F, S_{CR}, S_{\Delta f} \gets \emptyset$
+        \For{cada individuo objetivo $\mathbf{x}_{i,g} \in P_g$}
+        \State $r_i \gets \textsc{SeleccionarIndiceMemoria}(H)$
+        \State $F_i, CR_i \gets
+            \textsc{GenerarParametros}(M_F[r_i], M_{CR}[r_i])$
+        \State $p_i \gets \textsc{GenerarProporcionPBest}(N)$
+        \State $\mathbf{v}_{i,g} \gets
+            \textsc{MutacionCurrentToPBest}(P_g, A, i, F_i, p_i)$
+        \State $\mathbf{u}_{i,g} \gets
+            \textsc{CruceBinomial}(\mathbf{x}_{i,g}, \mathbf{v}_{i,g}, CR_i)$
+        \State $\textsc{Evaluar}(\mathbf{u}_{i,g})$
+        \EndFor
+        \For{cada individuo objetivo $\mathbf{x}_{i,g} \in P_g$}
+        \State $\mathbf{x}_{i,g+1} \gets
+            \textsc{SeleccionGreedy}(\mathbf{x}_{i,g}, \mathbf{u}_{i,g})$
+        \If{$f(\mathbf{u}_{i,g}) < f(\mathbf{x}_{i,g})$}
+        \State $\Delta f_i \gets
+            \left|f(\mathbf{u}_{i,g}) - f(\mathbf{x}_{i,g})\right|$
+        \State $A \gets A \cup \{\mathbf{x}_{i,g}\}$
+        \State $\textsc{RegistrarExito}
+            (S_F, S_{CR}, S_{\Delta f}, F_i, CR_i, \Delta f_i)$
+        \EndIf
+        \EndFor
+        \State $A \gets \textsc{LimitarArchivo}(A)$
+        \If{$S_F \neq \emptyset \land S_{CR} \neq \emptyset$}
+        \State $M_F, M_{CR} \gets
+            \textsc{ActualizarMemoria}(M_F, M_{CR}, S_F, S_{CR}, S_{\Delta f})$
+        \EndIf
+        \State $P_{g+1} \gets \{\mathbf{x}_{i,g+1}\}_{i=1}^{N}$
+        \State $g \gets g + 1$
+        \EndWhile
+        \State \Return mejor solución encontrada
+    \end{algorithmic}
+    \caption{\textit{Success-History based Adaptive Differential Evolution} (SHADE).}
+    \label{alg:shade}
+\end{algorithm}
+
+A continuación, se describen con mayor detalle los componentes distintivos incorporados por \textbf{SHADE}.
+
+
+\subsubsection{Adaptación histórica de parámetros}
+
+La memoria histórica está formada por los vectores \(M_F\) y \(M_{CR}\), cada uno de ellos con \(H\) posiciones. Inicialmente, todas las posiciones se establecen a \(0.5\). Durante cada generación, para cada individuo objetivo \(\mathbf{x}_{i,g}\) se selecciona aleatoriamente una posición \(r_i \in \{1,\dots,H\}\) y se generan los parámetros
+
+\begin{align*}
+    F_i  & \sim \mathrm{Cauchy}(M_{F,r_i},\,0.1), \\
+    CR_i & \sim \mathcal{N}(M_{CR,r_i},\,0.1)
+\end{align*}
+
+aplicando posteriormente las restricciones necesarias para garantizar que \(F_i \in (0,1]\) y \(CR_i \in [0,1]\). De este modo, los parámetros de control dejan de ser constantes globales y pasan a depender de la experiencia acumulada durante la ejecución.
+
+Cuando un vector de prueba mejora al individuo objetivo correspondiente, los valores de \(F_i\) y \(CR_i\) empleados se almacenan en los conjuntos \(S_F\) y \(S_{CR}\). Asimismo, se registra la magnitud de la mejora obtenida:
+
+\[
+    \Delta f_i
+    =
+    \left|
+    f(\mathbf{u}_{i,g})
+    -
+    f(\mathbf{x}_{i,g})
+    \right|.
+\]
+
+Al finalizar la generación, si se ha producido al menos una mejora, se actualiza una posición de cada memoria. Sea \(n_s\) el número de mejoras registradas. Los pesos asociados a los parámetros exitosos se calculan como
+
+\[
+    w_k
+    =
+    \frac{
+        \Delta f_k
+    }{
+        \displaystyle\sum_{\ell=1}^{n_s} \Delta f_\ell
+    }.
+\]
+
+La memoria \(M_{CR}\) se actualiza mediante la media aritmética ponderada de los valores exitosos:
+
+\[
+    \operatorname{mean}_{\mathrm{WA}}(S_{CR})
+    =
+    \sum_{k=1}^{n_s} w_k S_{CR,k}.
+\]
+
+En cambio, para actualizar \(M_F\) se emplea la media de Lehmer ponderada:
+
+\[
+    \operatorname{mean}_{\mathrm{WL}}(S_F)
+    =
+    \frac{
+        \displaystyle\sum_{k=1}^{n_s} w_k S_{F,k}^2
+    }{
+        \displaystyle\sum_{k=1}^{n_s} w_k S_{F,k}
+    }.
+\]
+
+La ponderación concede una mayor influencia a los parámetros asociados a mejoras más relevantes. Las posiciones de las memorias se actualizan de forma cíclica, permitiendo conservar información procedente de distintas etapas de la búsqueda.
+
+\subsubsection{Operador de mutación}
+
+La mutación utilizada en \textbf{SHADE} se basa en la estrategia \texttt{current-to-}\allowbreak\texttt{pbest/1}. Para cada individuo objetivo \(\mathbf{x}_{i,g}\), se genera aleatoriamente una proporción \(p_i \sim \mathcal{U}[p_{\min}, 0.2]\), donde \(p_{\min}\) se establece de modo que el conjunto de candidatos contenga al menos dos individuos. A continuación, se selecciona una solución \(\mathbf{x}_{pbest,g}\) entre el mejor \(100p_i\%\) de la población, junto con dos individuos adicionales. El vector mutante se construye como
+
+\begin{equation}
+    \mathbf{v}_{i,g}
+    =
+    \mathbf{x}_{i,g}
+    +
+    F_i \bigl(\mathbf{x}_{pbest,g} - \mathbf{x}_{i,g}\bigr)
+    +
+    F_i \bigl(\mathbf{x}_{r_1,g} - \mathbf{x}_{r_2,g}\bigr)
+\end{equation}
+
+donde \(\mathbf{x}_{r_1,g}\) se selecciona de la población actual y \(\mathbf{x}_{r_2,g}\) puede proceder tanto de dicha población como del archivo externo \(A\). Los índices utilizados deben ser distintos entre sí y diferentes del individuo objetivo.
+
+El archivo externo almacena soluciones reemplazadas durante la selección y su tamaño máximo coincide con el de la población. Cuando se supera este límite, se eliminan elementos aleatoriamente. Su utilización amplía el conjunto disponible para construir diferencias vectoriales y favorece el mantenimiento de diversidad durante la búsqueda. Así, la mutación combina una componente dirigida hacia soluciones prometedoras con otra componente diferencial orientada a preservar la capacidad exploratoria.
+
+\subsubsection{Operadores de cruce y selección}
+
+Una vez generado el vector mutante, se aplica cruce binomial con la probabilidad \(CR_i\), obteniendo un vector de prueba \(\mathbf{u}_{i,g}\). Este vector compite con el individuo objetivo mediante selección \textit{greedy}, de forma análoga a DE. Cuando se produce una mejora estricta, la solución reemplazada se incorpora al archivo externo \(A\) y los parámetros empleados se registran para actualizar posteriormente la memoria histórica.
+
+El criterio de selección coincide con el descrito para DE:
+
+\[
+    \mathbf{x}_{i,g+1}
+    =
+    \begin{cases}
+        \mathbf{u}_{i,g}
+         & \text{si } f(\mathbf{u}_{i,g})
+        \leq f(\mathbf{x}_{i,g}),         \\
+        \mathbf{x}_{i,g}
+         & \text{en otro caso}.
+    \end{cases}
+\]
+
+Por tanto, \textbf{SHADE} conserva el esquema generacional de DE y mantiene constante el tamaño de la población. Su diferencia principal reside en que la información obtenida durante la selección no solo determina la supervivencia de los individuos, sino que también modifica la memoria histórica y condiciona la generación de parámetros en iteraciones posteriores.
+
+
+\section{Mecanismo de reinicio elitista}
+\label{sec:mecanismo_reinicio_elitista}
+
+
+% - problema que resuelve: estancamiento o perdida de diversidad
+% - criterio de activacion
+% - que parte se regenera
+% - como se integra con age, de y shade
+% - que objetivo tiene: recuperar exploracion sin descartar completamente el progreso acumulado
+
+
+%% motivacion: reactivar la exploracion cuando la poblacion deja de progesar.
+%% criterio de activacion: ausencia prolongada de mejora relevante en el segundo mejor fitness
+%% motivo para observar el segundo mejor individuo: el mejor se preserva tras cada reinicio; observar tambn el progreso del resto de la poblacion permite detectar mejor el estancamiento colectivo
+%% procedimiento: conservar el mejor individuo y regenerar aleatoriamente el resto dentro del dominio de busqueda
+%% integracion comun: aplicar el mismo esquema general a age, de y shade
+%% particularidad de shade: vaciar el archivo externo de soluciones reemplazads tras el reinicio, evitando reutiliazr informacion asociada a la estapa anterior
+%% papel de la diversidad: utilizarla para interpretar el comportamiento del mecanismo pero no como condicion de activacion.
+%% transicion experimental. indicar que el tamaño de la ventana se estudiara posteriormente, sin adelantar el valor seleccionado.
+
+
+Como se expuso en las Secciones~\ref{subsec:dinamicas_criticas} y~\ref{subsec:mh_poblacion}, una intensificación excesiva de la búsqueda puede reducir progresivamente la diversidad poblacional y desembocar en una fase de \textbf{estancamiento}. En estas condiciones, la población deja de generar mejoras relevantes y puede producir muestras cada vez más homogéneas, lo que limita tanto la capacidad exploratoria de la metaheurística como la utilidad posterior de los modelos subrogados. Si esto ocurre, se incorpora un mecanismo de \textbf{reinicio elitista} común a AGE, DE y SHADE.
+
+A diferencia de un reinicio completo, que sustituiría todos los individuos
+de la población por nuevas soluciones, el mecanismo elitista conserva la
+mejor solución disponible y regenera aleatoriamente las restantes. De este
+modo, se recupera capacidad exploratoria sin descartar por completo el
+progreso alcanzado durante la búsqueda.
+
+En este trabajo, la activación del reinicio no se determina a partir del mejor individuo de la población, sino de la evolución del \textbf{segundo mejor}. Por sí sola, la mejor solución no es un indicador lo suficientemente representativo de la capacidad de la población para continuar generando mejoras, ya que refleja únicamente el progreso del individuo más destacado, no la evolución del resto del conjunto. Por ello, se monitoriza el segundo mejor individuo, cuyo estancamiento permite identificar con mayor precisión cuándo la población ha dejado de progresar. La Figura~\ref{fig:reinicio_elitista} representa esquemáticamente este procedimiento.
+
+\input{figuras/esquema_reinicio/reinicio_elitista.tex}
+
+Sea \(f_{(2)}(e)\) el valor de \textit{fitness} del segundo mejor individuo tras \(e\) evaluaciones y sea \(e_{\text{mejora}}^{(2)}\) la última evaluación en la que dicho valor experimentó una mejora relevante. El mecanismo de reinicio se activa cuando se cumple
+
+\begin{equation}
+    e - e_{\text{mejora}}^{(2)}
+    \geq
+    \rho E_{\max},
+    \label{eq:criterio_activacion_reinicio}
+\end{equation}
+
+donde \(E_{\max}\) representa el presupuesto total de evaluaciones y
+\(\rho \in (0,1)\) determina la ventana de estancamiento. Para evitar que pequeñas variaciones numéricas reinicien el contador artificialmente, únicamente se consideran aquellas mejoras que superan una tolerancia mínima.
+
+Cuando se satisface la condición expresada en la Ecuación~\ref{eq:criterio_activacion_reinicio}, se conserva el mejor individuo de la población y se regeneran aleatoriamente los restantes dentro del dominio de búsqueda \(\Omega\). Si \(N\) representa el tamaño de la población, la nueva población puede expresarse como
+
+\begin{equation}
+    P'
+    =
+    \left\{
+    \mathbf{x}_{\text{best}}
+    \right\}
+    \cup
+    \left\{
+    \mathbf{x}^{\text{new}}_2,
+    \dots,
+    \mathbf{x}^{\text{new}}_N
+    \right\},
+    \label{eq:poblacion_tras_reinicio}
+\end{equation}
+
+donde
+
+\begin{equation}
+    \mathbf{x}^{\text{new}}_i
+    \sim
+    \mathcal{U}(\Omega),
+    \qquad i = 2, \dots, N.
+    \label{eq:muestreo_reinicio}
+\end{equation}
+
+La regeneración uniforme de los \(N-1\) individuos incrementa la diversidad
+poblacional y favorece la exploración de nuevas regiones del espacio de
+búsqueda. Una vez construida \(P'\), también se actualizan las referencias
+utilizadas para detectar el estancamiento, evitando que el mecanismo vuelva
+a activarse inmediatamente debido a información asociada a la etapa anterior.
+
+Este procedimiento se integra de forma equivalente en las distintas
+metaheurísticas consideradas, con una pequeña adaptación para \textbf{SHADE}.
+Tras el reinicio, su archivo externo de soluciones reemplazadas \(A\) debe vaciarse para evitar que la nueva etapa de búsqueda reutilice información
+asociada a la dinámica poblacional previa.
+
+El Algoritmo~\ref{alg:reinicio_elitista} resume la secuencia de operaciones aplicada cuando se satisface el criterio de activación.
+
+\begin{algorithm}[H]
+    \begin{algorithmic}[1]
+        \If{$e - e_{\text{mejora}}^{(2)} \geq \rho E_{\max}$ \textbf{and} $E_{\max}-e \geq N-1$}
+        \State $\mathbf{x}_{\text{best}} \gets
+            \textsc{SeleccionarMejorIndividuo}(P)$
+        \State $P_{\text{new}} \gets
+            \textsc{GenerarPoblacionAleatoria}(N-1, \Omega)$
+        \State $\textsc{Evaluar}(P_{\text{new}})$
+        \State $e \gets e + N - 1$
+        \State $P \gets
+            \{\mathbf{x}_{\text{best}}\} \cup P_{\text{new}}$
+        \If{la metaheurística es SHADE}
+        \State $A \gets \emptyset$
+        \EndIf
+        \State $\textsc{ActualizarReferenciasDeEstancamiento}(P, e)$
+        \EndIf
+    \end{algorithmic}
+    \caption{Mecanismo de reinicio elitista.}
+    \label{alg:reinicio_elitista}
+\end{algorithm}
+
+Las configuraciones concretas consideradas para la ventana de estancamiento se detallarán en el Capítulo~\ref{chap:metodologia_experimental}, mientras que su comparación y la selección final para cada metaheurística se presentarán posteriormente en el Capítulo~\ref{chap:experimentacion}.
+
+\section{Modelos candidatos para la comparativa principal}
+\label{sec:modelos_candidatos_comparativa}
+
+Una vez descritas las metaheurísticas utilizadas para generar las trayectorias de búsqueda, es necesario presentar los modelos considerados para aproximar la relación entre las soluciones candidatas y sus valores de \textit{fitness}. Como se expuso en el Capítulo~\ref{chap:fundamentos_teoricos}, un modelo predictivo puede actuar como técnica subrogada cuando se emplea para proporcionar información útil sobre una función objetivo cuyo coste de evaluación se desea reducir. Por tanto, esta sección adopta una perspectiva operativa y se centra en los modelos concretos que serán utilizados posteriormente y participan en la comparativa principal.
+
+La comparativa considera ocho modelos pertenecientes a distintas familias de aproximación: LASSO, \textit{Response Surface Methodology} (RSM), \textit{Radial Basis Function} (RBF), \textit{Support Vector Regression} (SVR), \textit{Multilayer Perceptron} (MLP), \textit{Random Forest}, \textit{Histogram-based Gradient Boosting} (HGB) y \textit{Extreme Gradient Boosting} (XGBoost). Todos ellos reciben como entrada una solución candidata \(\mathbf{x}\) y proporcionan una estimación numérica \(\hat{f}(\mathbf{x})\) de su valor de \textit{fitness}.
+
+La selección reúne aproximadores lineales, polinómicos, locales, basados en funciones \textit{kernel}, neuronales y construidos mediante ensamblados de árboles. Esto permite comparar enfoques con diferentes niveles de flexibilidad, coste computacional y capacidad para representar relaciones no lineales. A continuación, se describen sus características principales y el papel que desempeñan dentro del estudio, mientras que las configuraciones concretas empleadas se detallarán posteriormente en el Capitulo \ref{chap:metodologia_experimental}.
+
+\subsection{Least Absolute Shrinkage and Selection Operator (LASSO)}
+
+El modelo \textit{Least Absolute Shrinkage and Selection Operator} (LASSO) fue propuesto por Tibshirani en 1996 como un \textbf{método de regresión lineal regularizada} \cite{tibshirani1996lasso}. Su objetivo consiste en aproximar una variable de salida mediante una combinación lineal de las características de entrada, penalizando al mismo tiempo la magnitud de los coeficientes estimados. En el contexto considerado, la predicción del valor de \textit{fitness} adopta la forma
+
+\begin{equation}
+    \hat{f}(\mathbf{x})
+    =
+    \beta_0
+    +
+    \sum_{j=1}^{D}
+    \beta_j x_j,
+\end{equation}
+
+donde \(\beta_0\) representa el término independiente y cada coeficiente \(\beta_j\) pondera la contribución de la variable de decisión \(x_j\). Los parámetros del modelo se obtienen resolviendo el problema de optimización
+
+\begin{equation}
+    \min_{\beta_0,\boldsymbol{\beta}}
+    \left\{
+    \frac{1}{n}
+    \sum_{i=1}^{n}
+    \left(
+    y_i - \beta_0 - \mathbf{x}_i^\top \boldsymbol{\beta}
+    \right)^2
+    +
+    \lambda
+    \lVert \boldsymbol{\beta} \rVert_1
+    \right\},
+\end{equation}
+
+donde \(n\) es el número de muestras disponibles y \(\lambda\) controla la intensidad de la regularización. La penalización basada en la norma \(L_1\) favorece que algunos coeficientes adopten un valor exactamente nulo, reduciendo la complejidad del modelo y actuando como un mecanismo implícito de selección de variables.
+
+LASSO se utiliza como una referencia lineal regularizada de \textbf{bajo coste computacional} y elevada interpretabilidad. Su sencillez permite comprobar hasta qué punto las trayectorias de búsqueda pueden ser aprovechables antes de recurrir a aproximadores más flexibles y complejos. Precisamente por su formulación, su alcance queda limitado cuando el paisaje de \textit{fitness} presenta interacciones entre variables, curvaturas pronunciadas o una estructura altamente multimodal.
+
+
+\subsection{Response Surface Methodology (RSM)}
+
+La metodología de superficies de respuesta (\textit{Response Surface Methodology}, RSM) fue introducida por Box y Wilson como un enfoque estadístico para analizar y optimizar procesos cuya respuesta depende de múltiples variables \cite{box1951experimental}. En el ámbito del modelado subrogado, su idea fundamental consiste en aproximar la función objetivo mediante una superficie polinómica ajustada a partir de las muestras disponibles.
+
+De forma general, una superficie polinómica de grado máximo \(p\) puede expresarse como
+
+\begin{equation}
+    \hat{f}(\mathbf{x})
+    =
+    \sum_{|\boldsymbol{\alpha}| \leq p}
+    \beta_{\boldsymbol{\alpha}}
+    \mathbf{x}^{\boldsymbol{\alpha}},
+\end{equation}
+
+donde \(\boldsymbol{\alpha}\) es un multiíndice que determina las potencias aplicadas a las variables de decisión y \(\beta_{\boldsymbol{\alpha}}\) representa el coeficiente asociado a cada término. Dependiendo del grado considerado, el modelo puede incorporar términos lineales, potencias de las variables e interacciones entre ellas.
+
+RSM amplía la capacidad expresiva de LASSO mediante la incorporación de términos polinómicos e interacciones entre variables, manteniendo una formulación interpretable y un \textbf{coste reducido}. Esta aproximación resulta adecuada para representar superficies suaves de bajo orden pero, a medida que aumenta la irregularidad del paisaje, su dimensión o el grado del polinomio, el ajuste pierde eficacia y el número de términos necesarios crece rápidamente.
+
+\subsection{Radial Basis Function (RBF)}
+
+Los modelos basados en funciones de base radial (\textit{Radial Basis Function}, RBF) constituyen una técnica clásica de aproximación empleada para interpolar o suavizar datos distribuidos en espacios multidimensionales. Una de sus primeras formulaciones fue introducida por Hardy en 1971 mediante el uso de funciones multicuadráticas para representar superficies irregulares \cite{hardy1971multiquadric}. Su idea fundamental consiste en construir la predicción como una combinación ponderada de funciones cuyo valor depende de la distancia entre la solución evaluada y un conjunto de centros.
+
+De forma general, un aproximador RBF puede expresarse como
+
+\begin{equation}
+    \hat{f}(\mathbf{x})
+    =
+    \sum_{i=1}^{m}
+    w_i
+    \phi\left(
+    \left\lVert
+    \mathbf{x} - \mathbf{c}_i
+    \right\rVert
+    \right),
+\end{equation}
+
+donde \(\mathbf{c}_i\) representa el centro asociado a la función radial \(i\), \(w_i\) es su coeficiente y \(\phi(\cdot)\) determina la influencia de la distancia sobre la predicción. Entre las funciones radiales más habituales se encuentran las \textbf{gaussianas, multicuadráticas, lineales} y \textbf{cúbicas}.
+
+Dentro de la comparativa, este modelo aporta una aproximación no lineal basada en la estructura geométrica de las muestras disponibles. Frente al carácter global de RSM, su formulación permite capturar variaciones locales de la función objetivo, lo que resulta especialmente relevante cuando los datos proceden de regiones sucesivas de una trayectoria de búsqueda. Su comportamiento está condicionado por la distribución de las muestras y por la función radial empleada. Asimismo, el \textbf{coste computacional puede aumentar con el tamaño del conjunto de entrenamiento} si se utilizan todos los centros disponibles.
+
+\subsection{Support Vector Regression (SVR)}
+
+Dentro de los métodos basados en funciones \textit{kernel}, la regresión por vectores de soporte (\textit{Support Vector Regression}, SVR) extiende al ámbito de la regresión los principios de las máquinas de vectores soporte (SVM), desarrolladas en el marco de la teoría del aprendizaje estadístico \cite{drucker1996svr,smola2004tutorial}. Su objetivo consiste en construir una función aproximadora que mantenga un equilibrio entre la complejidad del modelo y el error cometido sobre las muestras de entrenamiento.
+
+Una de sus características distintivas es la utilización de una función de pérdida \(\varepsilon\)-insensible, definida como
+
+\begin{equation}
+    L_{\varepsilon}
+    \left(
+    y,
+    \hat{f}(\mathbf{x})
+    \right)
+    =
+    \max
+    \left\{
+    0,
+    \left|
+    y - \hat{f}(\mathbf{x})
+    \right|
+    -
+    \varepsilon
+    \right\}.
+\end{equation}
+
+Esta formulación establece un margen de tolerancia alrededor de la predicción, de modo que los errores inferiores a \(\varepsilon\) no se penalizan. Las muestras que determinan finalmente la forma del modelo reciben el nombre de vectores de soporte.
+
+Mediante el uso de funciones \textit{kernel}, SVR puede representar relaciones no lineales sin construir explícitamente una transformación del espacio de entrada. Esta idea se refleja directamente en su función predictiva, que se expresa como una combinación ponderada de similitudes entre la muestra a predecir y las muestras de entrenamiento:
+
+\begin{equation}
+    \hat{f}(\mathbf{x})
+    =
+    \sum_{i=1}^{n}
+    \left(
+    \alpha_i - \alpha_i^{*}
+    \right)
+    K
+    \left(
+    \mathbf{x}_i,
+    \mathbf{x}
+    \right)
+    +
+    b,
+\end{equation}
+
+donde \(K(\mathbf{x}_i,\mathbf{x})\) mide la similitud inducida por el
+\textit{kernel} entre la muestra de entrenamiento \(\mathbf{x}_i\) y la nueva muestra \(\mathbf{x}\), \(\alpha_i\) y \(\alpha_i^{*}\) son los coeficientes obtenidos durante el ajuste y \(b\) representa el término independiente.
+
+La inclusión de SVR permite valorar un aproximador no lineal con capacidad de generalización y control explícito sobre la complejidad del modelo. Sin embargo, el coste de ajuste constituye una \textbf{limitación práctica relevante}. A medida que aumenta el tamaño del conjunto de entrenamiento, el tiempo necesario para construir el modelo puede crecer de forma considerable. De hecho, la literatura ha descrito costes de entrenamiento \textbf{cúbicos respecto al número de muestras} para formulaciones convencionales de SVR~\cite{wang2007reducing}. Esta limitación resulta especialmente importante en escenarios donde el subrogado debe ajustarse repetidamente durante la optimización, por lo que su \textbf{viabilidad computacional} se analizará posteriormente junto con su calidad predictiva.
+
+\subsection{Multilayer Perceptron (MLP)}
+
+Como representante de los modelos basados en redes neuronales, se considera el perceptrón multicapa (\textit{Multilayer Perceptron}, MLP), una de las arquitecturas más extendidas dentro de las redes neuronales artificiales (ANNs). Este modelo organiza un conjunto de neuronas artificiales en una capa de entrada, una o varias capas ocultas y una capa de salida. Las conexiones entre capas permiten transformar progresivamente las variables originales y construir una aproximación no lineal de la función objetivo.
+
+En términos generales, para un MLP con \(L\) capas ocultas, la salida de cada capa puede expresarse como
+
+\begin{equation}
+    \mathbf{h}^{(1)}
+    =
+    \sigma^{(1)}
+    \left(
+    W^{(1)}\mathbf{x}
+    +
+    \mathbf{b}^{(1)}
+    \right),
+\end{equation}
+
+\begin{equation}
+    \mathbf{h}^{(\ell)}
+    =
+    \sigma^{(\ell)}
+    \left(
+    W^{(\ell)}\mathbf{h}^{(\ell-1)}
+    +
+    \mathbf{b}^{(\ell)}
+    \right),
+    \qquad
+    \ell = 2,\dots,L,
+\end{equation}
+
+mientras que la predicción final para un problema de regresión viene dada por
+
+\begin{equation}
+    \hat{f}(\mathbf{x})
+    =
+    W^{(L+1)}
+    \mathbf{h}^{(L)}
+    +
+    \mathbf{b}^{(L+1)}.
+\end{equation}
+
+En estas expresiones, \(W^{(\ell)}\) y \(\mathbf{b}^{(\ell)}\) representan los pesos y sesgos de la capa \(\ell\), mientras que \(\sigma^{(\ell)}\) determina su función de activación. La composición sucesiva de estas transformaciones permite aproximar relaciones no lineales complejas entre las variables de entrada y la salida \cite{hornik1989multilayer}.
+
+MLP introduce un aproximador neuronal flexible que no impone una forma funcional fija sobre el paisaje de \textit{fitness}. La composición de sus capas permite representar patrones más complejos que los capturables mediante LASSO o RSM.  Como contrapartida, su entrenamiento es \textbf{más sensible a la escala de los datos}, a la \textbf{cantidad de muestras} disponibles y a la \textbf{configuración de la arquitectura}. Además, su interpretación resulta menos directa que la de los modelos lineales o polinómicos.
+
+\subsection{Random Forest (RF)}
+
+\textit{Random Forest} es un modelo de ensamblado introducido por Breiman en 2001 \cite{breiman2001random}. Su funcionamiento se basa en combinar múltiples árboles construidos a partir de muestras y subconjuntos de variables seleccionados aleatoriamente, lo que reduce la correlación entre los estimadores individuales y permite obtener una predicción agregada más robusta que la proporcionada por un único árbol.
+
+
+En problemas de regresión, la salida del modelo se calcula como el promedio de las predicciones generadas por los \(T\) árboles que componen el ensamblado:
+
+\begin{equation}
+    \hat{f}(\mathbf{x})
+    =
+    \frac{1}{T}
+    \sum_{t=1}^{T}
+    h_t(\mathbf{x}),
+\end{equation}
+
+donde \(h_t(\mathbf{x})\) representa la predicción obtenida por el árbol \(t\) para la solución candidata \(\mathbf{x}\).
+
+Random Forest proporciona una referencia capaz de capturar relaciones no lineales e interacciones entre variables sin imponer una forma funcional explícita sobre la función objetivo.
+
+La combinación de numerosos árboles favorece la robustez de las predicciones, aunque reduce su interpretabilidad frente a modelos lineales o polinómicos. Además, su capacidad de extrapolación es limitada fuera de las regiones cubiertas por las muestras de entrenamiento, debido a que las predicciones se construyen a partir de las particiones aprendidas sobre los datos disponibles.
+
+\subsection{Métodos de boosting basados en árboles}
+
+A diferencia de Random Forest, donde los árboles se construyen de forma independiente y sus predicciones se promedian, los métodos de \textit{gradient boosting} generan los estimadores de manera secuencial. Cada nuevo árbol intenta corregir los errores residuales cometidos por el conjunto anterior, construyendo progresivamente un modelo aditivo \cite{friedman2001gradient}.
+
+De forma general, la predicción obtenida tras incorporar \(T\) árboles puede expresarse como
+
+\begin{equation}
+    \hat{f}_T(\mathbf{x})
+    =
+    \hat{f}_0(\mathbf{x})
+    +
+    \sum_{t=1}^{T}
+    \eta
+    h_t(\mathbf{x}),
+\end{equation}
+
+donde \(\hat{f}_0(\mathbf{x})\) representa la estimación inicial, \(h_t(\mathbf{x})\) es el árbol incorporado en la iteración \(t\) y \(\eta\) controla la contribución de cada nuevo estimador. Esta construcción permite \textbf{capturar relaciones no lineales complejas} mediante la combinación sucesiva de modelos sencillos.
+
+\subsubsection{Histogram-based Gradient Boosting (HGB)}
+
+\textit{Histogram-based Gradient Boosting} (HGB) introduce una estrategia orientada a \textbf{reducir el coste de construcción de los árboles}. En lugar de evaluar directamente todos los valores continuos de las variables como posibles puntos de división, agrupa previamente las muestras en un número limitado de intervalos o \textbf{histogramas}. Esto reduce el número de candidatos que deben analizarse durante el entrenamiento y permite utilizar estructuras de datos más eficientes.
+
+A diferencia de otros modelos considerados, HGB permite valorar un aproximador no lineal diseñado para mantener un \textbf{coste de entrenamiento contenido cuando aumenta el número de muestras}. La discretización también implica una pérdida controlada de precisión en la representación de las variables, especialmente cuando el conjunto de entrenamiento es reducido o la estructura local de la función requiere divisiones muy específicas.
+
+\subsubsection{Extreme Gradient Boosting (XGBoost)}
+
+\textit{Extreme Gradient Boosting} (XGBoost) es un sistema escalable de \textit{tree boosting} propuesto por Chen y Guestrin \cite{chen2016xgboost}. Su formulación incorpora regularización explícita para controlar la complejidad del ensamblado y \textbf{reducir el riesgo de sobreajuste}, además de distintas optimizaciones dedicadas a acelerar la construcción de los árboles.
+
+La construcción del ensamblado se realiza minimizando una función objetivo regularizada. En la iteración \(t\), esta puede expresarse como
+
+\begin{equation}
+    \mathcal{L}^{(t)}
+    =
+    \sum_{i=1}^{n}
+    l
+    \left(
+    y_i,
+    \hat{f}^{(t-1)}(\mathbf{x}_i)
+    +
+    h_t(\mathbf{x}_i)
+    \right)
+    +
+    \Omega(h_t),
+\end{equation}
+
+donde \(l(\cdot,\cdot)\) representa la función de pérdida y \(\Omega(h_t)\) penaliza la complejidad del nuevo árbol. En particular, el término de regularización se define como
+
+\begin{equation}
+    \Omega(h_t)
+    =
+    \gamma T_t
+    +
+    \frac{1}{2}
+    \lambda
+    \lVert
+    \mathbf{w}_t
+    \rVert^2,
+\end{equation}
+
+donde \(T_t\) es el número de hojas del árbol, \(\mathbf{w}_t\) contiene sus pesos y los parámetros \(\gamma\) y \(\lambda\) controlan la complejidad del modelo.
+
+\textbf{XGBoost} añade a la comparativa un modelo flexible capaz de representar interacciones no lineales complejas con mecanismos específicos de regularización. Sus mecanismos adicionales permiten controlar la complejidad de los árboles y reducir el riesgo de sobreajuste pero, a cambio de esta capacidad expresiva, introduce una \textbf{mayor complejidad de configuración} que modelos más sencillos y mantiene las \textbf{limitaciones} habituales de los ensamblados basados en árboles \textbf{para extrapolar} fuera de las regiones cubiertas por los datos de entrenamiento.
+
+% En el caso de HGB, la discretización previa de las variables continuas mediante histogramas permite acelerar el entrenamiento y reducir el coste computacional. XGBoost, por su parte, incorpora regularización explícita y estrategias eficientes de construcción de árboles, lo que le confiere una combinación competitiva de precisión y robustez. Como surrogates, ambos métodos resultan especialmente útiles en problemas tabulares con relaciones no lineales complejas, aunque, al igual que otros enfoques basados en árboles, presentan limitaciones para extrapolar fuera de las regiones observadas.
+
+
+
+
+% Aunque evalúes el modelo midiendo cómo ordena las soluciones (mediante coeficientes como Spearman o Kendall), el modelo matemático subyacente sigue aprendiendo un mapeo de un espacio continuo a una variable de salida continua: R
+% D
+% →R (la función de fitness). Vas a entrenar regresores clásicos (como RBF o Random Forests de regresión) que devuelven números reales, no clasificadores ni modelos de ordenación pura (Learning to Rank basándose en comparaciones por pares).
+% Explicar este contraste entre lo que predice el modelo (un valor continuo) y lo que nos interesa de su predicción (el orden relativo) enriquecerá enormemente tu marco teórico. A los tribunales de la ETSIIT les entusiasma ver que el alumno entiende que en optimización evolutiva no importa si el metamodelo se equivoca en el tercer decimal, siempre y cuando sea capaz de identificar correctamente qué individuo es mejor que otro para guiar la selección.
+
+
+\section{Técnicas Subrogadas clásicas de referencia}
+
+%% motivacion de incluirlas: explicar que, aunque el trabajo se centra en modelos de aprendizaje automático, se consideran también técnicas clásicas de modelado subrogado como referencia posterior
+
+%% diferencias respecto a los modelos de ml: no presentarlas como otros regresores mas, sino como métodos tradicionalmente diseñados para aproximar funciones objetivo costosas en optimizacion, tal y como se comentaba en el capitulo 3
+
+%% kriging / procesos gaussianos:
+% - idea general: modelar la funcion como una realizacion de un proceso estocastico
+% - prediccion con media e incertidumbre
+% - utilidad en optimizacion surrogate y smbo
+% - limitaciones: coste cubico aproximado con el numero de muestras,
+% sensibilidad al kernel/covarianza.
+
+%% pce:
+% - idea general: aproximar la respuesta mediante una expansion en polinomios ortogonales
+% - adecuado cuando se quiere representar la funcion mediante una base global
+% - limitaciones: puede degredarse en paisajes muy irregulares o altamente multimodales
+
+%% papel en este tfg: dejar claro que no forman parte del cribado inicial de modelos ml, sino que se reservan como referencia clasica para una comparacion posterior con el subrogado seleccionado.
+
+Además de los modelos incluidos en la comparativa principal, resulta conveniente introducir algunas técnicas subrogadas clásicas empleadas históricamente para aproximar funciones objetivo costosas. En particular, se consideran \textit{Kriging} y las expansiones de caos polinómico (\textit{Polynomial Chaos Expansion}, PCE).
+
+Estas técnicas no forman parte del cribado inicial de candidatos, en el que sí se incluyen RSM y RBF junto con distintos modelos de aprendizaje automático. Su finalidad es proporcionar referencias clásicas frente a las que contrastar posteriormente el comportamiento del modelo seleccionado una vez integrado en el proceso de optimización.
+
+\subsection{Kriging}
+
+\textit{Kriging} es una técnica clásica de modelado subrogado utilizada para aproximar funciones costosas a partir de un conjunto limitado de observaciones. Su aplicación al diseño y análisis de experimentos computacionales fue consolidada por Sacks et al. \cite{sacks1989}. Posteriormente, adquirió especial relevancia en optimización mediante métodos como \textit{Efficient Global Optimization} (EGO) \cite{jones1998}.
+
+Este método puede formularse mediante \textbf{procesos gaussianos}. La función objetivo se modela como la suma de una tendencia global y un proceso estocástico correlacionado:
+
+\begin{equation}
+    f(\mathbf{x}) = \mu(\mathbf{x}) + Z(\mathbf{x}),
+\end{equation}
+
+donde \(\mu(\mathbf{x})\) representa la tendencia media y \(Z(\mathbf{x})\) es un proceso gaussiano cuya estructura de covarianza determina el grado de similitud entre distintas soluciones del espacio de búsqueda.
+
+Dado un conjunto de muestras evaluadas
+\(\mathcal{D} = \{(\mathbf{x}_i, y_i)\}_{i=1}^{n}\),
+la predicción en una nueva solución \(\mathbf{x}\) puede expresarse, de forma simplificada, como
+
+\begin{equation}
+    \hat{f}(\mathbf{x})
+    =
+    \mu(\mathbf{x})
+    +
+    \mathbf{k}(\mathbf{x})^{T}
+    \mathbf{K}^{-1}
+    \left(
+    \mathbf{y} - \boldsymbol{\mu}
+    \right),
+\end{equation}
+
+donde \(\mathbf{K}\) es la matriz de covarianza entre las muestras de entrenamiento y \(\mathbf{k}(\mathbf{x})\) contiene las covarianzas entre la nueva solución y dichas muestras. Además, el modelo proporciona una estimación de la incertidumbre asociada a la predicción:
+
+\begin{equation}
+    s^{2}(\mathbf{x})
+    =
+    k(\mathbf{x}, \mathbf{x})
+    -
+    \mathbf{k}(\mathbf{x})^{T}
+    \mathbf{K}^{-1}
+    \mathbf{k}(\mathbf{x}).
+\end{equation}
+
+Esta estimación de incertidumbre distingue a \textit{Kriging} de otros aproximadores considerados anteriormente. En estrategias de optimización secuencial, puede utilizarse para equilibrar la explotación de regiones prometedoras y la exploración de zonas todavía poco conocidas. Por este motivo, constituye una referencia especialmente relevante para métodos \textbf{SMBO}.
+
+Su principal limitación se encuentra en el coste computacional del ajuste. El tratamiento de una matriz de covarianza densa presenta un coste aproximado de \(\mathcal{O}(n^{3})\) respecto al número de muestras y requiere un almacenamiento de orden \(\mathcal{O}(n^{2})\) \cite{rasmussen2006gaussian}. Además, la calidad de la aproximación depende de la función de covarianza seleccionada y de sus parámetros. Estas características pueden dificultar su actualización reiterada cuando el conjunto de entrenamiento aumenta progresivamente durante la optimización.
+
+\subsection{Polynomial Chaos Expansion (PCE)}
+
+Las expansiones de caos polinómico (\textit{Polynomial Chaos Expansion}, PCE) constituyen una técnica de aproximación basada en la representación de una respuesta mediante una combinación de polinomios ortogonales. Aunque su origen se encuentra en el ámbito de la cuantificación de incertidumbre, también pueden emplearse como subrogados construidos a partir de un conjunto limitado de muestras evaluadas \cite{xiu2002wiener,sudret2008global}.
+
+Sea \(\boldsymbol{\xi}\) el vector de variables de entrada, caracterizadas mediante unas distribuciones de probabilidad determinadas. La aproximación de la función objetivo se expresa como
+
+\begin{equation}
+    \hat{f}(\boldsymbol{\xi})
+    =
+    \sum_{\boldsymbol{\alpha} \in \mathcal{A}}
+    c_{\boldsymbol{\alpha}}
+    \Psi_{\boldsymbol{\alpha}}(\boldsymbol{\xi}),
+\end{equation}
+
+donde \(\mathcal{A}\) es el conjunto de índices considerado, \(c_{\boldsymbol{\alpha}}\) representa los coeficientes de la expansión y \(\Psi_{\boldsymbol{\alpha}}\) son polinomios multivariantes ortogonales respecto a la distribución asumida para las variables de entrada. En una implementación no intrusiva, los coeficientes se estiman a partir de un conjunto de soluciones previamente evaluadas, sin necesidad de modificar la función objetivo original.
+
+PCE proporciona una aproximación global especialmente adecuada cuando la respuesta presenta una estructura suave que puede representarse mediante una base polinómica de orden moderado. Frente a RSM, su formulación se apoya explícitamente en una base ortogonal adaptada a la distribución de las entradas. Una vez calculados los coeficientes, el coste de evaluar la aproximación es reducido.
+
+La principal \textbf{limitación} de esta técnica aparece al \textbf{aumentar la dimensión del problema o el grado máximo de la expansión}. Para una truncación de grado total \(p\) en un espacio de dimensión \(D\), el número de términos viene dado por
+
+\begin{equation}
+    \left| \mathcal{A} \right|
+    =
+    \binom{D+p}{p}.
+\end{equation}
+
+Por tanto, el tamaño de la base puede crecer rápidamente. Además, una expansión polinómica global puede perder eficacia ante funciones altamente irregulares o con variaciones locales pronunciadas. Existen formulaciones dispersas que tratan de mitigar estas limitaciones seleccionando únicamente los términos más relevantes \cite{blatman2011adaptive}.
+
+\section{Estrategias \textit{offline} para la evaluación \textit{subrogada}}
+\label{sec:metodologia_estrategias_offline}
+
+%% IMPORTANTE:
+% -------
+
+% en cuanto al dataset, evaluar en offline necesita las mismas trayectorias exactas y generadas para ver si el modelo es capaz de replicar lo que la metaheuristica ya hizo.
+
+% en online, si usasemos las mismas, estariamos haciendo trampas (habria data leakage) y no sabriamos si el modelo realmente sabe guiar la busqueda en escenarios nuevos
+
+
+%% que datos se usan: trayectorias generadas por la metaheurística
+%% que significa estra acumulativa y no acumulativa
+%% papel que tienen los bloques temporales
+%% por que se valida siempre sobre datos futuros
+%% que se pretende medir: capacidad de anticipar el comportamiento posterior de la búsqueda.
+
+% Acumulativa/no acumulativa, partición temporal, porcentajes.
+
+Para evaluar el comportamiento de las técnicas subrogadas consideradas, se adopta inicialmente una perspectiva \textit{offline}. Para ello, las metaheurísticas se ejecutan de forma independiente y las soluciones evaluadas durante cada ejecución se almacenan junto con sus valores reales de \textit{fitness}. A partir de estas trayectorias previamente generadas se construyen los conjuntos utilizados para entrenar y validar los distintos modelos subrogados.
+
+El conjunto de entrenamiento está formado por las muestras empleadas para ajustar el modelo, mientras que el conjunto de validación se reserva para medir su capacidad de generalización sobre datos no utilizados durante el ajuste, siguiendo el esquema habitual de separación entre entrenamiento y validación en modelado predictivo.
+
+% \cite{stone1974crossvalidatory,geisser1975predictive,kohavi1995study}.
+
+Esta evaluación se realiza sobre trayectorias ya generadas. Las predicciones del subrogado no intervienen todavía en la evolución de la población, sino que se comparan con evaluaciones reales ya conocidas para estudiar su comportamiento bajo condiciones controladas. Esta separación permite analizar la calidad de los modelos antes de integrarlos en un esquema \textit{online}, donde sus estimaciones sí condicionarán las decisiones tomadas por el algoritmo de optimización.
+
+Las muestras de una trayectoria no se consideran intercambiables, ya que corresponden a distintas etapas del proceso evolutivo. Por este motivo, se organizan cronológicamente en \textbf{bloques temporales} y la validación se realiza siempre sobre soluciones posteriores a las empleadas durante el entrenamiento. De este modo, el análisis no se limita a comprobar si un modelo reproduce información ya observada, sino que permite valorar hasta qué punto puede \textbf{anticipar el comportamiento de la búsqueda} en etapas posteriores.
+
+Bajo este marco común, se consideran dos estrategias \textit{offline}. La \textbf{estrategia no acumulativa} utiliza exclusivamente las muestras correspondientes a un único bloque temporal, mientras que la \textbf{estrategia acumulativa} incorpora progresivamente toda la información disponible hasta el instante considerado. Ambas permiten estudiar desde perspectivas complementarias cómo influye la evolución temporal de la metaheurística sobre la utilidad de los modelos subrogados.
+
+\subsection{Estrategia offline no acumulativa}
+
+% - entrenamiento con un único bloque temporal
+% - objetivo: evaluar la utilidad local de cada etapa
+% - figura
+
+En la estrategia \textit{offline} no acumulativa, el modelo subrogado se entrena utilizando exclusivamente las muestras contenidas en un único bloque temporal de la trayectoria, sin incorporar información procedente de etapas anteriores. Por tanto, cada bloque se analiza de forma independiente y da lugar a un nuevo ajuste del modelo.
+
+Si \(B_t\) representa el bloque correspondiente al instante temporal \(t\), el conjunto de entrenamiento puede expresarse como
+
+\begin{equation}
+    \mathcal{D}_{\text{train}}^{(t)} = B_t.
+\end{equation}
+
+Este enfoque permite estudiar hasta qué punto la información generada en cada etapa de la búsqueda resulta suficiente para anticipar el comportamiento posterior de la metaheurística. Al no disponer de una base histórica acumulada, el rendimiento del modelo depende directamente de la representatividad y la calidad informativa del bloque empleado para el entrenamiento.
+
+La Figura~\ref{fig:offline_no_acumulativa} representa esquemáticamente este
+procedimiento. En cada ajuste se utiliza un único bloque temporal como conjunto
+de entrenamiento, mientras que el bloque inmediatamente posterior se reserva
+para la validación.
+
+\input{figuras/estrategias/no_acumulativa.tex}
+
+\subsection{Estrategia offline acumulativa}
+
+En la estrategia \textit{offline} acumulativa, el modelo subrogado se entrena utilizando todas las muestras disponibles hasta el bloque temporal considerado. A diferencia del enfoque anterior, la información procedente de etapas previas no se descarta, sino que se incorpora progresivamente al conjunto de entrenamiento. Por tanto, cada nuevo ajuste dispone de un historial de muestras cada vez más amplio.
+
+Si \(B_1, B_2, \dots, B_t\) representan los bloques temporales disponibles hasta el instante \(t\), el conjunto de entrenamiento puede expresarse como
+
+\begin{equation}
+    \mathcal{D}_{\text{train}}^{(t)}
+    =
+    \bigcup_{k=1}^{t} B_k.
+\end{equation}
+
+Este esquema permite analizar el comportamiento del subrogado cuando dispone de una base de conocimiento cada vez más amplia sobre la dinámica de la metaheurística. De este modo, se puede estudiar si la incorporación de muestras pasadas mejora su capacidad para anticipar el comportamiento posterior de la búsqueda o si introduce patrones menos representativos de las regiones exploradas en etapas más avanzadas.
+
+La acumulación progresiva de muestras también incrementa el tamaño del conjunto de entrenamiento, lo que puede \textbf{elevar el coste computacional} de los sucesivos ajustes. Este aspecto resulta especialmente relevante en aquellos modelos cuyo entrenamiento es más sensible al número de muestras disponibles.
+
+La Figura~\ref{fig:offline_acumulativa} representa esquemáticamente este procedimiento. En cada ajuste se incorporan todos los bloques temporales disponibles hasta el instante considerado, mientras que el bloque inmediatamente posterior se reserva para la validación.
+
+\input{figuras/estrategias/acumulativa.tex}
+
+% En la estrategia \textit{offline} acumulativa, el modelo \textit{surrogate} se entrena con todas las muestras disponibles hasta el instante evolutivo considerado. Así, el bloque 1--40\% utiliza conjuntamente las muestras de los tramos 1--20\% y 21--40\%, el bloque 1--60\% incorpora además las correspondientes al intervalo 41--60\%, y el bloque 1--80\% reúne todas las muestras generadas hasta el 80\% del presupuesto total de evaluaciones. De este modo, el conjunto de entrenamiento crece progresivamente a medida que avanza la búsqueda.
+
+% Al igual que en la estrategia no acumulativa, la validación se realiza sobre un subconjunto aleatorio extraído de los bloques temporales posteriores al último utilizado en el ajuste. El tamaño de este subconjunto se mantiene fijo en \(5000\) muestras para todos los casos, con el fin de evitar que el tamaño del conjunto de validación varíe al crecer el conjunto de entrenamiento.
+
+\subsection{Validación sobre muestras futuras}
+
+En ambas estrategias, la validación debe respetar el orden temporal de la
+trayectoria. Por ello, el modelo no se evalúa sobre muestras ya utilizadas
+durante el ajuste, sino sobre soluciones generadas en una etapa posterior de la búsqueda. Si \(B_t\) representa el último bloque incorporado al conjunto de entrenamiento, el conjunto de validación se toma de un bloque futuro \(B_{t+1}\), de forma que
+
+\begin{equation}
+    \mathcal{D}_{\text{val}}^{(t)}
+    \subseteq
+    B_{t+1}.
+\end{equation}
+
+Este esquema permite analizar hasta qué punto el subrogado es capaz de
+anticipar el comportamiento de la búsqueda a corto plazo. Además, se aproxima al escenario de integración \textit{online}, donde las predicciones del modelo deben resultar útiles para orientar las decisiones tomadas durante las siguientes etapas del proceso de optimización.
+
+La forma concreta de construir estos bloques y de
+seleccionar las muestras de validación se especifica posteriormente en el
+Capítulo~\ref{chap:metodologia_experimental}.
+
+
+\section{Estrategia \textit{online} para la integración del modelo subrogado}
+\label{sec:estrategia_online_integracion_surrogate}
+
+%% estrategia online
+
+La evaluación \textit{offline} permite estudiar la calidad del subrogado sobre
+trayectorias ya generadas, pero no refleja todavía su efecto cuando sus
+predicciones condicionan la evolución de la búsqueda. En ese segundo escenario,
+el modelo deja de ser una herramienta de análisis posterior y pasa a intervenir
+dentro del bucle de optimización. Por ello, la integración \textit{online}
+constituye el objetivo final de este estudio.
+
+Este planteamiento supone incorporar el subrogado dentro del propio proceso
+evolutivo de la metaheurística, de modo que sus predicciones intervengan en la
+selección de nuevas soluciones. Dicho enfoque se relaciona estrechamente con el
+esquema \textit{Sequential Model-Based Optimization} (SMBO) descrito en la
+Subsección~\ref{subsec:smbo}, en el cual el modelo se ajusta a partir de
+evaluaciones reales y se actualiza dinámicamente conforme se dispone de nueva
+información.
+
+Dado que la evaluación de la función objetivo representa el componente más
+costoso del proceso de optimización, la idea general es \textbf{evitar el consumo de evaluaciones reales} en candidatos que, según la predicción del modelo, no parecen capaces de mejorar la población. Bajo este planteamiento, el subrogado no sustituye de forma definitiva a la función objetivo, sino que actúa como un \textbf{filtro previo}: las soluciones que modifican la población o alteran los mecanismos internos de la metaheurística siguen estando estrictamente respaldadas por evaluaciones reales.
+
+Sea \(\mathbf{x}\) un candidato generado por la metaheurística y sea \(f_{\text{ref}}\) el valor real frente al que dicho candidato competiría en el mecanismo de reemplazo original. En un problema de minimización, el candidato se considera prometedor cuando
+
+\begin{equation}
+    \hat{f}(\mathbf{x}) < f_{\text{ref}}.
+    \label{eq:filtro_subrogado_online}
+\end{equation}
+
+Si se cumple esta condición, el candidato se evalúa mediante la función objetivo
+real para validar su utilidad. En caso contrario, se descarta sin consumir una
+evaluación real. De este modo, el subrogado permite concentrar las evaluaciones
+reales en candidatos previamente considerados prometedores, mientras que la
+función real mantiene en exclusiva el papel de criterio definitivo de
+aceptación. Esta forma de uso justifica que, en la evaluación analítica de los modelos subrogados, no solo se mida la magnitud absoluta del error, sino también su capacidad para preservar relaciones de orden entre soluciones.
+
+El valor de referencia \(f_{\text{ref}}\) descrito en la Ecuación~\ref{eq:filtro_subrogado_online} depende de la metaheurística sobre la
+que se integra el modelo. En AGE, los descendientes generados mediante cruce y mutación compiten contra el peor individuo de la población, por lo que \(f_{\text{ref}}\) corresponde al \textit{fitness} real de dicho individuo. En DE y SHADE, cada vector de prueba compite contra su individuo padre, de modo que la predicción del subrogado se compara con el \textit{fitness} real del padre correspondiente.
+
+Para modelar la hibridación entre el subrogado y la metaheurística, se requiere tomar decisiones respecto a la proporción de candidatos sobre los que se consulta el filtro, cuándo el modelo se encuentra disponible y cómo se actualiza a partir de evaluaciones reales generadas durante la búsqueda. Estos aspectos forman parte del protocolo experimental seguido para estudiar su efecto. Por ello, se especifican en el
+Capítulo~\ref{chap:metodologia_experimental} y se analizan posteriormente en el Capítulo~\ref{chap:experimentacion}.
+
+
+
+
+% El objetivo experimental no es reducir artificialmente el número de evaluaciones reales por debajo del presupuesto, sino aprovechar mejor ese presupuesto evitando evaluaciones sobre candidatos que el modelo considera poco competitivos.
+
+% ""
+% La función objetivo real es costosa. Por tanto, el subrogado se usa como filtro para evitar gastar evaluaciones reales en candidatos que probablemente no van a mejorar la población. Las evaluaciones reales ahorradas pueden emplearse en seguir generando nuevos candidatos hasta consumir el mismo presupuesto máximo, pero con una selección previa más informada.
+% ""
+
+% ""
+% Dado que la función objetivo real representa el componente computacionalmente costoso del proceso de optimización, la integración \textit{online} del subrogado se plantea como un mecanismo de filtrado destinado a reducir evaluaciones reales poco prometedoras y, con ello, aprovechar de forma más eficiente el presupuesto disponible.
+% ""
+
+% ""
+% El subrogado no reemplaza definitivamente a la función objetivo, sino que decide qué candidatos merecen ser evaluados realmente. Por tanto, toda solución aceptada por la metaheurística sigue estando validada mediante la función real.
+% ""
+
+% ""
+% Tras un reinicio no se repite el calentamiento inicial del 20 %, ya que esto podría impedir el uso efectivo del subrogado en ejecuciones con varios reinicios. En su lugar, el modelo vigente se invalida y se reentrena en el siguiente uso del subrogado empleando la ventana reciente de evaluaciones reales. De este modo, se reconoce el cambio de región de búsqueda sin desactivar prolongadamente la integración online.
+% ""
+
+% ""
+% Tras cada reinicio se desactiva temporalmente el subrogado durante un número de evaluaciones equivalente al tamaño de la población. Esta decisión permite recopilar una muestra real mínima de la nueva región de búsqueda antes de volver a entrenar el modelo, evitando reutilizar inmediatamente un subrogado ajustado sobre una distribución anterior. No se repite el calentamiento inicial completo del 20 %, ya que en ejecuciones con varios reinicios ello podría impedir el uso efectivo del subrogado durante gran parte del presupuesto.
+% ""
+
+% ""
+% Tras cada reinicio, se desactiva temporalmente el uso del subrogado durante un número de evaluaciones reales igual al tamaño de la población. En los experimentos realizados, dado que se emplea \(N=50\), este enfriamiento corresponde a 50 evaluaciones reales.
+% ""
+
+
+% ""
+% Se adopta retrain_ratio=0.50 porque reduce aproximadamente a la mitad el número de reentrenamientos respecto a 0.25, sin degradar el comportamiento medio del filtro en el piloto realizado. La opción 0.75, aunque más barata, presenta una degradación más clara en algunas metaheurísticas, especialmente en DE.
+% ""
+
+% ""
+% El reentrenamiento periódico y el enfriamiento tras reinicio cumplen funciones distintas. El primero controla la frecuencia con la que el modelo se actualiza con nuevas evaluaciones reales, mientras que el segundo evita aplicar el subrogado inmediatamente después de un reinicio, momento en el que la distribución de soluciones puede cambiar de forma abrupta. Por este motivo, ambos mecanismos se mantienen de forma simultánea.
+% ""
+
+% ""
+% Antes de estudiar la probabilidad de uso del subrogado, se evalúa la frecuencia de actualización del modelo, ya que un reentrenamiento excesivamente frecuente puede aumentar el coste computacional sin mejorar la calidad de las decisiones, mientras que una actualización demasiado espaciada puede dejar obsoleto el modelo.
+% ""
+
+% ""
+% Con la frecuencia de actualización fijada, se analiza la probabilidad de uso del subrogado. Este parámetro controla la agresividad de la hibridación: valores bajos apenas modifican la dinámica original, mientras que valores altos delegan más decisiones en el modelo aproximado.
+% ""
+
+% ""
+% Finalmente, se estudia el tratamiento del subrogado tras un reinicio. Dado que el reinicio modifica bruscamente la región explorada, se compara el uso inmediato del modelo frente a un periodo de enfriamiento de una o dos poblaciones completas.
+% ""
+
+% ""
+% el cooldown se introduce para evitar que el subrogado tome decisiones inmediatamente después de un reinicio, momento en el que la distribución de soluciones cambia de forma abrupta y el modelo entrenado antes del reinicio puede no representar adecuadamente la nueva región explorada.
+% ""

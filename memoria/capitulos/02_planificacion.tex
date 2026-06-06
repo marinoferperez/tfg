@@ -1,0 +1,167 @@
+\chapter{Planificación y presupuesto}
+\label{chap:planificacion}
+
+En este capítulo se formaliza la organización temporal y metodológica adoptada para el desarrollo de este Trabajo de Fin de Grado, así como el desglose económico y la estimación del presupuesto financiero asociado a su ejecución real.
+
+% presenta una estimación del coste asociado al desarrollo del Trabajo de Fin de Grado. Para ello, se tienen en cuenta los principales recursos utilizados durante el proyecto, incluyendo el trabajo realizado por el alumno, el equipamiento hardware empleado, las herramientas software utilizadas y el coste asociado a la ejecución de los experimentos computacionales.
+
+% A diferencia de otros proyectos con una planificación temporal cerrada desde el inicio, este trabajo ha tenido una naturaleza principalmente experimental e iterativa. El desarrollo ha estado condicionado por el análisis progresivo de resultados, la comparación entre distintas metaheurísticas, la evaluación de modelos \textit{surrogate} y el diseño posterior de una estrategia de hibridación. Por este motivo, el presupuesto se plantea como una estimación global del coste del proyecto, más que como una planificación detallada por fases temporales.
+
+\section{Metodología de desarrollo}
+\label{sec:metodologia}
+
+Debido a la naturaleza experimental e iterativa de este trabajo, donde el análisis progresivo de los resultados de una fase condiciona de manera directa el diseño de la siguiente, se descartó el uso de metodologías de gestión tradicionales en cascada (\textit{Waterfall}). En su lugar, se adoptó un marco de trabajo de desarrollo ágil basado en enfoques iterativos e incrementales.
+
+Esta metodología permitió estructurar el proyecto en ciclos de retroalimentación acotados. Por ejemplo, el análisis \textit{offline} de los modelos de aprendizaje automático operó como un filtro de calidad indispensable antes de proceder con su integración e hibridación \textit{online} en tiempo de ejecución.
+
+\section{Tareas realizadas y planificación temporal}
+\label{sec:tareas_planificacion}
+
+El proyecto se divide en distintas tareas, desarrolladas en su mayoría de forma iterativa a lo largo de un periodo de trabajo cuya carga temporal, considerando únicamente la mano de obra del alumno, se estima en 387 horas. En la Tabla~\ref{tab:desglose_tareas} se detalla la planificación y la distribución de dicha carga de trabajo junto al tiempo de ejecución computacional.
+
+\begin{table}[H]
+    \centering
+    \footnotesize
+    \setlength{\tabcolsep}{5pt} % Más espacio para mejor legibilidad
+    \renewcommand{\arraystretch}{1.1} % Múltiplo para aumentar altura de filas
+    \begin{tabular}{p{0.45\linewidth} >{\raggedleft}p{0.18\linewidth} >{\raggedleft\arraybackslash}p{0.25\linewidth}}
+        \toprule
+        \textbf{Tarea}                                                       & \textbf{Mano de obra} & \textbf{Ejecución computacional} \\
+        \midrule
+        Comprensión del problema                                             & 10 h                  & --                               \\
+        Revisión bibliográfica                                               & 22 h                  & --                               \\
+        Implementación y adaptación de algoritmos                            & 40 h                  & --                               \\
+        Ejecución base y definición de la estructura de resultados           & 10 h                  & 5 h                              \\
+        Diseño, ejecución y evaluación del reinicio elitista                 & 25 h                  & 35 h                             \\
+        Implementación de técnicas subrogadas y estrategias \textit{offline} & 40 h                  & --                               \\
+        Evaluación \textit{offline} de modelos subrogados                    & 35 h                  & 40 h                             \\
+        Selección de estrategias e hibridación \textit{online}               & 70 h                  & 25 h                             \\
+        Análisis final y redacción de la memoria                             & 120 h                 & --                               \\
+        Reuniones con el tutor                                               & 15 h                  & --                               \\
+        \midrule
+        \textbf{Total}                                                       & \textbf{387 h}        & \textbf{105 h}                   \\
+        \bottomrule
+    \end{tabular}
+    \caption{Desglose de mano de obra y tiempo de ejecución computacional del proyecto.}
+    \label{tab:desglose_tareas}
+\end{table}
+
+A continuación, se detallan las tareas operativas consideradas:
+
+\begin{itemize}
+    \item \textbf{Comprensión del problema}: Análisis inicial de los objetivos del proyecto y búsqueda selectiva de información orientada a asimilar las bases de la optimización costosa.
+
+    \item \textbf{Revisión bibliográfica}: Estudio profundo de trabajos relevantes en computación evolutiva asistida por modelos subrogados y protocolos de comparación experimental.
+
+    \item \textbf{Implementación y adaptación de algoritmos}: Codificación y acoplamiento de las metaheurísticas AGE, DE y SHADE, integración del benchmark CEC2017 en el entorno de \textit{Python}, parametrización inicial y desarrollo de \textit{scripts} automatizados para la extracción y graficado de datos.
+
+    \item \textbf{Ejecución base y definición de la estructura de resultados}: Ejecución de las metaheurísticas base y construcción de los distintos ficheros (CSV y JSON) de resultados para distintos usos (por ejemplo, el dataset para el posterior entrenamiento de las técnicas \textit{subrogadas}) y comprobación de que los datos registrados eran suficientes para construir posteriormente los datasets y las gráficas de análisis.
+
+    \item \textbf{Diseño, ejecución y evaluación del reinicio elitista}:
+          Implementación del criterio de reinicio, evaluación de distintas ventanas de paciencia y comparación de configuraciones mediante TACOLAB. Esta fase incluyó también la evaluación de variantes preliminares que fueron descartadas al observar comportamientos no deseados.
+
+    \item \textbf{Implementación de técnicas \textit{subrogadas} y estrategias \textit{offline}}: Implementación de los modelos subrogados, construcción de las estrategias de entrenamiento acumulativa y no acumulativa, definición de los bloques temporales de evaluación y estudio detenido e implementación de las métricas de error y ranking.
+
+    \item \textbf{Evaluación \textit{offline} de modelos subrogados}: Entrenamiento de los modelos sobre las trayectorias generadas, comparación entre modelos y estrategias, análisis por bloques temporales, agregación de resultados y generación de tablas y ficheros de métricas.
+
+    \item \textbf{Selección de estrategias e hibridación \textit{online}}: Selección de las configuraciones más prometedoras a partir del análisis \textit{offline}, integración de los modelos seleccionados dentro del bucle de las metaheurísticas, definición del momento de activación del subrogado y validación experimental de las variantes híbridas.
+
+    \item \textbf{Análisis final y redacción de la memoria}: Interpretación de los resultados, elaboración de tablas y figuras definitivas y redacción y revisión de la memoria.
+
+    \item \textbf{Reuniones con el tutor}: Preparación de reuniones de seguimiento, toma de decisiones metodológicas, contraste de resultados experimentales y reajuste de la planificación en función de las indicaciones recibidas.
+\end{itemize}
+
+
+%% falta el diagrama de gant 
+
+% \section{Recursos utilizados}
+
+% Para el desarrollo del proyecto se han utilizado principalmente recursos propios del alumno y recursos software de libre acceso. Las tareas de documentación, revisión bibliográfica, implementación, análisis de resultados y redacción de la memoria se han llevado a cabo utilizando un ordenador personal.
+
+% Desde el punto de vista software, se han empleado herramientas de programación, análisis de datos y elaboración de documentación científica. En particular, el desarrollo experimental se ha realizado en Python, utilizando bibliotecas orientadas al cálculo científico, aprendizaje automático y tratamiento de datos. La memoria se ha redactado utilizando \LaTeX, por tratarse de una herramienta ampliamente utilizada en la elaboración de documentos académicos y científicos.
+
+% Además, ha sido necesario consultar documentación científica, artículos de investigación y recursos bibliográficos relacionados con metaheurísticas, optimización evolutiva y técnicas \textit{surrogate}. El acceso a parte de esta bibliografía se ha realizado mediante los recursos proporcionados por la Universidad de Granada.
+
+% En cuanto a los experimentos computacionales, el proyecto requiere la ejecución de distintas metaheurísticas sobre varios problemas de referencia, así como el entrenamiento y validación de múltiples modelos de aprendizaje automático. Aunque estas ejecuciones se han realizado con los recursos disponibles durante el desarrollo del trabajo, puede estimarse su coste equivalente considerando el uso de infraestructura de cómputo externa.
+
+\section{Estimación del coste del proyecto}
+
+Para estimar el presupuesto financiero real del proyecto se consideran tres grandes bloques de coste: costes de personal (mano de obra), costes de infraestructura física (equipamiento hardware junto a su amortización) y costes de computación externa equivalentes. Todas las herramientas y librerías empleadas se rigen bajo licencias de \textbf{Software Libre}, por lo que el coste imputable a licencias de software es de 0.00~€.
+
+
+\subsection{Coste de la mano de obra}
+
+El coste estimado de la mano de obra se calcula a partir del total de horas reales dedicadas al proyecto, que ascienden a 387 horas según el desglose presentado en la tabla~\ref{tab:desglose_tareas}. Considerando una tarifa de mercado para un perfil de Ingeniero de Software o Científico de Datos Junior orientado hacia la investigación aplicada, fijada en 20.00~€/h, el coste total de la mano de obra es:
+
+\[
+    C_{\text{trabajo}} = 387 \text{ h} \cdot 20.00 \frac{\text{€}}{\text{h}} = 7\,740.00 \text{ €}.
+\]
+
+\subsection{Coste de equipamiento}
+
+El equipo empleado durante el desarrollo del proyecto se corresponde con un Apple MacBook Air de 13 pulgadas (chip Apple M4, 16 GB de memoria unificada y 512 GB de almacenamiento SSD) con un valor de adquisición aproximado en el mercado de de 1200.00~€. No obstante, se asume una vida útil estandar para el equipamiento informático de 5 años (60 meses) y un periodo de uso intensivo para el desarrollo de este TFG de 3 meses. Aplicando el criterio de amortización, el coste es:
+
+\[
+    C_{\text{equipo}} = \frac{1200.00 \text{ €}}{60 \text{ meses}} \cdot 3 \text{ meses} = 60 \text{ €}.
+\]
+
+\subsection{Coste computacional equivalente}
+
+Aunque las simulaciones y el entrenamiento de los modelos se completaron de forma local aprovechando la arquitectura ARM del procesador del equipo, se calcula el coste equivalente utilizando una infraestructura en la nube y de pago. Se toma como referencia una instancia optimizada para computación en Amazon Web Services (AWS EC2), concretamente el modelo \texttt{c7g.2xlarge} (8 vCPU, 16 GiB RAM, arquitectura ARM Graviton).
+
+La tarifa bajo demanda es de 0.2900~\$/h. Aplicando una tasa de cambio estimada de 1~\$ = 0.86~€ e incrementando el 21\% en concepto de IVA aplicable en España, el precio final por hora es de 0.302~€/h. Para un cómputo acumulado de 105 horas de ejecución experimental, el coste computacional derivado es:
+
+\[
+    C_{\text{computo}} = 105 \text{ h} \cdot 0.302 \frac{\text{€}}{\text{h}} = 31.71 \text{ €}.
+\]
+
+\subsection{Presupuesto global}
+
+El coste total del proyecto ($T$) se calcula mediante la suma de los tres bloques analizados:
+\[
+    T = C_{\text{trabajo}} + C_{\text{equipo}} + C_{\text{computo}}
+\]
+\[
+    T = 7740.00 \text{ €} + 60.00 \text{ €} + 31.71 \text{ €} = 7\,831.71 \text{ €}.
+\]
+
+En la Tabla~\ref{tab:presupuesto} se presenta el desglose del presupuesto total estimado para la realización del Trabajo de Fin de Grado.
+
+\begin{table}[H]
+    \centering
+    \renewcommand{\arraystretch}{1.3}
+    \begin{tabular}{p{2.4cm} p{2.1cm} p{2.1cm} p{2.1cm}}
+        \hline
+        \textbf{Concepto} & \textbf{Precio}      & \textbf{Cant./Dur.} & \textbf{Coste} \\
+        \hline
+
+        Mano de obra
+                          & 20.00 €/h
+                          & 387 h
+                          & 7\,740.00 €                                                 \\
+
+        Equipo informático
+                          & (1200 €/60m)
+                          & 3 m
+                          & 60.00 €                                                     \\
+
+        Tiempo computacional
+                          & 0.302 €/h
+                          & 105 h
+                          & 31.71 €                                                     \\
+
+        Herramientas
+                          & 0.00 €/h
+                          & --
+                          & 0.00 €                                                      \\
+        \hline
+
+        \textbf{Total}
+                          & --
+                          & --
+                          & \textbf{7\,831.71 €}                                        \\
+        \hline
+    \end{tabular}
+    \caption{Resumen del presupuesto estimado del proyecto.}
+    \label{tab:presupuesto}
+\end{table}

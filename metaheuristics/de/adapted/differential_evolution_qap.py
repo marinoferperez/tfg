@@ -4,7 +4,7 @@ from pathlib import Path
 
 from metaheuristics.de.differential_evolution import DifferentialEvolution
 from metaheuristics.problems.qap_problem import QAPProblem
-from metaheuristics.metrics import RecolectorMetricasDEAP, CallbackMetricasDE, SurrogateDataset
+from metaheuristics.metrics import CallbackMetricasDE, SurrogateDataset
 
 class DifferentialEvolutionQAP:
     def __init__(self, **de_kwargs):
@@ -38,6 +38,7 @@ class DifferentialEvolutionQAP:
 
         dataset = None
         if registrar_metricas:
+            from metaheuristics.metrics import RecolectorMetricasDEAP
             recolector = RecolectorMetricasDEAP()
             dataset = SurrogateDataset(
                 algoritmo = "de",
@@ -50,13 +51,14 @@ class DifferentialEvolutionQAP:
                 recolector,
                 tiempo_inicio,
                 lambda: self.de.evals,
-                decodifica_permutaciones = lambda pop: np.asarray(
-                    [problema.decodificar_asignacion(ind) for ind in np.asarray(pop, dtype=float)],
-                    dtype=int,
-                ),
+                # decodifica_permutaciones = lambda pop: np.asarray(
+                #     [problema.decodificar_asignacion(ind) for ind in np.asarray(pop, dtype=float)],
+                #     dtype=int,
+                # ),
                 transforma_vectores_hamming = lambda pop: np.asarray(pop, dtype=float),
                 registrar_poblacion = False,
                 en_generacion = lambda g: setattr(self.de, "_generacion_actual", int(g)),
+                offset_current_generation = 1,
             )
 
         # if registrar_metricas:
