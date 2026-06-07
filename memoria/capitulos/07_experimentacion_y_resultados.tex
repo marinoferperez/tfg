@@ -573,24 +573,34 @@ su posterior integración \textit{online}.
 \section{Evaluación de la estrategia \textit{online}}
 \label{sec:online}
 
+La última fase experimental estudia la integración \textit{online} del modelo \textbf{RBF} seleccionado en las secciones anteriores. Siguiendo el protocolo definido en la Sección~\ref{sec:diseno_online}, primero se calibran los parámetros específicos de la hibridación y, posteriormente, se evalúa su efecto sobre las metaheurísticas consideradas en el escenario con reinicio fijado previamente. El objetivo es comprobar si el filtro subrogado aporta una mejora real frente a la misma metaheurística sin intervención subrogada y si el coste añadido por su
+uso resulta asumible.
+
 \subsection{Calibración de los parámetros de integración}
 
 %% no repetimos la definicion de los parámetros. 
 
-A partir del protocolo descrito en la Sección~\ref{sec:diseno_online}, se evalúan los valores candidatos de cada parámetro sobre el subconjunot de funciones y semillas definido.
+En coherencia con los resultados obtenidos en la evaluación \textit{offline}, el subrogado se actualiza utilizando la
+información más reciente disponible durante la ejecución.
 
-%% primero cooldown ya que depende del reinicio
+A partir del protocolo descrito en la Sección~\ref{sec:diseno_online}, se evalúan los valores candidatos de cada parámetro sobre el subconjunto de funciones y semillas definido.
 
-%% luego retrain_ratio, porque controla actualizacion/coste del modelo
+% - piloto de cooldown ya que depende del reinicio
+% - piloto de retrain_ratio, porque controla actualizacion/coste del modelo
+% - piloto de p, porque regula la agresivididad real del filtro y es el mas importante
 
-%% p, porque regula la agresivididad real del filtro y es el mas importante
+
+% Los resultados muestran que cooldown=x, retrain_ratio=x y p=x ofrecen el mejor compromiso entre error final, ranking medio y coste computacional, por lo que se adoptan como configuración final para la evaluación online completa.
 
 \subsection{Resultados frente a la metaheurística sin filtro}
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% resultado importante del trabajo
-%% comparacion contrao p = 0 -> sin intervencion efectiva del subrogado
+
+% - configuración online final seleccionada
+% - evaluacion final sobre 30 funciones y 51 semillasnuevas
+% - comparacion p=0.00 vs p=0.50
 
 %% el analisis debe responder "la intengracion online mejora realmente el prceso de optimización??"" y por ende, "comprobar si la version mh + subrogado mejora a la version original de cada mh".
 
@@ -600,92 +610,25 @@ A partir del protocolo descrito en la Sección~\ref{sec:diseno_online}, se eval�
 % - esta no mejoria puede deberse a que reinicia demasiadas veces pero podemos justificarlo como: "se han aplicado tecnicas de reinicio pero realmente, si no tuvieramos ese reinicio y nos estabilizasemos cuando ya el algoritmo no mejora mas, estariamos parando MUCHO ANTES que DESPUES --> asi podemos venderlo
 
 % esta claro que si la MH SE ESTANCA, no tiene sentido el papel e integración de los subrogados -> o paramos o aplicamos reinicio
+
+
+% - Evaluación del ahorro de evaluaciones reales.
+% - convergencia
+% - Discusión de cuándo ayuda y cuándo perjudica.
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% - tabla principal
+% - analisis
+% - parrafo de diagnostico: porcentaje de rechazo, numero de entrenamieto, tiempo online, si el filtro esta siendo demsaido agresivo o razonable...
 
-% - resultado de la seleccion offline del modelo (omitible)
-% - configuracion del modelo finalmente usado online (omitible)
-% - piloto de cooldown
-% - piloto de retrain_ratio
-% - piloto de p
-% - configuración online final seleccionada
-% - evaluacion final sobre 30 funciones y 51 semillasnuevas
-% - comparacion p=0.00 vs p=0.50
-% - comparacion con técnicas de referencia como kriging y pce
-% - discusion: mejora, coste añadido, rechazo de candidatos, comportamietno por metaheuristica.
+% ejemplo: Además del error final, los contadores de la integración permiten interpretar el efecto del filtro. En las ejecuciones con \(p=0.50\), el subrogado no reduce el presupuesto total de evaluaciones reales, que se mantiene fijo, sino quedescarta candidatos antes de su evaluación y desplaza el presupuesto hacia otros candidatos generados posteriormente. Por tanto, el porcentaje de rechazo y el tiempo dedicado al modelo permiten valorar si la mejora obtenida compensa la intervención del filtro.
 
-
-
-
-
-% A partir del protocolo descrito en la Sección~X, se evalúan los valores candidatos de cada parámetro. Los resultados muestran que cooldown=100, retrain_ratio=0.50 y p=0.50 ofrecen el mejor compromiso entre error final, ranking medio y coste computacional, por lo que se adoptan como configuración final para la evaluación online completa.
-
-
-
-
-
-
-
-% Con el modelo seleccionado y ajustado, esta sección conti en evaluar su integración dentro del bucle de optimización.
-
-% 4. [Tabla comparativa reinicio vs sin reinicio] → validación de que el escenario evaluado es el correcto
-
-
-
-
-% Por qué el Spearman alto sin reinicio es engañoso:
-
-% Cuando la metaheurística se estanca, la población converge a una región pequeña del espacio. Los valores de fitness de soluciones vecinas son muy similares y localmente suaves. Predecir el orden relativo de
-% puntos casi idénticos es un problema trivial para cualquier modelo — el Spearman sube porque la tarea es más fácil, no porque el subrogado sea más útil.
-
-% La evidencia más clara la tienes en las medianas de nRMSE: 0.0004 sin reinicio frente a 0.8389 con reinicio en las mismas funciones. Esa diferencia de tres órdenes de magnitud en el error típico es
-% precisamente la huella de ese efecto: sin reinicio, los valores de fitness son tan parecidos entre sí que los errores absolutos son mínimos.
-
-% El punto clave para tu TFG:
-
-% El escenario relevante para la integración online es el de trayectorias dinámicas — con reinicios, cambios de región y alta diversidad de muestras. Evaluar el subrogado sobre trayectorias estancadas produce
-% una estimación optimista que no se corresponde con el contexto real de uso. Por tanto, comparar ambos escenarios para elegir el modelo sería metodológicamente incorrecto.
-
-% Una matiz que conviene tener presente:
-
-% La diferencia en Spearman entre escenarios no es dramática (0.80 vs 0.74 en mediana), lo que refuerza el argumento: el subrogado no "pierde" capacidad porque hay reinicio, sino que se enfrenta a un problema
-% más exigente y realista. Eso es lo que hay que transmitir en el texto si decides incluir esta comparación.
-
-
-
-
-
-
-
-%% en los scripts tenemos un flag para introducir o no enfriamiento tras un reinicio.
-%% la idea a la hora de documentar los experiemntos es comenzar sin enfriamiento y posteriormente justificar la necesidad de ese enfriamiento. ais lo hacemos mas largo.
-
-%% es una decision experimental
-
-
-
-
-% ---
-
-% Resultados de los experimentos piloto.
-% Justificación de la configuración homogénea seleccionada.
-% Comparación final entre:
-% metaheurística base;
-% metaheurística con reinicio;
-% metaheurística con reinicio + subrogado online.
-% Análisis por metaheurística.
-% Análisis por función o familia CEC2017.
-% Evaluación del ahorro de evaluaciones reales.
-% Discusión de cuándo ayuda y cuándo perjudica.
-% Conclusión final sobre si la integración online es útil.
-
-% \subsection{Ajuste piloto de los parámetros online}
-% \subsection{Comparación frente a las metaheurísticas base}
-% \subsection{Impacto sobre la convergencia y el uso de evaluaciones reales}
-% \subsection{Análisis por metaheurística}
-% \subsection{Conclusiones de la integración online}
-
-
+% - Si mejora el error final y rechaza muchos candidatos: el filtro está funcionando bien.
+% - Si empeora y rechaza muchos candidatos: probablemente está descartando candidatos útiles.
+% - Si apenas rechaza candidatos: el subrogado interviene poco y su impacto será limitado.
+% - Si el tiempo online sube mucho: aunque mejore algo, puede no compensar.
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 
 
@@ -713,6 +656,7 @@ A partir del protocolo descrito en la Sección~\ref{sec:diseno_online}, se eval�
 
 \subsection{Comparación con técnicas subrogadas de referencia}
 
+% - comparacion con técnicas de referencia como kriging y pce
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -722,18 +666,6 @@ A partir del protocolo descrito en la Sección~\ref{sec:diseno_online}, se eval�
 %% no haremos una discusion larga modelo a modelo. el objetivo es comprobar si RBF, elegido mediante la fase offline y ya demostrado su mejor rendimiento frente a modelos de aprendizaje automatico mas complejos tratados como subrogados, tambn es competitivo frente a técnicas clasicas en integracion real --> tenemos un algoritmo que es mas complejo y no es necesario ya que tenemos una tecnica matematica que va mejor, por ejemplo.
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-
-% - tabla principal
-% - analisis
-% - parrafo de diagnostico: porcentaje de rechazo, numero de entrenamieto, tiempo online, si el filtro esta siendo demsaido agresivo o razonable...
-
-% ejemplo: Además del error final, los contadores de la integración permiten interpretar el efecto del filtro. En las ejecuciones con \(p=0.50\), el subrogado no reduce el presupuesto total de evaluaciones reales, que se mantiene fijo, sino quedescarta candidatos antes de su evaluación y desplaza el presupuesto hacia otros candidatos generados posteriormente. Por tanto, el porcentaje de rechazo y el tiempo dedicado al modelo permiten valorar si la mejora obtenida compensa la intervención del filtro.
-
-% - Si mejora el error final y rechaza muchos candidatos: el filtro está funcionando bien.
-% - Si empeora y rechaza muchos candidatos: probablemente está descartando candidatos útiles.
-% - Si apenas rechaza candidatos: el subrogado interviene poco y su impacto será limitado.
-% - Si el tiempo online sube mucho: aunque mejore algo, puede no compensar.
-
 \subsection{Conclusiones de la integración \textit{online}}
 
 
@@ -743,3 +675,30 @@ A partir del protocolo descrito en la Sección~\ref{sec:diseno_online}, se eval�
 %% si el coste añadido es razonable
 %% si el filtro es lo suficientemente robusto para las metaheuristicas consideradas o si su utilidad depende del algoritmo.
 
+
+
+
+
+
+
+
+
+
+% Por qué el Spearman alto sin reinicio es engañoso:
+
+% Cuando la metaheurística se estanca, la población converge a una región pequeña del espacio. Los valores de fitness de soluciones vecinas son muy similares y localmente suaves. Predecir el orden relativo de
+% puntos casi idénticos es un problema trivial para cualquier modelo — el Spearman sube porque la tarea es más fácil, no porque el subrogado sea más útil.
+
+% La evidencia más clara la tienes en las medianas de nRMSE: 0.0004 sin reinicio frente a 0.8389 con reinicio en las mismas funciones. Esa diferencia de tres órdenes de magnitud en el error típico es
+% precisamente la huella de ese efecto: sin reinicio, los valores de fitness son tan parecidos entre sí que los errores absolutos son mínimos.
+
+
+% El punto clave para tu TFG:
+
+% El escenario relevante para la integración online es el de trayectorias dinámicas — con reinicios, cambios de región y alta diversidad de muestras. Evaluar el subrogado sobre trayectorias estancadas produce
+% una estimación optimista que no se corresponde con el contexto real de uso. Por tanto, comparar ambos escenarios para elegir el modelo sería metodológicamente incorrecto.
+
+% Una matiz que conviene tener presente:
+
+% La diferencia en Spearman entre escenarios no es dramática (0.80 vs 0.74 en mediana), lo que refuerza el argumento: el subrogado no "pierde" capacidad porque hay reinicio, sino que se enfrenta a un problema
+% más exigente y realista. Eso es lo que hay que transmitir en el texto si decides incluir esta comparación.
