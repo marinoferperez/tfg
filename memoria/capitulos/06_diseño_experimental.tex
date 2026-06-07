@@ -516,8 +516,8 @@ evaluaciones, se selecciona el \textbf{25\% de sus muestras}, lo que equivale a 
 independientemente de que la estrategia de entrenamiento sea acumulativa o no
 acumulativa. La selección de estas muestras se realiza de manera \textbf{determinista}: el generador aleatorio se inicializa combinando el valor fijo \texttt{random\_state=42}, la semilla asociada a la trayectoria y el identificador del bloque utilizado para la validación. De este modo, para una misma trayectoria, el conjunto de validación asociado a cada bloque es \textbf{idéntico para todos los modelos y estrategias considerados}, permitiendo una comparación directa sobre las mismas muestras.
 
-\subsection{Subconjunto de funciones para el cribado de modelos \textit{offline}}
-\label{subsec:funciones_cribado_offline}
+% \subsection{Subconjunto de funciones para el cribado de modelos \textit{offline}}
+% \label{subsec:funciones_cribado_offline}
 
 Dado el elevado coste computacional que supondría evaluar todos los modelos, estrategias de entrenamiento y semillas sobre la suite completa, la fase inicial de cribado \textit{offline} se realiza sobre un subconjunto representativo de funciones de CEC2017. Esta selección mantiene las \(51\) semillas empleadas en la generación de trayectorias, pero reduce el número de funciones con el fin de comparar los modelos bajo un coste computacional asumible.
 
@@ -647,7 +647,7 @@ metaheurísticas. Por ello, las decisiones experimentales se evalúan sobre las 
 La comparación entre variantes sigue el criterio agregado definido en la
 Sección~\ref{sec:metaheuristicas}, basado en medias y rankings medios sobre CEC2017. En este caso, dicho criterio se aplica para comparar configuraciones de hibridación y no metaheurísticas independientes. Además, se consideran contadores propios de la integración, como el número de reentrenamientos, el tiempo dedicado al modelo y el porcentaje de candidatos rechazados por el filtro.
 
-Una vez seleccionada la configuración, la evaluación final se realiza de nuevo sobre las \(30\) funciones de CEC2017, utilizando un conjunto de \(51\) semillas distinto tanto al empleado en la calibración \textit{online} como al utilizado en la generación de trayectorias y evaluación \textit{offline}. En esta fase, la variante híbrida se compara en primer lugar con la metaheurística original sin intervención subrogada, lo que permite medir si el filtro aporta una mejora real frente al algoritmo base bajo las mismas condiciones experimentales. Además, se incluyen como referencia las hibridaciones basadas en Kriging y PCE, descritas en la Sección~\ref{sec:tecnicas_subrogadas_clasicas}, con el fin de contrastar el modelo seleccionado frente a técnicas subrogadas clásicas ampliamente utilizadas en optimización asistida por modelos.
+Una vez seleccionada la configuración, la evaluación final se realiza de nuevo sobre las \(30\) funciones de CEC2017, utilizando un conjunto de \(51\) semillas distinto tanto al empleado en la calibración \textit{online} como al utilizado en la generación de trayectorias y evaluación \textit{offline}. En esta fase, la variante híbrida se compara con la metaheurística original sin intervención subrogada, lo que permite medir si el filtro aporta una mejora real frente al algoritmo base bajo las mismas condiciones experimentales. Además, se incluyen como referencia las hibridaciones basadas en Kriging y PCE, descritas en la Sección~\ref{sec:tecnicas_subrogadas_clasicas}, con el fin de contrastar el modelo seleccionado frente a técnicas subrogadas clásicas ampliamente utilizadas en optimización asistida por modelos.
 
 Los resultados de las distintas decisiones experimentales y las comparaciones descritas se presentan en el Capítulo~\ref{chap:experimentacion}.
 
@@ -888,7 +888,7 @@ Los parámetros de cada programa se recogen en las tablas siguientes:
 
     \texttt{--resultados-dir}
                        & -
-                       & Directorio de salida de \texttt{ejecutar\_metaheuristicas.py}.                                                      \\
+                       & Directorio con los resultados generados por el programa de ejecución de metaheurísticas.                            \\
     \hline
 
     \texttt{--algoritmo}
@@ -935,7 +935,7 @@ Los parámetros de cada programa se recogen en las tablas siguientes:
                        & -
                        & Configuración JSON de hiperparámetros del modelo. Opcional.                                                         \\
     \hline
-    \caption[Parámetros de los programas de evaluación \textit{offline}.]{Parámetros de \texttt{ejecutar\_no\_acumulativo.py} y \texttt{ejecutar\_acumulativo.py}.}
+    \caption[Parámetros de los programas de evaluación \textit{offline}.]{Parámetros de los programas de evaluación \textit{offline} acumulativa y no acumulativa.}
     \label{tab:parametros_runners_offline}
 \end{longtable}
 
@@ -962,7 +962,7 @@ Los parámetros de cada programa se recogen en las tablas siguientes:
     \hline
 
     \makecell[l]{\texttt{--ajuste-}                                                                                           \\\texttt{resultados-dir}}
-                       & \makecell[l]{\texttt{resultados\_benchmark\_}                                                        \\\texttt{surrogates\_offline\_ajuste}}
+                       & \makecell[l]{\scriptsize\texttt{resultados\_}                                                           \\\scriptsize\texttt{benchmark\_}      \\\scriptsize\texttt{surrogates\_}      \\\scriptsize\texttt{offline\_ajuste}}
                        & Subdirectorio donde se almacenan los resultados del ajuste.                                          \\
     \hline
 
@@ -1143,21 +1143,20 @@ resultados en el capítulo siguiente.
     el reinicio. Solo puede utilizarse junto con \texttt{--reinicio}.                                                          \\
     \hline
 
-    \texttt{--surrogate-model}
-                       & \texttt{Modelo seleccionado}
+    \texttt{--modelo}
+                       & Modelo seleccionado
                        & Modelo subrogado empleado por el filtro \textit{online}.                                              \\
     \hline
 
     \makecell[l]{\texttt{--modelo-params-}                                                                                     \\\texttt{json}}
-                       & \makecell[l]{Configuración del modelo seleccionado.}
-                       & Fichero JSON con los hiperparámetros del modelo subrogado. Si se omite y
-    el modelo es \texttt{rbf}, se utiliza la configuración ajustada.                                                           \\
+                       & Config. del modelo seleccionado
+                       & Fichero JSON con los hiperparámetros del modelo subrogado.                                            \\
     \hline
 
-    \texttt{--surrogate-prob}
+    \texttt{--modelo-prob}
                        & \(0.50\)
                        & Probabilidad \(p\) de aplicar el filtro subrogado a un candidato. Debe estar
-    en \([0,1]\). En los pilotos se consideran \(0.00\), \(0.25\), \(0.50\)
+    en \([0,1]\). En las pruebas se consideran \(0.00\), \(0.25\), \(0.50\)
     y \(0.75\).                                                                                                                \\
     \hline
 
@@ -1176,25 +1175,14 @@ resultados en el capítulo siguiente.
     \texttt{--retrain-ratio}
                        & \(0.25\)
                        & Fracción de la ventana que debe renovarse antes de reentrenar el modelo.
-    En los pilotos se consideran \(0.25\), \(0.50\) y \(0.75\).                                                                \\
+    En las pruebas se consideran \(0.25\), \(0.50\) y \(0.75\).                                                                \\
     \hline
 
     \makecell[l]{\texttt{--cooldown-}                                                                                          \\\texttt{reinicio-evals}}
                        & \(0\)
                        & Número de evaluaciones reales de enfriamiento tras cada reinicio. El valor
-    \(0\) desactiva este mecanismo. En los pilotos se consideran \(0\), \(50\),
+    \(0\) desactiva este mecanismo. En las pruebas se consideran \(0\), \(50\),
     \(100\) y \(500\).                                                                                                         \\
-    \hline
-
-    \texttt{--sin-metricas}
-                       & \texttt{False}
-                       & Desactiva el registro de métricas por ejecución y de datasets asociados.                              \\
-    \hline
-
-    \texttt{--sin-dataset}
-                       & \texttt{False}
-                       & Si se registran métricas, evita guardar los datasets de muestras evaluadas,
-    manteniendo los ficheros de métricas, resúmenes y reinicios.                                                               \\
     \hline
 
     \makecell[l]{\texttt{--guardar-}                                                                                           \\\texttt{decisiones-subrogado}}
@@ -1204,7 +1192,7 @@ resultados en el capítulo siguiente.
     \hline
 
     \texttt{--outdir}
-                       & \makecell[l]{\texttt{results/cec/}                                                                    \\\texttt{cec2017\_d10\_}                 \\\texttt{tam50\_online}}
+                       & \makecell[l]{\texttt{results/}                                                                        \\\texttt{cec/}                           \\\texttt{cec2017\_d10}                  \\\texttt{\_tam50}                       \\\texttt{\_online}}
                        & Directorio donde se almacenan los resultados de la ejecución \textit{online}.                         \\
     \hline
 

@@ -10,8 +10,4 @@ def __getattr__(name):
         from .adapted.differential_evolution_cec2017 import DifferentialEvolutionCEC2017
 
         return DifferentialEvolutionCEC2017
-    if name == "DifferentialEvolutionQAP":
-        from .adapted.differential_evolution_qap import DifferentialEvolutionQAP
-
-        return DifferentialEvolutionQAP
     raise AttributeError(f"module {__name__!r} has no attribute {name!r}")

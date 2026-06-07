@@ -114,7 +114,16 @@ def parse_args():
     parser.add_argument("--verbose", action="store_true")
     parser.add_argument("--outdir", type=str, default="results/cec/cec2017_d10_tam50_online")
 
-    parser.add_argument("--surrogate-model", default="rbf")
+    parser.add_argument(
+        "--modelo",
+        default="rbf",
+        help="Modelo subrogado empleado por el filtro online.",
+    )
+    parser.add_argument(
+        "--surrogate-model",
+        dest="modelo",
+        help=argparse.SUPPRESS,
+    )
     parser.add_argument(
         "--modelo-params-json",
         "--surrogate-params-json",
@@ -126,12 +135,18 @@ def parse_args():
         ),
     )
     parser.add_argument(
-        "--surrogate-prob",
-        "--probabilidad-subrogado",
+        "--modelo-prob",
         dest="probabilidad_subrogado",
         type=float,
         default=0.50,
         help="Probabilidad p de aplicar el filtro subrogado a un candidato.",
+    )
+    parser.add_argument(
+        "--surrogate-prob",
+        "--probabilidad-subrogado",
+        dest="probabilidad_subrogado",
+        type=float,
+        help=argparse.SUPPRESS,
     )
     parser.add_argument("--warmup-ratio", type=float, default=0.20)
     parser.add_argument("--window-ratio", type=float, default=0.20)
@@ -246,8 +261,8 @@ def etiqueta_ratio(valor):
 
 def construir_config_subrogado(args, seed):
     return ConfiguracionSubrogadoOnline(
-        modelo_nombre=str(args.surrogate_model).lower(),
-        modelo_params=cargar_modelo_params(args.surrogate_model, args.modelo_params_json),
+        modelo_nombre=str(args.modelo).lower(),
+        modelo_params=cargar_modelo_params(args.modelo, args.modelo_params_json),
         cooldown_reinicio_evals=int(args.cooldown_reinicio_evals),
         warmup_ratio=float(args.warmup_ratio),
         window_ratio=float(args.window_ratio),
@@ -347,7 +362,7 @@ def fila_run(args, algoritmo, funcid, seed, resultado, tiempo_s, ruta_metricas, 
             int(VENTANA_DIAGNOSTICA_REINICIO) if args.reinicio_elitista else ""
         ),
         "n_reinicios_elitistas": int(len(resultado.get("reinicios_elitistas", []))),
-        "modelo_subrogado": str(resumen_online.get("modelo_nombre", args.surrogate_model)),
+        "modelo_subrogado": str(resumen_online.get("modelo_nombre", args.modelo)),
         "probabilidad_subrogado": float(args.probabilidad_subrogado),
         "warmup_ratio": float(args.warmup_ratio),
         "window_ratio": float(args.window_ratio),
@@ -479,7 +494,8 @@ def config_base(args, semillas, funcids):
         "reinicio_elitista_ventana_evaluaciones": (
             int(VENTANA_DIAGNOSTICA_REINICIO) if args.reinicio_elitista else None
         ),
-        "surrogate_model": str(args.surrogate_model).lower(),
+        "modelo": str(args.modelo).lower(),
+        "surrogate_model": str(args.modelo).lower(),
         "modelo_params_json": (
             str(Path(args.modelo_params_json).resolve())
             if args.modelo_params_json is not None

@@ -573,6 +573,35 @@ su posterior integración \textit{online}.
 \section{Evaluación de la estrategia \textit{online}}
 \label{sec:online}
 
+\subsection{Calibración de los parámetros de integración}
+
+%% no repetimos la definicion de los parámetros. 
+
+A partir del protocolo descrito en la Sección~\ref{sec:diseno_online}, se evalúan los valores candidatos de cada parámetro sobre el subconjunot de funciones y semillas definido.
+
+%% primero cooldown ya que depende del reinicio
+
+%% luego retrain_ratio, porque controla actualizacion/coste del modelo
+
+%% p, porque regula la agresivididad real del filtro y es el mas importante
+
+\subsection{Resultados frente a la metaheurística sin filtro}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%% resultado importante del trabajo
+%% comparacion contrao p = 0 -> sin intervencion efectiva del subrogado
+
+%% el analisis debe responder "la intengracion online mejora realmente el prceso de optimización??"" y por ende, "comprobar si la version mh + subrogado mejora a la version original de cada mh".
+
+%% en ningun momento estamos comparando los evolutivos con el estacionario -> NO NOS IMPORTA PARA NADA. solo nos importa que mejore la hibridacion -> si uno mejora, pues este MEJORA MUCHO y este NO MEJORA TANTO pero YA ESTA.
+
+%% a lo mejor NO MEJORA pero lo que si vamos a ver al 100%, como poco, es que en la curva de convergencia la velocidad si incrementa.
+% - esta no mejoria puede deberse a que reinicia demasiadas veces pero podemos justificarlo como: "se han aplicado tecnicas de reinicio pero realmente, si no tuvieramos ese reinicio y nos estabilizasemos cuando ya el algoritmo no mejora mas, estariamos parando MUCHO ANTES que DESPUES --> asi podemos venderlo
+
+% esta claro que si la MH SE ESTANCA, no tiene sentido el papel e integración de los subrogados -> o paramos o aplicamos reinicio
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 % - resultado de la seleccion offline del modelo (omitible)
 % - configuracion del modelo finalmente usado online (omitible)
@@ -680,3 +709,37 @@ su posterior integración \textit{online}.
 % representativas. Por este motivo, se incorpora como parámetro experimental un
 % periodo de enfriamiento durante el cual se retrasa el uso del subrogado y se
 % prioriza la generación de nuevas evaluaciones reales.
+
+
+\subsection{Comparación con técnicas subrogadas de referencia}
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%% comparación breve
+
+%% rbf online, kriging online, pce online y p=0 como referencia.
+%% no haremos una discusion larga modelo a modelo. el objetivo es comprobar si RBF, elegido mediante la fase offline y ya demostrado su mejor rendimiento frente a modelos de aprendizaje automatico mas complejos tratados como subrogados, tambn es competitivo frente a técnicas clasicas en integracion real --> tenemos un algoritmo que es mas complejo y no es necesario ya que tenemos una tecnica matematica que va mejor, por ejemplo.
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+% - tabla principal
+% - analisis
+% - parrafo de diagnostico: porcentaje de rechazo, numero de entrenamieto, tiempo online, si el filtro esta siendo demsaido agresivo o razonable...
+
+% ejemplo: Además del error final, los contadores de la integración permiten interpretar el efecto del filtro. En las ejecuciones con \(p=0.50\), el subrogado no reduce el presupuesto total de evaluaciones reales, que se mantiene fijo, sino quedescarta candidatos antes de su evaluación y desplaza el presupuesto hacia otros candidatos generados posteriormente. Por tanto, el porcentaje de rechazo y el tiempo dedicado al modelo permiten valorar si la mejora obtenida compensa la intervención del filtro.
+
+% - Si mejora el error final y rechaza muchos candidatos: el filtro está funcionando bien.
+% - Si empeora y rechaza muchos candidatos: probablemente está descartando candidatos útiles.
+% - Si apenas rechaza candidatos: el subrogado interviene poco y su impacto será limitado.
+% - Si el tiempo online sube mucho: aunque mejore algo, puede no compensar.
+
+\subsection{Conclusiones de la integración \textit{online}}
+
+
+%% cerrar brevemente con varias ideas:
+
+%% si la hibridacion mejora o no mejora frente a la metaheuristica base
+%% si el coste añadido es razonable
+%% si el filtro es lo suficientemente robusto para las metaheuristicas consideradas o si su utilidad depende del algoritmo.
+

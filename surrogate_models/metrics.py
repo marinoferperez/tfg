@@ -12,7 +12,6 @@ def calcular_errores_por_muestra(y_true, y_pred):
 
     return error_abs, error_pct
 
-
 def calcular_metricas(y_true, y_pred):
     error_abs, error_pct = calcular_errores_por_muestra(y_true, y_pred)
     ranks_true = rankdata(y_true, method="ordinal")
