@@ -1,0 +1,7 @@
+algoritmo,experimento,ranking_medio,funciones_ganadas,n_funciones
+AGE,p=0.00,1.36666666667,19,30
+AGE,p=0.50,1.63333333333,11,30
+DE,p=0.00,1.51666666667,14.5,30
+DE,p=0.50,1.48333333333,15.5,30
+SHADE,p=0.00,1.41666666667,17.5,30
+SHADE,p=0.50,1.58333333333,12.5,30
