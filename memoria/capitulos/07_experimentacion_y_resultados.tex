@@ -653,6 +653,23 @@ A partir del protocolo descrito en la Sección~\ref{sec:diseno_online}, se eval�
 % periodo de enfriamiento durante el cual se retrasa el uso del subrogado y se
 % prioriza la generación de nuevas evaluaciones reales.
 
+% La conclusión clara es que la hibridación con p=0.50 no mejora de forma homogénea a las tres metaheurísticas. Funciona mejor en DE, no compensa en AGE y queda muy cerca de neutra en SHADE.
+
+% Para AGE, el filtro rechaza bastantes candidatos, alrededor del 64.7%, pero el rendimiento final empeora. Eso apunta a que el subrogado está interviniendo de forma efectiva, pero no de forma beneficiosa: probablemente descarta candidatos que sí podían ser útiles para la dinámica estacionaria de AGE.
+
+% Para DE, el resultado es el más favorable. p=0.50 gana muchas más veces de las que pierde y mejora el ranking medio. Aun así, hay que matizar que la media empeora por funciones con outliers, especialmente en funciones compuestas como f30. Por eso, para DE la lectura correcta es: mejora robusta en términos pareados/ranking/mediana, pero con coste computacional alto y sensibilidad en algunos casos.
+
+% Para SHADE, no hay una mejora suficientemente clara. El ranking medio queda casi empatado y las pérdidas superan ligeramente a las mejoras. Aquí el filtro interviene mucho, con rechazo cercano al 74%, pero no se traduce en una mejora final estable.
+
+% De cara a la memoria, yo lo redactaría así: la configuración p=0.50 seleccionada en pilotos muestra que la integración online puede aportar valor, pero su efecto depende de la metaheurística. La evidencia más favorable aparece en DE; en AGE resulta perjudicial y en SHADE no ofrece una ventaja clara. Esto es una conclusión fuerte y honesta para la sección final online.
+
+
+% El piloto de enfriamiento tras reinicio muestra que introducir una pausa después del reinicio resulta beneficioso frente a activar el filtro inmediatamente. Entre los valores evaluados, \(100\) evaluaciones ofrece el mejor compromiso agregado: obtiene el mejor ranking medio en AGE, DE y SHADE y concentra el mayor número de funciones ganadas. Valores menores parecen insuficientes para estabilizar la nueva región explorada, mientras que valores mayores retrasan en exceso la intervención del subrogado
+
+
+% La calibración se realiza de forma secuencial, no como una búsqueda exhaustiva sobre todas las combinaciones posibles. Por tanto, los valores seleccionados no deben interpretarse como óptimos globales, sino como una configuración homogénea y computacionalmente viable para evaluar la integración online en las tres metaheurísticas.
+
+% El valor de enfriamiento se estudia manteniendo fijos el resto de parámetros de integración. Bajo esta configuración de referencia, \(100\) evaluaciones proporciona el mejor comportamiento agregado, por lo que se adopta como valor base para los pilotos posteriores.
 
 \subsection{Comparación con técnicas subrogadas de referencia}
 

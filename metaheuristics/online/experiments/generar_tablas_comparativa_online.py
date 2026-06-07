@@ -122,19 +122,44 @@ def cargar_experimento(etiqueta, root, algoritmos, metrica):
                 if valor == "":
                     raise ValueError(f"Valor vacio para {metrica} en {runs_path}")
 
-                filas.append(
-                    {
-                        "experimento": etiqueta,
-                        "algoritmo": algoritmo,
-                        "cec_funcid": int(row["cec_funcid"]),
-                        "semilla": int(row["semilla"]),
-                        "valor": float(valor),
-                    }
-                )
+                fila = {
+                    "experimento": etiqueta,
+                    "algoritmo": algoritmo,
+                    "cec_funcid": int(row["cec_funcid"]),
+                    "semilla": int(row["semilla"]),
+                    "valor": float(valor),
+                }
+                fila.update(cargar_metricas_online_run(row))
+                filas.append(fila)
 
     if not filas:
         raise RuntimeError(f"No hay filas validas para {etiqueta} en {root}")
     return filas
+
+
+def cargar_metricas_online_run(row):
+    """Extrae métricas propias de la integración online de una ejecución.
+
+    row: fila original del runs.csv. Si una columna no existe, se toma como
+    cero para permitir comparar también ejecuciones sin filtro.
+    """
+
+    def valor_float(nombre):
+        valor = row.get(nombre, "")
+        if valor is None or str(valor).strip() == "":
+            return 0.0
+        return float(valor)
+
+    return {
+        "tiempo_s": valor_float("tiempo_s"),
+        "candidatos_generados": valor_float("candidatos_generados"),
+        "candidatos_con_subrogado": valor_float("candidatos_con_subrogado"),
+        "candidatos_rechazados": valor_float("candidatos_rechazados"),
+        "entrenamientos_rbf": valor_float("entrenamientos_rbf"),
+        "tiempo_entrenamiento_total": valor_float("tiempo_entrenamiento_total"),
+        "tiempo_prediccion_total": valor_float("tiempo_prediccion_total"),
+        "tiempo_online_total": valor_float("tiempo_online_total"),
+    }
 
 
 def validar_comparabilidad(filas):
@@ -276,6 +301,66 @@ def calcular_rankings(medias, algoritmos, experimentos):
     return filas
 
 
+def calcular_metricas_online(filas, algoritmos, experimentos):
+    """Resume las métricas internas del filtro por algoritmo y versión.
+
+    filas: ejecuciones individuales cargadas desde los runs.csv.
+    algoritmos: lista de algoritmos que se quieren mostrar.
+    experimentos: etiquetas de las versiones comparadas.
+    """
+    grupos = defaultdict(list)
+    for row in filas:
+        grupos[(row["algoritmo"], row["experimento"])].append(row)
+
+    tabla = []
+    for algoritmo in algoritmos:
+        for experimento in experimentos:
+            subfilas = grupos[(algoritmo, experimento)]
+            if not subfilas:
+                raise ValueError(f"No hay filas para {algoritmo} - {experimento}")
+
+            n = len(subfilas)
+            total_generados = sum(row["candidatos_generados"] for row in subfilas)
+            total_consultados = sum(row["candidatos_con_subrogado"] for row in subfilas)
+            total_rechazados = sum(row["candidatos_rechazados"] for row in subfilas)
+
+            tabla.append(
+                {
+                    "algoritmo": NOMBRE_ALGORITMO.get(algoritmo, algoritmo.upper()),
+                    "experimento": experimento,
+                    "n_runs": n,
+                    "tiempo_s_promedio": sum(row["tiempo_s"] for row in subfilas) / n,
+                    "tiempo_online_s_promedio": (
+                        sum(row["tiempo_online_total"] for row in subfilas) / n
+                    ),
+                    "tiempo_entrenamiento_s_promedio": (
+                        sum(row["tiempo_entrenamiento_total"] for row in subfilas) / n
+                    ),
+                    "tiempo_prediccion_s_promedio": (
+                        sum(row["tiempo_prediccion_total"] for row in subfilas) / n
+                    ),
+                    "candidatos_generados_promedio": total_generados / n,
+                    "candidatos_consultados_promedio": total_consultados / n,
+                    "candidatos_rechazados_promedio": total_rechazados / n,
+                    "porcentaje_consulta": (
+                        100.0 * total_consultados / total_generados
+                        if total_generados > 0.0
+                        else 0.0
+                    ),
+                    "porcentaje_rechazo": (
+                        100.0 * total_rechazados / total_consultados
+                        if total_consultados > 0.0
+                        else 0.0
+                    ),
+                    "entrenamientos_promedio": (
+                        sum(row["entrenamientos_rbf"] for row in subfilas) / n
+                    ),
+                }
+            )
+
+    return tabla
+
+
 def formatear_csv(valor):
     """
     Formatea valores numéricos para las tablas CSV.
@@ -364,6 +449,66 @@ def tabla_latex_ranking(filas):
                 r"metaheurística a partir del error medio final; un menor valor "
                 r"indica mejor comportamiento. Los empates exactos en una función "
                 r"se reparten entre las variantes empatadas."
+            ),
+            r"\end{flushleft}",
+            r"\end{table}",
+            "",
+        ]
+    )
+    return "\n".join(lineas)
+
+
+def tabla_latex_metricas_online(filas):
+    """Construye la tabla LaTeX de métricas internas del filtro.
+
+    filas: resumen por algoritmo y experimento con porcentajes, tiempos y
+    número medio de reentrenamientos.
+    """
+    lineas = [
+        r"\begin{table}[H]",
+        r"\centering",
+        r"\caption{Métricas internas de la integración \textit{online}.}",
+        r"\label{tab:online_metricas_filtro}",
+        r"\adjustbox{max width=\textwidth}{%",
+        r"\begin{tabular}{llrrrrr}",
+        r"\toprule",
+        (
+            r"\textbf{Metaheurística} & \textbf{Versión} & "
+            r"\textbf{Consulta (\%)} & \textbf{Rechazo (\%)} & "
+            r"\textbf{Reentren.} & \textbf{Tiempo total (s)} & "
+            r"\textbf{Tiempo modelo (s)} \\"
+        ),
+        r"\midrule",
+    ]
+
+    for row in filas:
+        lineas.append(
+            " & ".join(
+                [
+                    row["algoritmo"],
+                    row["experimento"],
+                    f"{float(row['porcentaje_consulta']):.2f}",
+                    f"{float(row['porcentaje_rechazo']):.2f}",
+                    f"{float(row['entrenamientos_promedio']):.2f}",
+                    f"{float(row['tiempo_s_promedio']):.2f}",
+                    f"{float(row['tiempo_online_s_promedio']):.2f}",
+                ]
+            )
+            + r" \\"
+        )
+
+    lineas.extend(
+        [
+            r"\bottomrule",
+            r"\end{tabular}}",
+            r"\vspace{2pt}",
+            r"\begin{flushleft}\small",
+            (
+                r"\textbf{Nota.} La consulta indica el porcentaje de candidatos "
+                r"generados que son preevaluados por el subrogado. El rechazo se "
+                r"calcula sobre los candidatos consultados. El tiempo del modelo "
+                r"agrupa entrenamiento y predicción, y no debe interpretarse como "
+                r"reducción del presupuesto de evaluaciones reales."
             ),
             r"\end{flushleft}",
             r"\end{table}",
@@ -509,6 +654,17 @@ def main():
     ]
     escribir_csv(outdir / "online_ranking_medio.csv", ranking_csv)
     (outdir / "online_ranking_medio.tex").write_text(tabla_latex_ranking(ranking), encoding="utf-8")
+
+    metricas_online = calcular_metricas_online(filas, algoritmos, etiquetas)
+    metricas_csv = [
+        {clave: formatear_csv(valor) for clave, valor in row.items()}
+        for row in metricas_online
+    ]
+    escribir_csv(outdir / "online_metricas_filtro.csv", metricas_csv)
+    (outdir / "online_metricas_filtro.tex").write_text(
+        tabla_latex_metricas_online(metricas_online),
+        encoding="utf-8",
+    )
 
     for algoritmo in algoritmos:
         tabla = construir_tabla_funciones(algoritmo, medias, etiquetas)
