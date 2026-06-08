@@ -61,7 +61,7 @@ De este modo, las trayectorias obtenidas permiten estudiar cómo varía la utili
 
 \subsection{Algoritmo Genético Estacionario (AGE)}
 
-Los algoritmos genéticos (\textbf{AG}) constituyen uno de los enfoques clásicos y más conocidos dentro de las metaheurísticas evolutivas descritas en la Sección~\ref{subsec:mh_evolutivas}. Sus fundamentos modernos fueron consolidados por Holland en 1975 \cite{holland1975adaptation} y posteriormente difundidos y sistematizados por Goldberg \cite{goldberg1989genetic}. Estos algoritmos se basan en mantener una población de soluciones candidatas y generar nuevos individuos mediante operadores inspirados en la evolución biológica, principalmente la selección de progenitores, el cruce y la mutación.
+Los algoritmos genéticos (\textbf{AG}) constituyen uno de los enfoques clásicos y más conocidos dentro de las metaheurísticas evolutivas descritas en la Sección~\ref{subsec:mh_evolutivas}. Sus fundamentos modernos fueron consolidados  en 1975 y posteriormente difundidos y sistematizados por Goldberg \cite{goldberg1989genetic}. Estos algoritmos se basan en mantener una población de soluciones candidatas y generar nuevos individuos mediante operadores inspirados en la evolución biológica, principalmente la selección de progenitores, el cruce y la mutación.
 
 Dentro de esta familia, el \textbf{Algoritmo Genético Estacionario} o, según sus siglas, \textbf{AGE}, se caracteriza por actualizar la población de forma parcial y progresiva. Uno de los antecedentes clásicos de este enfoque es GENITOR, analizado por L. Darrell Whitley en 1989 \cite{whitley1989stationary}. A diferencia de un algoritmo genético generacional (AGG), donde la población se reemplaza de forma completa o casi completa en cada generación, en un esquema estacionario la descendencia generada compite con los individuos ya presentes en la población. Esta actualización parcial y gradual de la población permite conservar parte de la estructura poblacional previa e incorporar nuevas soluciones únicamente cuando mejoran la calidad del conjunto. A pesar de dichas diferencias, las fases de un \textbf{AG} se mantienen.
 
@@ -229,7 +229,7 @@ Este operador favorece la reproducción de soluciones de mayor calidad, pero man
 
 \subsubsection{Operador de cruce}
 
-Una vez seleccionados los progenitores, la generación de descendencia se realiza mediante el operador de cruce \textbf{BLX-\(\alpha\)}, especialmente utilizado en algoritmos genéticos con codificación real, como es el caso \cite{eshelman1993interval,goldberg1991realcoded}. Sean \(\mathbf{p}^{(1)}\) y \(\mathbf{p}^{(2)}\) dos progenitores. Para cada componente \(j\), se definen los extremos del intervalo determinado por ambos padres como
+Una vez seleccionados los progenitores, la generación de descendencia se realiza mediante el operador de cruce \textbf{BLX-\(\alpha\)}, especialmente utilizado en algoritmos genéticos con codificación real, como es el caso \cite{eshelman1993interval}. Sean \(\mathbf{p}^{(1)}\) y \(\mathbf{p}^{(2)}\) dos progenitores. Para cada componente \(j\), se definen los extremos del intervalo determinado por ambos padres como
 
 \[
     c_{\min,j} = \min\{p^{(1)}_j,p^{(2)}_j\},
@@ -305,45 +305,18 @@ el individuo de peor calidad de la población. La nueva población se obtiene co
 
 Este mecanismo mantiene constante el tamaño de la población y produce una renovación gradual, característica de los algoritmos genéticos estacionarios. Como consecuencia, AGE conserva parte de la estructura poblacional previa mientras incorpora nuevas soluciones únicamente cuando estas mejoran al peor individuo disponible.
 
-
-% \subsubsection{Descripción del Algoritmo Genético Estacionario (AGE)}
-
-% La selección de progenitores se realiza mediante \textbf{selección por torneo}. En este mecanismo se escoge aleatoriamente un subconjunto de individuos de la población y se selecciona como progenitor aquel con mejor valor de fitness, que en este caso corresponde al menor valor de la función objetivo. En este trabajo se utiliza un tamaño de torneo igual a 2, por lo que cada progenitor se obtiene comparando dos individuos seleccionados al azar. Este procedimiento introduce presión selectiva hacia soluciones de mayor calidad, manteniendo al mismo tiempo cierto componente estocástico en la elección de padres.
-
-% El operador de cruce empleado es \textbf{BLX-\(\alpha\)}, especialmente utilizado en algoritmos genéticos con codificación real. Para cada componente \(j\), si \(\mathbf{x}^{(1)}\) y \(\mathbf{x}^{(2)}\) son los dos progenitores, se define
-
-% \begin{align*}
-%     c_{\min} & = \min\{x_j^{(1)}, x_j^{(2)}\}, \\
-%     c_{\max} & = \max\{x_j^{(1)}, x_j^{(2)}\}, \\
-%     I_j      & = c_{\max} - c_{\min}
-% \end{align*}
-
-% El valor de la componente del descendiente se genera entonces como
-
-% \[
-%     y_j \sim \mathcal{U}\bigl( c_{\min} - \alpha I_j,\; c_{\max} + \alpha I_j \bigr)
-% \]
-
-% donde \(\alpha\) controla el grado de expansión del intervalo de muestreo. Cuando \(\alpha=0\), el descendiente se genera dentro del intervalo delimitado por los progenitores; para valores positivos, el intervalo se amplía, permitiendo explorar regiones próximas pero externas a las soluciones parentales.
-
-% Tras el cruce se aplica una \textbf{mutación gaussiana}, que introduce pequeñas perturbaciones aleatorias sobre las componentes del individuo. Si \(x_j\) representa una componente del descendiente, su valor mutado se calcula como
-% \[
-%     y_j = x_j + \sigma z \,, \qquad z \sim \mathcal{N}(0,1)
-% \]
-% donde \(\sigma\) controla la magnitud de la perturbación. Esta mutación contribuye a mantener diversidad en la población y reduce el riesgo de convergencia prematura.
-
-% Finalmente, los hijos generados se evalúan mediante la función objetivo y se selecciona el mejor de ellos. El reemplazo sigue un \textbf{esquema estacionario}: el mejor hijo reemplaza al peor individuo de la población únicamente si mejora su calidad. En términos de la formalización abstracta, en cada iteración se generan dos descendientes candidatos, por lo que \(\lambda = 2\), mientras que el tamaño de la población mantenida es \(\mu = 50\). Por tanto, se cumple que \(\lambda \ll \mu\), característica propia de los esquemas estacionarios. Además, como solo el mejor de los dos hijos puede incorporarse a la población, la renovación efectiva se produce de forma parcial y gradual. De este modo, la población no se reemplaza por completo en cada iteración, sino que evoluciona mediante incorporaciones puntuales de descendencia.
-
 \subsection{Differential Evolution (DE)}
 
-La segunda de las técnicas seleccionadas para estudiar en este trabajo es  \textit{Differential Evolution} (\textbf{DE}), introducido por Rainer Storn y Kenneth Price como una metaheurística evolutiva orientada a problemas de optimización continua. Una de sus primeras validaciones competitivas se presentó en el \textit{IEEE International Conference on Evolutionary Computation} de 1996 (ICEC'96), una de las conferencias precursoras del actual \textit{IEEE Congress on Evolutionary Computation} (CEC). En dicho trabajo, los autores aplicaron DE sobre las funciones de optimización continua propuestas en la competición del congreso \cite{storn1996icec}. Posteriormente, el algoritmo fue formalizado en mayor profundidad por los mismos autores \cite{storn1997de}.
-
+La segunda de las técnicas seleccionadas para estudiar en este trabajo es
+\textit{Differential Evolution} (\textbf{DE}), introducida por Rainer Storn y
+Kenneth Price como una metaheurística evolutiva orientada a problemas de
+optimización continua \cite{storn1997de}.
 
 Al igual que AGE, \textbf{DE} mantiene una población de soluciones candidatas que evoluciona a lo largo de la ejecución. Sin embargo, su rasgo distintivo reside en que la generación de nuevos individuos no se basa en operadores genéticos clásicos, sino en la combinación de vectores y diferencias entre soluciones de la propia población. Estas diferencias vectoriales proporcionan información sobre la distribución actual de los individuos en el espacio de búsqueda y permiten construir nuevas soluciones siguiendo direcciones inducidas por la propia dinámica poblacional.
 
 Dentro del estudio, \textbf{DE} se incorpora como una referencia intermedia entre AGE y SHADE. Frente al esquema genético clásico empleado por AGE, permite estudiar trayectorias generadas mediante operadores diferenciales. Al mismo tiempo, sirve como punto de partida para analizar posteriormente SHADE, una variante más avanzada que introduce mecanismos adaptativos sobre la estructura básica de \textbf{DE}.
 
-En la literatura, \textit{Differential Evolution} no se presenta como un único esquema fijo, sino como una familia de estrategias que combinan distintas formas de mutación y cruce. Una notación habitual para describir una variante concreta es \texttt{DE/x/y/z} \cite{price2005differential}, donde:
+En la literatura, \textit{Differential Evolution} no se presenta como un único esquema fijo, sino como una familia de estrategias que combinan distintas formas de mutación y cruce. Una notación habitual para describir una variante concreta es \texttt{DE/x/y/z}, donde:
 
 \begin{itemize}
     \item \texttt{x} indica el vector base utilizado en la mutación,
@@ -618,7 +591,7 @@ Por tanto, \textbf{SHADE} conserva el esquema generacional de DE y mantiene cons
 %% transicion experimental. indicar que el tamaño de la ventana se estudiara posteriormente, sin adelantar el valor seleccionado.
 
 
-Como se expuso en las Secciones~\ref{subsec:dinamicas_criticas} y~\ref{subsec:mh_poblacion}, una intensificación excesiva de la búsqueda puede reducir progresivamente la diversidad poblacional y desembocar en una fase de \textbf{estancamiento}. En estas condiciones, la población deja de generar mejoras relevantes y puede producir muestras cada vez más homogéneas, lo que limita tanto la capacidad exploratoria de la metaheurística como la utilidad posterior de los modelos subrogados. Si esto ocurre, se incorpora un mecanismo de \textbf{reinicio elitista} común a AGE, DE y SHADE.
+Como se expuso en las Secciones~\ref{subsec:dinamicas_criticas} y~\ref{subsec:mh_poblacion}, una intensificación excesiva de la búsqueda puede reducir progresivamente la diversidad poblacional y desembocar en una fase de \textbf{estancamiento}. En estas condiciones, la población deja de generar mejoras relevantes y puede producir muestras cada vez más homogéneas, lo que limita tanto la capacidad exploratoria de la metaheurística como la utilidad posterior de los modelos subrogados. Para mitigar este fenómeno y reactivar el proceso de búsqueda, la literatura propone la planificación de interrupciones estructurales o esquemas de reinicio~\cite{fukunaga1998restart}. Bajo esta premisa, en este trabajo se incorpora un mecanismo de \textbf{reinicio elitista} común a AGE, DE y SHADE.
 
 A diferencia de un reinicio completo, que sustituiría todos los individuos
 de la población por nuevas soluciones, el mecanismo elitista conserva la
@@ -750,7 +723,7 @@ LASSO se utiliza como una referencia lineal regularizada de \textbf{bajo coste c
 
 \subsection{Response Surface Methodology (RSM)}
 
-La metodología de superficies de respuesta (\textit{Response Surface Methodology}, RSM) fue introducida por Box y Wilson como un enfoque estadístico para analizar y optimizar procesos cuya respuesta depende de múltiples variables \cite{box1951experimental}. En el ámbito del modelado subrogado, su idea fundamental consiste en aproximar la función objetivo mediante una superficie polinómica ajustada a partir de las muestras disponibles.
+La metodología de superficies de respuesta (\textit{Response Surface Methodology}, RSM) fue introducida por Box y Wilson como un enfoque estadístico para analizar y optimizar procesos cuya respuesta depende de múltiples variables~\cite{box1951experimental}. En el ámbito del modelado subrogado, su idea fundamental consiste en aproximar la función objetivo mediante una superficie polinómica ajustada a partir de las muestras disponibles.
 
 De forma general, una superficie polinómica de grado máximo \(p\) puede expresarse como
 
@@ -768,7 +741,7 @@ RSM amplía la capacidad expresiva de LASSO mediante la incorporación de térmi
 
 \subsection{Radial Basis Function (RBF)}
 
-Los modelos basados en funciones de base radial (\textit{Radial Basis Function}, RBF) constituyen una técnica clásica de aproximación empleada para interpolar o suavizar datos distribuidos en espacios multidimensionales. Una de sus primeras formulaciones fue introducida por Hardy en 1971 mediante el uso de funciones multicuadráticas para representar superficies irregulares \cite{hardy1971multiquadric}. Su idea fundamental consiste en construir la predicción como una combinación ponderada de funciones cuyo valor depende de la distancia entre la solución evaluada y un conjunto de centros.
+Los modelos basados en funciones de base radial (\textit{Radial Basis Function}, RBF) constituyen una técnica clásica de aproximación empleada para interpolar o suavizar datos distribuidos en espacios multidimensionales. Una de sus primeras formulaciones fue introducida por Hardy en 1971 mediante el uso de funciones multicuadráticas para representar superficies irregulares~\cite{hardy1971multiquadric}. Su idea fundamental consiste en construir la predicción como una combinación ponderada de funciones cuyo valor depende de la distancia entre la solución evaluada y un conjunto de centros.
 
 De forma general, un aproximador RBF puede expresarse como
 
@@ -790,7 +763,7 @@ Dentro de la comparativa, este modelo aporta una aproximación no lineal basada 
 
 \subsection{Support Vector Regression (SVR)}
 
-Dentro de los métodos basados en funciones \textit{kernel}, la regresión por vectores de soporte (\textit{Support Vector Regression}, SVR) extiende al ámbito de la regresión los principios de las máquinas de vectores soporte (SVM), desarrolladas en el marco de la teoría del aprendizaje estadístico \cite{drucker1996svr,smola2004tutorial}. Su objetivo consiste en construir una función aproximadora que mantenga un equilibrio entre la complejidad del modelo y el error cometido sobre las muestras de entrenamiento.
+Dentro de los métodos basados en funciones \textit{kernel}, la regresión por vectores de soporte (\textit{Support Vector Regression}, SVR) extiende al ámbito de la regresión los principios de las máquinas de vectores soporte (SVM), desarrolladas en el marco de la teoría del aprendizaje estadístico \cite{smola2004tutorial}. Su objetivo consiste en construir una función aproximadora que mantenga un equilibrio entre la complejidad del modelo y el error cometido sobre las muestras de entrenamiento.
 
 Una de sus características distintivas es la utilización de una función de pérdida \(\varepsilon\)-insensible, definida como
 
@@ -837,6 +810,7 @@ donde \(K(\mathbf{x}_i,\mathbf{x})\) mide la similitud inducida por el
 
 La inclusión de SVR permite valorar un aproximador no lineal con capacidad de generalización y control explícito sobre la complejidad del modelo. Sin embargo, el coste de ajuste constituye una \textbf{limitación práctica relevante}. A medida que aumenta el tamaño del conjunto de entrenamiento, el tiempo necesario para construir el modelo puede crecer de forma considerable. De hecho, la literatura ha descrito costes de entrenamiento \textbf{cúbicos respecto al número de muestras} para formulaciones convencionales de SVR~\cite{wang2007reducing}. Esta limitación resulta especialmente importante en escenarios donde el subrogado debe ajustarse repetidamente durante la optimización, por lo que su \textbf{viabilidad computacional} se analizará posteriormente junto con su calidad predictiva.
 
+
 \subsection{Multilayer Perceptron (MLP)}
 
 Como representante de los modelos basados en redes neuronales, se considera el perceptrón multicapa (\textit{Multilayer Perceptron}, MLP), una de las arquitecturas más extendidas dentro de las redes neuronales artificiales (ANNs). Este modelo organiza un conjunto de neuronas artificiales en una capa de entrada, una o varias capas ocultas y una capa de salida. Las conexiones entre capas permiten transformar progresivamente las variables originales y construir una aproximación no lineal de la función objetivo.
@@ -878,14 +852,13 @@ mientras que la predicción final para un problema de regresión viene dada por
     \mathbf{b}^{(L+1)}.
 \end{equation}
 
-En estas expresiones, \(W^{(\ell)}\) y \(\mathbf{b}^{(\ell)}\) representan los pesos y sesgos de la capa \(\ell\), mientras que \(\sigma^{(\ell)}\) determina su función de activación. La composición sucesiva de estas transformaciones permite aproximar relaciones no lineales complejas entre las variables de entrada y la salida \cite{hornik1989multilayer}.
+En estas expresiones, \(W^{(\ell)}\) y \(\mathbf{b}^{(\ell)}\) representan los pesos y sesgos de la capa \(\ell\), mientras que \(\sigma^{(\ell)}\) determina su función de activación. La composición sucesiva de estas transformaciones permite aproximar relaciones no lineales complejas entre las variables de entrada y la salida.
 
 MLP introduce un aproximador neuronal flexible que no impone una forma funcional fija sobre el paisaje de \textit{fitness}. La composición de sus capas permite representar patrones más complejos que los capturables mediante LASSO o RSM.  Como contrapartida, su entrenamiento es \textbf{más sensible a la escala de los datos}, a la \textbf{cantidad de muestras} disponibles y a la \textbf{configuración de la arquitectura}. Además, su interpretación resulta menos directa que la de los modelos lineales o polinómicos.
 
 \subsection{Random Forest (RF)}
 
 \textit{Random Forest} es un modelo de ensamblado introducido por Breiman en 2001 \cite{breiman2001random}. Su funcionamiento se basa en combinar múltiples árboles construidos a partir de muestras y subconjuntos de variables seleccionados aleatoriamente, lo que reduce la correlación entre los estimadores individuales y permite obtener una predicción agregada más robusta que la proporcionada por un único árbol.
-
 
 En problemas de regresión, la salida del modelo se calcula como el promedio de las predicciones generadas por los \(T\) árboles que componen el ensamblado:
 
@@ -905,7 +878,7 @@ La combinación de numerosos árboles favorece la robustez de las predicciones, 
 
 \subsection{Métodos de boosting basados en árboles}
 
-A diferencia de Random Forest, donde los árboles se construyen de forma independiente y sus predicciones se promedian, los métodos de \textit{gradient boosting} generan los estimadores de manera secuencial. Cada nuevo árbol intenta corregir los errores residuales cometidos por el conjunto anterior, construyendo progresivamente un modelo aditivo \cite{friedman2001gradient}.
+A diferencia de Random Forest, donde los árboles se construyen de forma independiente y sus predicciones se promedian, los métodos de \textit{gradient boosting} generan los estimadores de manera secuencial. Cada nuevo árbol intenta corregir los errores residuales cometidos por el conjunto anterior, construyendo progresivamente un modelo aditivo.
 
 De forma general, la predicción obtenida tras incorporar \(T\) árboles puede expresarse como
 
@@ -929,7 +902,7 @@ A diferencia de otros modelos considerados, HGB permite valorar un aproximador n
 
 \subsubsection{Extreme Gradient Boosting (XGBoost)}
 
-\textit{Extreme Gradient Boosting} (XGBoost) es un sistema escalable de \textit{tree boosting} propuesto por Chen y Guestrin \cite{chen2016xgboost}. Su formulación incorpora regularización explícita para controlar la complejidad del ensamblado y \textbf{reducir el riesgo de sobreajuste}, además de distintas optimizaciones dedicadas a acelerar la construcción de los árboles.
+\textit{Extreme Gradient Boosting} (XGBoost) es un sistema escalable de \textit{tree boosting} propuesto por Chen y Guestrin~\cite{chen2016xgboost}. Su formulación incorpora regularización explícita para controlar la complejidad del ensamblado y \textbf{reducir el riesgo de sobreajuste}, además de distintas optimizaciones dedicadas a acelerar la construcción de los árboles.
 
 La construcción del ensamblado se realiza minimizando una función objetivo regularizada. En la iteración \(t\), esta puede expresarse como
 
@@ -966,37 +939,8 @@ donde \(T_t\) es el número de hojas del árbol, \(\mathbf{w}_t\) contiene sus p
 
 \textbf{XGBoost} añade a la comparativa un modelo flexible capaz de representar interacciones no lineales complejas con mecanismos específicos de regularización. Sus mecanismos adicionales permiten controlar la complejidad de los árboles y reducir el riesgo de sobreajuste pero, a cambio de esta capacidad expresiva, introduce una \textbf{mayor complejidad de configuración} que modelos más sencillos y mantiene las \textbf{limitaciones} habituales de los ensamblados basados en árboles \textbf{para extrapolar} fuera de las regiones cubiertas por los datos de entrenamiento.
 
-% En el caso de HGB, la discretización previa de las variables continuas mediante histogramas permite acelerar el entrenamiento y reducir el coste computacional. XGBoost, por su parte, incorpora regularización explícita y estrategias eficientes de construcción de árboles, lo que le confiere una combinación competitiva de precisión y robustez. Como surrogates, ambos métodos resultan especialmente útiles en problemas tabulares con relaciones no lineales complejas, aunque, al igual que otros enfoques basados en árboles, presentan limitaciones para extrapolar fuera de las regiones observadas.
-
-
-
-
-% Aunque evalúes el modelo midiendo cómo ordena las soluciones (mediante coeficientes como Spearman o Kendall), el modelo matemático subyacente sigue aprendiendo un mapeo de un espacio continuo a una variable de salida continua: R
-% D
-% →R (la función de fitness). Vas a entrenar regresores clásicos (como RBF o Random Forests de regresión) que devuelven números reales, no clasificadores ni modelos de ordenación pura (Learning to Rank basándose en comparaciones por pares).
-% Explicar este contraste entre lo que predice el modelo (un valor continuo) y lo que nos interesa de su predicción (el orden relativo) enriquecerá enormemente tu marco teórico. A los tribunales de la ETSIIT les entusiasma ver que el alumno entiende que en optimización evolutiva no importa si el metamodelo se equivoca en el tercer decimal, siempre y cuando sea capaz de identificar correctamente qué individuo es mejor que otro para guiar la selección.
-
-
 \section{Técnicas Subrogadas clásicas de referencia}
 \label{sec:tecnicas_subrogadas_clasicas}
-
-%% motivacion de incluirlas: explicar que, aunque el trabajo se centra en modelos de aprendizaje automático, se consideran también técnicas clásicas de modelado subrogado como referencia posterior
-
-%% diferencias respecto a los modelos de ml: no presentarlas como otros regresores mas, sino como métodos tradicionalmente diseñados para aproximar funciones objetivo costosas en optimizacion, tal y como se comentaba en el capitulo 3
-
-%% kriging / procesos gaussianos:
-% - idea general: modelar la funcion como una realizacion de un proceso estocastico
-% - prediccion con media e incertidumbre
-% - utilidad en optimizacion surrogate y smbo
-% - limitaciones: coste cubico aproximado con el numero de muestras,
-% sensibilidad al kernel/covarianza.
-
-%% pce:
-% - idea general: aproximar la respuesta mediante una expansion en polinomios ortogonales
-% - adecuado cuando se quiere representar la funcion mediante una base global
-% - limitaciones: puede degredarse en paisajes muy irregulares o altamente multimodales
-
-%% papel en este tfg: dejar claro que no forman parte del cribado inicial de modelos ml, sino que se reservan como referencia clasica para una comparacion posterior con el subrogado seleccionado.
 
 Además de los modelos incluidos en la comparativa principal, resulta conveniente introducir algunas técnicas subrogadas clásicas empleadas históricamente para aproximar funciones objetivo costosas. En particular, se consideran \textit{Kriging} y las expansiones de caos polinómico (\textit{Polynomial Chaos Expansion}, PCE).
 
@@ -1004,9 +948,11 @@ Estas técnicas no forman parte del cribado inicial de candidatos, en el que sí
 
 \subsection{Kriging}
 
-\textit{Kriging} es una técnica clásica de modelado subrogado utilizada para aproximar funciones costosas a partir de un conjunto limitado de observaciones. Su aplicación al diseño y análisis de experimentos computacionales fue consolidada por Sacks et al. \cite{sacks1989}. Posteriormente, adquirió especial relevancia en optimización mediante métodos como \textit{Efficient Global Optimization} (EGO) \cite{jones1998}.
+\textit{Kriging} es una técnica clásica de modelado subrogado utilizada para aproximar la función objetivo a partir de un conjunto limitado de muestras evaluadas. A diferencia de otros regresores, no solo proporciona una predicción
+media del \textit{fitness}, sino también una estimación de la incertidumbre
+asociada a dicha predicción~\cite{jones1998}.
 
-Este método puede formularse mediante \textbf{procesos gaussianos}. La función objetivo se modela como la suma de una tendencia global y un proceso estocástico correlacionado:
+Este método suele formularse mediante \textbf{procesos gaussianos}. La función objetivo se modela como la suma de una tendencia global y un proceso estocástico correlacionado:
 
 \begin{equation}
     f(\mathbf{x}) = \mu(\mathbf{x}) + Z(\mathbf{x}),
@@ -1042,13 +988,13 @@ donde \(\mathbf{K}\) es la matriz de covarianza entre las muestras de entrenamie
     \mathbf{k}(\mathbf{x}).
 \end{equation}
 
-Esta estimación de incertidumbre distingue a \textit{Kriging} de otros aproximadores considerados anteriormente. En estrategias de optimización secuencial, puede utilizarse para equilibrar la explotación de regiones prometedoras y la exploración de zonas todavía poco conocidas. Por este motivo, constituye una referencia especialmente relevante para métodos \textbf{SMBO}.
+Esta estimación de incertidumbre distingue a \textit{Kriging} de otros aproximadores considerados anteriormente. En estrategias de optimización secuencial, puede utilizarse para equilibrar la explotación de regiones prometedoras y la exploración de zonas todavía poco conocidas. Por este motivo, constituye un modelo especialmente relevante en métodos \textbf{SMBO}.
 
-Su principal limitación se encuentra en el coste computacional del ajuste. El tratamiento de una matriz de covarianza densa presenta un coste aproximado de \(\mathcal{O}(n^{3})\) respecto al número de muestras y requiere un almacenamiento de orden \(\mathcal{O}(n^{2})\) \cite{rasmussen2006gaussian}. Además, la calidad de la aproximación depende de la función de covarianza seleccionada y de sus parámetros. Estas características pueden dificultar su actualización reiterada cuando el conjunto de entrenamiento aumenta progresivamente durante la optimización.
+Su principal limitación se encuentra en el coste computacional del ajuste. El tratamiento de una matriz de covarianza densa presenta un coste aproximado de \(\mathcal{O}(n^{3})\) respecto al número de muestras y requiere un almacenamiento de orden \(\mathcal{O}(n^{2})\). Además, la calidad de la aproximación depende de la función de covarianza seleccionada y de sus parámetros. Estas características pueden dificultar su actualización reiterada cuando el conjunto de entrenamiento aumenta progresivamente durante la optimización.
 
 \subsection{Polynomial Chaos Expansion (PCE)}
 
-Las expansiones de caos polinómico (\textit{Polynomial Chaos Expansion}, PCE) constituyen una técnica de aproximación basada en la representación de una respuesta mediante una combinación de polinomios ortogonales. Aunque su origen se encuentra en el ámbito de la cuantificación de incertidumbre, también pueden emplearse como subrogados construidos a partir de un conjunto limitado de muestras evaluadas \cite{xiu2002wiener,sudret2008global}.
+Las expansiones de caos polinómico (\textit{Polynomial Chaos Expansion}, PCE) constituyen una técnica de aproximación basada en la representación de una respuesta mediante una combinación de polinomios ortogonales. Aunque su origen se encuentra en el ámbito de la cuantificación de incertidumbre, también pueden emplearse como subrogados construidos a partir de un conjunto limitado de muestras evaluadas~\cite{xiu2002wiener}.
 
 Sea \(\boldsymbol{\xi}\) el vector de variables de entrada, caracterizadas mediante unas distribuciones de probabilidad determinadas. La aproximación de la función objetivo se expresa como
 
@@ -1072,7 +1018,7 @@ La principal \textbf{limitación} de esta técnica aparece al \textbf{aumentar l
     \binom{D+p}{p}.
 \end{equation}
 
-Por tanto, el tamaño de la base puede crecer rápidamente. Además, una expansión polinómica global puede perder eficacia ante funciones altamente irregulares o con variaciones locales pronunciadas. Existen formulaciones dispersas que tratan de mitigar estas limitaciones seleccionando únicamente los términos más relevantes \cite{blatman2011adaptive}.
+Por tanto, el tamaño de la base puede crecer rápidamente, lo que penaliza la viabilidad del ajuste. Además, una expansión polinómica global puede perder eficacia ante funciones altamente irregulares o con variaciones locales pronunciadas, lo que habitualmente requiere el recurso a formulaciones dispersas para seleccionar únicamente los términos más relevantes.
 
 \section{Estrategias \textit{offline} para la evaluación \textit{subrogada}}
 \label{sec:metodologia_estrategias_offline}
@@ -1096,8 +1042,6 @@ Por tanto, el tamaño de la base puede crecer rápidamente. Además, una expansi
 Para evaluar el comportamiento de las técnicas subrogadas consideradas, se adopta inicialmente una perspectiva \textit{offline}. Para ello, las metaheurísticas se ejecutan de forma independiente y las soluciones evaluadas durante cada ejecución se almacenan junto con sus valores reales de \textit{fitness}. A partir de estas trayectorias previamente generadas se construyen los conjuntos utilizados para entrenar y validar los distintos modelos subrogados.
 
 El conjunto de entrenamiento está formado por las muestras empleadas para ajustar el modelo, mientras que el conjunto de validación se reserva para medir su capacidad de generalización sobre datos no utilizados durante el ajuste, siguiendo el esquema habitual de separación entre entrenamiento y validación en modelado predictivo.
-
-% \cite{stone1974crossvalidatory,geisser1975predictive,kohavi1995study}.
 
 Esta evaluación se realiza sobre trayectorias ya generadas. Las predicciones del subrogado no intervienen todavía en la evolución de la población, sino que se comparan con evaluaciones reales ya conocidas para estudiar su comportamiento bajo condiciones controladas. Esta separación permite analizar la calidad de los modelos antes de integrarlos en un esquema \textit{online}, donde sus estimaciones sí condicionarán las decisiones tomadas por el algoritmo de optimización.
 

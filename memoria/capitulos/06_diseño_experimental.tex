@@ -38,7 +38,7 @@ conjunto de problemas que permita comparar su comportamiento bajo condiciones
 homogéneas. En este trabajo se utiliza la suite \textbf{CEC2017}, propuesta para la
 \textit{Special Session and Competition on Single Objective Bound Constrained
     Real-Parameter Numerical Optimization} del IEEE Congress on Evolutionary
-Computation de 2017 \cite{awad2017cec2017}.
+Computation de 2017~\cite{awad2017cec2017}.
 
 \subsection{Suite CEC2017}
 \label{subsec:suite_cec2017}
@@ -388,7 +388,7 @@ Para cuantificarla se emplean el \textbf{error absoluto medio} (MAE) y la
 Dado un conjunto de validación formado por \(n\) pares
 \(\{(\mathbf{x}_i, y_i)\}_{i=1}^{n}\), donde \(y_i\) es el valor real del
 \textit{fitness} y \(\hat{f}(\mathbf{x}_i)\) la predicción del modelo, ambas
-métricas se definen como \cite{hodson2022rmsemae}
+métricas se definen como
 
 
 \begin{equation}
@@ -428,8 +428,7 @@ modelo subrogado dentro de una metaheurística no depende únicamente de su
 precisión numérica. Un modelo subrogado puede realizar predicciones que no son precisas pero puede ser capaz de ordenar correctamente las soluciones candidatas.
 
 Para evaluar esta propiedad se
-emplea el \textbf{coeficiente de correlación de Spearman}
-\cite{spearman1904association}, que cuantifica el grado de concordancia ordinal
+emplea el \textbf{coeficiente de correlación de Spearman}, que cuantifica el grado de concordancia ordinal
 entre los valores reales y los predichos.
 
 El coeficiente se calcula como la correlación de Pearson aplicada a los rangos de ambas distribuciones. Sea \(R_i\) el rango del valor real del \textit{fitness} de la muestra \(i\) dentro del conjunto de validación, y \(Q_i\) el rango de la predicción correspondiente. Entonces:
@@ -962,7 +961,7 @@ Los parámetros de cada programa se recogen en las tablas siguientes:
     \hline
 
     \makecell[l]{\texttt{--ajuste-}                                                                                           \\\texttt{resultados-dir}}
-                       & \makecell[l]{\scriptsize\texttt{resultados\_}                                                           \\\scriptsize\texttt{benchmark\_}      \\\scriptsize\texttt{surrogates\_}      \\\scriptsize\texttt{offline\_ajuste}}
+                       & \makecell[l]{\scriptsize\texttt{resultados\_}                                                        \\\scriptsize\texttt{benchmark\_}      \\\scriptsize\texttt{surrogates\_}      \\\scriptsize\texttt{offline\_ajuste}}
                        & Subdirectorio donde se almacenan los resultados del ajuste.                                          \\
     \hline
 

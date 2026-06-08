@@ -7,12 +7,19 @@ evaluación repetida de la función objetivo. En este contexto, los algoritmos
 evolutivos asistidos por subrogados (\textit{surrogate-assisted evolutionary
     algorithms}, SAEA) tratan de reducir el número de evaluaciones reales
 necesarias mediante modelos aproximados que orientan la búsqueda hacia regiones
-prometedoras. La actividad reciente del área también se refleja en la evolución del número de publicaciones indexadas en Scopus. La Figura~\ref{fig:publicaciones_saea_scopus} muestra un crecimiento claro de los trabajos relacionados con algoritmos evolutivos asistidos por subrogados durante la última década, especialmente a partir de 2019.
+prometedoras.
+
+La actividad reciente del área también se refleja en la evolución del número
+de publicaciones indexadas en Scopus. La
+Figura~\ref{fig:publicaciones_saea_scopus} muestra un crecimiento claro de los
+trabajos relacionados con algoritmos evolutivos asistidos por subrogados
+durante la última década, especialmente a partir de 2019.
+
 
 \begin{figure}[H]
     \centering
-    \includegraphics[width=0.9\textwidth]{figuras/estado_del_arte/publicaciones_saea_scopus.png}
-    \caption{Evolución anual del número de publicaciones sobre algoritmos evolutivos asistidos por subrogados en Scopus.}
+    \includegraphics[width=0.85\textwidth]{figuras/estado_del_arte/publicaciones_saea_scopus.png}
+    \caption{Evolución anual del número de publicaciones recuperadas en Scopus sobre algoritmos evolutivos asistidos por subrogados.}
     \label{fig:publicaciones_saea_scopus}
 \end{figure}
 
@@ -22,18 +29,12 @@ teóricos necesarios para comprender las técnicas empleadas, aquí el interés
 recae en cómo la literatura ha abordado la integración de modelos subrogados
 en algoritmos evolutivos y qué cuestiones permanecen relevantes para el diseño
 experimental de este Trabajo de Fin de Grado. En particular, se presta atención
-a tres aspectos: la gestión del modelo durante la búsqueda, el tipo de
-información que debe aportar el subrogado y su integración dentro de
-metaheurísticas poblacionales. Además, se considera la incorporación de modelos
-de aprendizaje automático como subrogados, una línea especialmente relevante
-para este trabajo dado que parte de la evaluación experimental compara modelos
-de aprendizaje supervisado como técnicas subrogadas. Dentro de las
-metaheurísticas poblacionales, se comentan con mayor detalle algunas propuestas
-basadas en evolución diferencial, por su cercanía con parte de los algoritmos
-considerados y por su presencia en la literatura reciente sobre SAEA.
+a la gestión del modelo durante la búsqueda, al tipo de información que debe
+aportar el subrogado y a su integración dentro de metaheurísticas
+poblacionales.  Dentro de este marco, también se considera el uso de modelos de aprendizaje automático supervisado como subrogados.
 
 Aunque la optimización multiobjetivo asistida por subrogados constituye una
-línea de investigación extensa, este trabajo se acota a la optimización
+línea de investigación extensa y en auge, este trabajo se acota a la optimización
 continua mono-objetivo. Esta delimitación permite centrar la revisión en los
 trabajos más próximos al objetivo de esta memoria: caracterizar distintos modelos
 subrogados sobre trayectorias evolutivas y estudiar posteriormente su
@@ -44,15 +45,12 @@ metaheurísticas consideradas.
 \label{sec:estado_saea}
 
 El uso de modelos aproximados en optimización no es exclusivo de los
-algoritmos evolutivos. Trabajos clásicos sobre el diseño y análisis de
-experimentos computacionales ya mostraron la utilidad de construir modelos
-estadísticos a partir de un número limitado de evaluaciones reales
-\cite{sacks1989}. Posteriormente, métodos como \textit{Efficient Global Optimization} (EGO) incorporaron Kriging, una técnica estadística clásica de
+algoritmos evolutivos. Métodos como \textit{Efficient Global
+    Optimization} (EGO) se apoyaron en Kriging, una técnica estadística clásica de
 interpolación y modelado espacial, para guiar la búsqueda de óptimos en
-funciones de caja negra costosas \cite{jones1998}. Estas ideas sentaron una
+funciones de caja negra costosas~\cite{jones1998}. Estas ideas sentaron una
 base importante para el desarrollo posterior de la optimización basada en
-subrogados, revisada en trabajos como los de Queipo et
-al.~\cite{queipo2005surrogate} y Forrester y Keane~\cite{forrester2009recent}.
+subrogados dentro del cálculo computacional.
 
 Dentro de la computación evolutiva, la incorporación de modelos subrogados se
 planteó inicialmente como una forma de aproximar el \textit{fitness} de los
@@ -60,36 +58,23 @@ individuos sin evaluar siempre la función objetivo real. La revisión de
 Jin~\cite{jin2005} agrupó diferentes modelos de aproximación, incluyendo
 polinomios, Kriging y redes neuronales. Esta variedad refleja que los
 subrogados pueden construirse tanto mediante técnicas estadísticas clásicas
-como mediante modelos de aprendizaje automático supervisado. Además, el trabajo
-destacó que el problema no se limita a elegir un modelo predictivo, sino
-también a decidir cómo combinar sus predicciones con evaluaciones reales. Esta
-cuestión resulta central en los SAEA, ya que un uso inadecuado del subrogado
-puede dirigir la búsqueda hacia regiones incorrectas del espacio de soluciones.
+como mediante modelos de aprendizaje automático supervisado. Además, este trabajo
+destacó que el problema no se limita a la elección de un modelo predictivo, sino
+también a decidir cómo combinar sus predicciones con evaluaciones reales para evitar que un comportamiento inadecuado del subrogado dirija la búsqueda hacia regiones incorrectas del espacio de soluciones.
 
-Posteriormente, Lim et al.~\cite{lim2010} generalizaron el marco de la
-computación evolutiva asistida por subrogados, insistiendo en que la elección
-del modelo y de la estrategia de integración puede afectar de forma
-significativa al rendimiento del algoritmo. En la misma línea, Jin~\cite{jin2011surrogate}
-revisó los avances recientes y los retos pendientes del área, entre ellos la
-necesidad de estrategias de gestión del modelo, el uso de varios subrogados y
-la falta de estudios comparativos suficientemente sistemáticos. Estos trabajos
-consolidan una idea que sigue siendo relevante en la literatura actual: el
-subrogado no debe entenderse como un sustituto directo y permanente de la
-función objetivo, sino como un componente que debe ser controlado dentro del
-proceso evolutivo.
+A partir de estos fundamentos, años después Jin~\cite{jin2011surrogate} revisó los avances recientes de la disciplina y acotó los retos pendientes del área, entre ellos la necesidad de estrategias de gestión del modelo, el uso de varios subrogados y la falta de estudios comparativos suficientemente sistemáticos. Estos trabajos consolidan una una idea que sigue siendo crucial en la literatura actual: el subrogado no debe entenderse como un sustituto directo y permanente de la función objetivo, sino como un componente dinámico que debe ser controlado y gestionado durante el proceso evolutivo.
 
-La actividad reciente confirma la consolidación de esta línea de investigación.
-He et al.~\cite{he2023review} revisan los SAEA para problemas de optimización
-costosa y los organizan atendiendo tanto a los algoritmos empleados como a sus
-aplicaciones. Otros trabajos recientes, como los de Khaldi y Draa~\cite{khaldi2024blueprint} o Liang et al.~\cite{liang2025survey}, proponen taxonomías y esquemas generales para describir la construcción del subrogado, su actualización y su uso dentro del algoritmo evolutivo. En conjunto, estas revisiones muestran que la integración de subrogados ha pasado de ser una técnica auxiliar a constituir
-una línea de investigación propia dentro de la optimización evolutiva.
+Las revisiones más recientes confirman la consolidación de esta línea de
+investigación. He et al.~\cite{he2023review} revisan los SAEA para problemas
+de optimización costosa y los organizan atendiendo tanto a los algoritmos
+empleados como a sus escenarios de aplicación. Por su parte, trabajos recientes como el de Liang et al.~\cite{liang2025survey}, proponen taxonomías y esquemas generales actualiazados para describir la construcción del subrogado, su actualización y su uso dentro del algoritmo evolutivo. En conjunto, estas revisiones muestran que la integración de subrogados ha pasado de ser una técnica auxiliar a constituir una línea de investigación propia y robusta dentro de la optimización evolutiva.
 
 \section{Gestión del modelo subrogado durante la búsqueda}
 \label{sec:estado_gestion_modelo}
 
 Uno de los aspectos más importantes en los SAEA es la forma en que se
 controla la intervención del modelo subrogado durante la búsqueda. Si el
-modelo se utiliza de manera indiscriminada, sus errores pueden acumularse y
+modelo se utiliza sin una política de control adecuada, sus errores pueden acumularse y
 desviar al algoritmo hacia regiones que parecen prometedoras según la
 aproximación, pero que no lo son al evaluarse mediante la función objetivo
 real. Por este motivo, buena parte de la literatura no se centra únicamente en
@@ -102,10 +87,10 @@ evaluaciones aproximadas y reales dentro del algoritmo evolutivo. En términos
 generales, estas estrategias pueden actuar a nivel de individuo, decidiendo qué
 soluciones concretas se evalúan con el modelo o con la función real, o a nivel
 de generación, alternando fases en las que la población se evalúa de forma
-aproximada con fases de corrección mediante evaluaciones reales. Esta
-distinción resulta relevante porque muestra que el subrogado no se incorpora
-como un reemplazo permanente de la función objetivo, sino como una herramienta
-que debe integrarse dentro de una política de control.
+aproximada con fases de corrección mediante evaluaciones reales. Esta distinción resulta relevante porque desplaza el problema desde la elección
+del modelo hacia la definición de una política de control que determine cuándo
+usar la aproximación, cuándo recurrir a evaluaciones reales y a qué nivel de la
+población aplicar cada decisión.
 
 Esta gestión también afecta al tiempo durante el cual un modelo permanece
 activo antes de ser actualizado. Loshchilov et
@@ -120,34 +105,33 @@ La necesidad de controlar el modelo se ha mantenido en propuestas posteriores.
 Por ejemplo, Yu et al.~\cite{yu2019restart} propusieron una estrategia de
 reinicio por generaciones para un algoritmo de enjambre de partículas asistido
 por un modelo RBF global. Su propuesta integra el reinicio con mecanismos de
-gestión del modelo a nivel de generación y de individuo, mostrando que ambos
-aspectos pueden influir de forma decisiva en el equilibrio entre exploración y explotación para mejorar la búsqueda en problemas
-computacionalmente costosos. Este tipo de trabajos resulta especialmente
-relevante para el presente Trabajo de Fin de Grado, ya que el subrogado se
-integra en metaheurísticas con mecanismos de reinicio estudiados en capítulos
-posteriores. En este contexto, puede esperarse que un cambio brusco en la
-población afecte también a la representatividad de las muestras utilizadas
-para entrenar el modelo, por lo que la intervención del subrogado debe tratarse
-con cautela.
+gestión del modelo a nivel de generación y de individuo, mostrando que la
+coordinación entre la dinámica de la población y el uso del subrogado puede
+mejorar la búsqueda en problemas computacionalmente costosos. Este tipo de
+trabajos resulta relevante para el presente Trabajo de Fin de Grado, donde se
+estudia en capítulos posteriores la conveniencia de incorporar mecanismos de
+reinicio en las metaheurísticas consideradas. En ese escenario, puede esperarse
+que un cambio brusco en la población afecte también a la representatividad de
+las muestras utilizadas para entrenar el modelo, por lo que la intervención del
+subrogado debe tratarse con cautela.
 
 Otro aspecto relacionado con la gestión del modelo es su coste computacional.
 Aunque los subrogados se introducen para reducir el uso de evaluaciones reales,
-su entrenamiento y predicción también consumen recursos. Bliek~\cite{bliek2022sustainableSBO}
-subraya esta cuestión desde la perspectiva de la sostenibilidad de la
-optimización basada en subrogados: no basta con reducir el número de
-evaluaciones costosas, sino que debe considerarse el coste total del proceso,
-incluyendo el aprendizaje del modelo y la propia optimización sobre la
-aproximación. Esta observación es especialmente importante cuando se comparan
-modelos de distinta complejidad, ya que una mejora predictiva puede no
-compensar si introduce un coste adicional elevado.
+su entrenamiento y predicción también consumen recursos.
+Bliek~\cite{bliek2022sustainableSBO} remarca esta cuestión: no basta con
+reducir el número de evaluaciones costosas, sino que debe considerarse el coste
+total del proceso, incluyendo el aprendizaje del modelo y la propia
+optimización sobre la aproximación. Esta observación es especialmente
+importante cuando se comparan modelos de distinta complejidad, ya que una
+mejora predictiva puede no compensar si introduce un coste adicional elevado.
 
 En conjunto, estos trabajos muestran que la integración de un subrogado dentro
 de una metaheurística requiere decisiones adicionales al propio modelo
 predictivo. Es necesario determinar con qué datos se entrena, cuándo se
 actualiza, con qué frecuencia se consulta y cómo se evita que sus errores
-condicionen de forma excesiva la búsqueda. Estas cuestiones deben reflejarse en el diseño experimental de este trabajo, donde la integración \textit{online} puede plantearse como un filtro controlado y no como una sustitución completa de la función objetivo.
+condicionen de forma excesiva la búsqueda.
 
-\section{Modelos subrogados y tipo de información empleada}
+\section{Modelos subrogados y criterios de decisión}
 \label{sec:estado_modelos_informacion}
 
 La elección del modelo subrogado no depende únicamente de su familia
@@ -170,12 +154,17 @@ orientados al \textit{fitness} absoluto y modelos orientados al
 resulta relevante porque compara modelos de distinta naturaleza, como RBF,
 kNN-R, RankSVM y SVC, atendiendo no solo a la calidad predictiva, sino también
 al coste de construcción y predicción y a su efecto dentro de un SAEA
-mono-objetivo. Esta perspectiva resulta especialmente próxima al presente trabajo,
-donde el modelo subrogado no solo se evalúa por su error numérico, sino
-también por su capacidad para ordenar correctamente soluciones candidatas y su coste computacional.
+mono-objetivo.
 
 De forma complementaria, Díaz-Manríquez et
-al.~\cite{diaz2017metamodeling} compararon distintas técnicas de metamodelado (subrogadas) integradas en algoritmos evolutivos, incluyendo superficies de respuesta polinómicas, Kriging, RBF y SVR. Su análisis resulta especialmente útil en este contexto porque no se limita a medir la precisión de las predicciones, sino que también considera la preservación del ranking como indicador para seleccionar modelos adecuados dentro de un proceso evolutivo. Esta conclusión refuerza la necesidad de valorar los subrogados tanto por su error numérico como por su capacidad para mantener relaciones de orden entre soluciones.
+al.~\cite{diaz2017metamodeling} compararon distintas técnicas subrogadas
+integradas en algoritmos evolutivos, incluyendo superficies de respuesta
+polinómicas, Kriging, RBF y SVR. Su análisis resulta especialmente útil en este
+contexto porque no se limita a medir la precisión de las predicciones, sino que
+también considera la preservación del ranking como indicador para seleccionar
+modelos adecuados dentro de un proceso evolutivo. Esta conclusión refuerza la
+necesidad de valorar los subrogados no solo por su error numérico, sino también
+por su capacidad para mantener relaciones de orden entre soluciones candidatas.
 
 La incorporación de técnicas de aprendizaje automático amplía este marco más
 allá de los modelos estadísticos clásicos. Naharro et
@@ -189,26 +178,10 @@ porque muestra que la utilidad de un subrogado no depende únicamente del modelo
 empleado, sino también de cómo se incorporan sus predicciones dentro del
 proceso de optimización.
 
-En varios trabajos recientes esta idea aparece de forma práctica mediante
-mecanismos de preselección o filtrado de candidatos. Aunque el subrogado se
-construya como un modelo regresivo, por ejemplo RBF o Kriging, su predicción se
-utiliza para ordenar descendientes o identificar cuáles parecen más
-prometedores antes de consumir una evaluación real. Este enfoque se observa en
-propuestas como ESAO~\cite{wang2019evolutionarySampling}, donde un modelo RBF
-global preselecciona descendientes generados por evolución diferencial, o en
-algoritmos jerárquicos asistidos por subrogados que combinan modelos globales y
-locales para decidir qué soluciones deben evaluarse realmente. Por tanto, la
-calidad ordinal del modelo resulta relevante incluso cuando el subrogado se
-formula como un regresor.
-
 Algunos trabajos llevan esta idea hacia modelos de clasificación, donde el
-subrogado separa soluciones prometedoras y no prometedoras
-\cite{wei2021classifier,lin2023classification}. Sin embargo, el presente
+subrogado separa soluciones prometedoras y no prometedoras. Sin embargo, el presente
 Trabajo de Fin de Grado se mantiene en el ámbito de modelos regresivos, ya que
-cada solución candidata tiene asociado un valor real de \textit{fitness}. Por
-ello, la cuestión central no es sustituir la regresión por clasificación, sino
-evaluar si los regresores considerados proporcionan predicciones suficientemente
-útiles para apoyar decisiones de ordenación y filtrado.
+cada solución candidata tiene asociado un valor real de \textit{fitness}.
 
 Esta distinción entre aproximar valores y apoyar decisiones justifica que la
 evaluación de modelos subrogados no se limite a métricas de error absoluto.
@@ -240,28 +213,11 @@ evolución diferencial, mientras que una búsqueda local asistida por subrogado
 refuerza la explotación de regiones prometedoras.
 
 Otros trabajos han extendido esta integración mediante estructuras más
-elaboradas. Cai et al.~\cite{cai2020generalizedSAEA} propusieron un algoritmo evolutivo asistido por subrogados para problemas costosos de alta dimensión, basado en un marco de algoritmo genético que combina búsqueda local mediante subrogado, actualización guiada de la población y preselección de candidatos mediante un criterio de mejora esperada sobre Kriging. Chen et al.~\cite{chen2021ehsde} plantearon una evolución diferencial jerárquica asistida por subrogados, en la que un modelo RBF global se utiliza para identificar descendientes prometedores y varios modelos locales ayudan a acelerar la convergencia. Estas propuestas muestran que el subrogado no se emplea únicamente para aproximar el \textit{fitness}, sino también para regular qué zonas del espacio reciben nuevas evaluaciones reales.
+elaboradas. Cai et al.~\cite{cai2020generalizedSAEA} propusieron un algoritmo evolutivo asistido por subrogados para problemas costosos de alta dimensión, basado en un marco de algoritmo genético que combina búsqueda local mediante subrogado, actualización guiada de la población y preselección de candidatos mediante un criterio de mejora esperada. Asimismo, Wang et al.~\cite{wang2023glsade} combinaron un modelo RBF global y un modelo Kriging local dentro de una evolución diferencial asistida por subrogados, utilizando el primero para capturar tendencias globales y el segundo para explotar regiones prometedoras teniendo en cuenta la incertidumbre del modelo. Estas propuestas muestran que el subrogado no se emplea únicamente para aproximar el \textit{fitness}, sino también para regular de forma adaptativa qué zonas del espacio de búsqueda reciben nuevas evaluaciones reales.
 
-La actualización del modelo durante la búsqueda también ha recibido atención
-específica. Zhan y Xing~\cite{zhan2021fastKriging} propusieron un esquema de
-Kriging incremental para reducir el coste de reconstruir el modelo conforme se
-incorporan nuevas muestras, una cuestión especialmente relevante en SAEA
-\textit{online}. Más recientemente, Wang et al.~\cite{wang2023glsade}
-combinaron un modelo RBF global y un modelo Kriging local dentro de una
-evolución diferencial asistida por subrogados, utilizando el primero para
-capturar tendencias globales y el segundo para explotar regiones prometedoras
-teniendo en cuenta la incertidumbre del modelo.
+La frecuencia y el modo de actualización del modelo durante la búsqueda también constituyen un reto crítico en los enfoques \textit{online}, dado que el reentrenamiento continuo de un aproximador conforme se acumulan datos puede convertirse en un cuello de botella computacional. Para mitigar este impacto, trabajos como el de Zhan y Xing~\cite{zhan2021fastKriging} exploran el uso de esquemas de aprendizaje incremental orientados específicamente a reducir el coste de reconstrucción del subrogado a lo largo de las iteraciones. Esta preocupación por la eficiencia temporal es un factor clave en el presente Trabajo de Fin de Grado, donde la viabilidad de la integración \textit{online} de los modelos de aprendizaje automático considerados depende directamente de mantener un coste de computación contenido.
 
-La presencia de la evolución diferencial en esta línea ha dado lugar incluso a
-revisiones específicas, como la de Yu et al.~\cite{yu2025sade}, centrada en
-algoritmos de evolución diferencial asistidos por subrogados. Esta tendencia justifica que parte de la comparación experimental del presente
-trabajo se realice sobre DE y SHADE, dos algoritmos directamente relacionados
-con esta familia. No obstante, el objetivo de esta memoria no es proponer una
-variante específica de evolución diferencial, sino evaluar si un modelo
-subrogado seleccionado mediante una fase \textit{offline} puede integrarse de
-forma homogénea como filtro \textit{online} en metaheurísticas poblacionales de
-distinta naturaleza, incluyendo también un algoritmo genético.
-
+La presencia destacada de la evolución diferencial en esta línea de investigación ha dado lugar incluso a revisiones específicas, como la de Yu et al.~\cite{yu2025sade}, centrada exclusivamente en el análisis de algoritmos de evolución diferencial asistidos por subrogados. Esta tendencia justifica que parte de la comparación experimental del presente trabajo se realice sobre DE y SHADE, dos algoritmos directamente relacionados con esta familia. No obstante, el objetivo de esta memoria no es proponer una variante específica de evolución diferencial, sino evaluar si un modelo subrogado seleccionado mediante una fase \textit{offline} puede integrarse bajo un protocolo común como filtro \textit{online} en metaheurísticas poblacionales de distinta naturaleza, incluyendo también un algoritmo genético.
 
 \section{Posicionamiento del presente trabajo}
 \label{sec:estado_posicionamiento}
@@ -270,16 +226,19 @@ La literatura revisada muestra que la utilidad de un modelo subrogado en
 optimización evolutiva no depende únicamente de su precisión predictiva. Su
 efecto final está condicionado por el tipo de información que aporta, por el
 coste de construirlo y actualizarlo, y por la forma concreta en que sus
-predicciones intervienen dentro del algoritmo evolutivo. Esta perspectiva motiva que el presente trabajo no plantee la selección del subrogado como una comparación aislada entre modelos, sino como una evaluación progresiva: caracterizar primero varios
-modelos subrogados sobre trayectorias evolutivas ya generadas y, a partir de
-esa evidencia, estudiar posteriormente su integración online dentro de las
-metaheurísticas consideradas.
+predicciones intervienen dentro del algoritmo evolutivo. Esta perspectiva
+motiva que el presente trabajo no plantee la selección del subrogado como una
+comparación aislada entre modelos, sino como una evaluación progresiva:
+caracterizar primero varios modelos subrogados sobre trayectorias evolutivas ya
+generadas y, a partir de esa evidencia, estudiar posteriormente su integración
+\textit{online} dentro de las metaheurísticas consideradas.
 
-Aunque existen trabajos sobre optimización evolutiva basada exclusivamente en
-datos históricos, el uso \textit{offline} realizado en esta memoria tiene un
-propósito distinto: no se emplea el subrogado para ejecutar la búsqueda \cite{wang2019offline, jin2019datadriven}, sino
-para caracterizar modelos sobre trayectorias ya generadas antes de integrarlos
-posteriormente en el bucle de optimización.
+Aunque existen trabajos sobre optimización evolutiva basada en datos
+históricos, revisados de forma general por Jin et
+al.~\cite{jin2019datadriven}, el uso \textit{offline} realizado en esta memoria
+tiene un propósito distinto. En este caso, el subrogado no se emplea para
+ejecutar la búsqueda, sino para caracterizar modelos sobre trayectorias ya
+generadas antes de integrarlos posteriormente en el bucle de optimización.
 
 A partir de esa caracterización, la integración \textit{online} se aborda como
 un mecanismo de filtrado controlado. El subrogado no sustituye de forma
@@ -292,190 +251,3 @@ metaheurísticas poblacionales consideradas en la memoria.
 
 Los capítulos siguientes presentan las metaheurísticas, los modelos, las estrategias de evaluación y el marco experimental utilizados.
 
-
-
-% Sacks et al. 1989
-% Jones et al. 1998
-% Jin 2005
-% Queipo et al. 2005
-% Forrester y Keane 2009
-% Lim et al. 2010
-% Jin 2011
-% Yu et al. 2019
-% Wang et al. 2019 offline / Jin et al. 2019 data-driven
-% Wang et al. 2019, evolutionary sampling
-% Cai et al. 2020
-% Tong et al. 2021
-% Zhan y Xing 2021
-% Chen et al. 2021
-% Bliek 2022
-% He et al. 2023
-% Wang et al. 2023
-% Yu et al. 2025
-
-%% uso de machine learning en surrogate
-
-% Este capítulo sitúa la propuesta del presente trabajo dentro de la literatura sobre optimización evolutiva asistida por modelos subrogados. A diferencia del capítulo anterior, dedicado a los fundamentos necesarios para comprender el problema, aquí el interés recae en cómo se ha desarrollado esta línea de investigación y en qué aportaciones permiten justificar el enfoque adoptado. Para ello, se combinan revisiones panorámicas del campo con trabajos primarios representativos. Aunque existe una línea consolidada dedicada a problemas multi-objetivo, el análisis se acota a la optimización continua mono-objetivo. La Figura~\ref{fig:timeline_saea} resume algunos hitos relevantes, desde los primeros trabajos sobre experimentos computacionales hasta las revisiones más recientes.
-
-
-
-
-% Este capítulo sitúa la propuesta del presente trabajo dentro de la literatura sobre optimización evolutiva asistida por modelos subrogados. A diferencia del capítulo anterior, dedicado a los fundamentos necesarios para comprender el problema, aquí el interés recae en cómo se ha desarrollado esta línea de investigación y en qué aportaciones permiten justificar el enfoque adoptado. Para ello, se combinan revisiones panorámicas del campo con trabajos primarios representativos. Aunque existe una línea consolidada dedicada a problemas multi-objetivo, el análisis se acota a la optimización continua mono-objetivo. La Figura~\ref{fig:timeline_saea} resume algunos hitos relevantes, desde los primeros trabajos sobre experimentos computacionales hasta las revisiones más recientes.
-
-% \begin{figure}[H]
-%         \centering
-%         \begin{tikzpicture}[x=1cm,y=1cm,scale=0.83,transform shape,
-%                         every node/.style={font=\small},
-%                         dot/.style={circle,draw=blue!60!black,fill=blue!15,
-%                                         line width=0.8pt,inner sep=0pt,minimum size=9pt},
-%                         lbl/.style={align=center,text width=2.5cm,font=\footnotesize},
-%                         yr/.style={font=\footnotesize\bfseries},
-%                         stick/.style={draw=black!45,line width=0.5pt},
-%                 ]
-%                 \draw[->,line width=1.2pt,black!60] (0,0) -- (14.5,0);
-
-%                 % 1989 — etiqueta arriba
-%                 \node[dot] at (0.8,0) {};
-%                 \draw[stick] (0.8,0.12) -- (0.8,0.5);
-%                 \node[yr] at (0.8,-0.42) {1989};
-%                 \node[lbl,anchor=south] at (0.8,0.55)
-%                 {\textbf{Sacks et al.}\\Kriging para experimentos computacionales};
-
-%                 % 1998 — etiqueta abajo
-%                 \node[dot] at (2.8,0) {};
-%                 \draw[stick] (2.8,-0.12) -- (2.8,-0.5);
-%                 \node[yr] at (2.8,0.42) {1998};
-%                 \node[lbl,anchor=north] at (2.8,-0.55)
-%                 {\textbf{Jones et al.}\\EGO: Expected Improvement};
-
-%                 % 2000--2002 — etiqueta arriba
-%                 \node[dot] at (4.5,0) {};
-%                 \draw[stick] (4.5,0.12) -- (4.5,0.5);
-%                 \node[yr] at (4.5,-0.42) {2000--2002};
-%                 \node[lbl,anchor=south] at (4.5,0.55)
-%                 {\textbf{Jin et al.}\\\textit{Fitness} aproximado y \textit{evolution control}};
-
-%                 % 2005 — etiqueta abajo
-%                 \node[dot] at (6.8,0) {};
-%                 \draw[stick] (6.8,-0.12) -- (6.8,-0.5);
-%                 \node[yr] at (6.8,0.42) {2005};
-%                 \node[lbl,anchor=north] at (6.8,-0.55)
-%                 {\textbf{Jin}\\Survey de aproximación de \textit{fitness} en EA};
-
-%                 % 2011 — etiqueta arriba
-%                 \node[dot] at (9.3,0) {};
-%                 \draw[stick] (9.3,0.12) -- (9.3,0.5);
-%                 \node[yr] at (9.3,-0.42) {2011};
-%                 \node[lbl,anchor=south] at (9.3,0.55)
-%                 {\textbf{Jin}\\SAEA: avances recientes y retos futuros};
-
-%                 % 2021--2022 — etiqueta abajo
-%                 \node[dot] at (12.5,0) {};
-%                 \draw[stick] (12.5,-0.12) -- (12.5,-0.5);
-%                 \node[yr] at (12.5,0.42) {2021--2022};
-%                 \node[lbl,anchor=north] at (12.5,-0.55)
-%                 {\textbf{Bliek, Tong}\\Taxonomías modernas de surrogados};
-
-%         \end{tikzpicture}
-%         \caption{Hitos relevantes en el desarrollo del campo de la optimización asistida por surrogados \cite{sacks1989,jones1998,jin2000evolution,jin2002framework,jin2005,jin2011surrogate,tong2021surrogate,bliek2022sustainableSBO}.}
-%         \label{fig:timeline_saea}
-% \end{figure}
-
-% \section{Surveys y revisiones de referencia}
-% \label{sec:estado_surveys}
-
-% Para reconstruir la evolución del campo, un primer punto de referencia es la revisión publicada por Jin en 2005, \textit{``A comprehensive survey of fitness approximation in evolutionary computation''} \cite{jin2005}. El artículo reúne distintos métodos de aproximación del \textit{fitness}, entre ellos polinomios, procesos gaussianos o Kriging y redes neuronales, y ordena las estrategias de gestión del surrogate según el modo en que se combinan las predicciones aproximadas con las evaluaciones reales. Esta última cuestión resulta especialmente importante: sin un mecanismo de control adecuado, los errores de aproximación pueden desviar la búsqueda hacia falsos óptimos.
-
-% El propio Jin retomó esta discusión seis años más tarde en una revisión centrada en los avances recientes y los retos pendientes de la computación evolutiva asistida por surrogados \cite{jin2011surrogate}. Además de repasar estrategias basadas en uno o varios modelos, el artículo señala varios problemas abiertos: la necesidad de mayor soporte teórico, el uso de surrogados heterogéneos con distintos niveles de fidelidad, la extensión a optimización combinatoria y dinámica, y la falta de estudios comparativos rigurosos sustentados sobre métricas y problemas de prueba ampliamente aceptados.
-
-% Conforme el área fue madurando, las revisiones ampliaron su foco. Li et al.\ \cite{li2022survey} analizaron el coste total de la computación evolutiva aplicada a problemas de optimización costosa y organizaron la literatura en tres direcciones: aproximación y sustitución del problema, diseño y mejora del algoritmo, y computación paralela y distribuida. Tong et al.\ \cite{tong2021surrogate}, por su parte, se concentraron en los SAEA mono-objetivo y distinguieron entre modelos de \textit{fitness} absoluto, orientados a aproximar el valor numérico de la función, y modelos de \textit{fitness} relativo, orientados a estimar el ranking o la preferencia entre candidatos. Bliek \cite{bliek2022sustainableSBO} incorporó una perspectiva complementaria al estudiar la sostenibilidad de la optimización basada en surrogados: no basta con reducir las evaluaciones costosas, sino que también debe considerarse el esfuerzo computacional invertido en el aprendizaje y en la propia optimización.
-
-% Los trabajos más recientes reflejan tanto la consolidación del área como su progresiva especialización. He et al.\ \cite{he2023review} presentaron en 2023 una revisión de SAEA para optimización costosa que clasifica los métodos según los tipos de objetivos y restricciones, además de repasar sus aplicaciones. Khaldi y Draa \cite{khaldi2024blueprint} propusieron un esquema general o \textit{blueprint} acompañado de una revisión del estado del arte. Liang et al.\ \cite{liang2025survey} describieron el marco general de los SAEA, diferenciaron entre problemas costosos mono-objetivo y multi-objetivo, y analizaron tanto la construcción del surrogate como las estrategias de gestión del modelo. La especialización alcanzada por esta línea de investigación también se aprecia en el survey de Yu et al.\ \cite{yu2025sade}, dedicado específicamente a los algoritmos de evolución diferencial asistidos por surrogados y retomado con mayor detalle en la Sección~\ref{sec:estado_tecnicas}.
-
-% La optimización multi-objetivo constituye una línea de investigación propia dentro de este campo. Chugh et al.\ \cite{chugh2019survey} revisaron específicamente el uso de algoritmos evolutivos para problemas multi-objetivo con evaluaciones costosas. Aunque esta línea queda fuera del alcance del presente trabajo, su existencia permite delimitar con mayor precisión el análisis posterior, que se restringe al caso continuo mono-objetivo.
-
-% \section{Técnicas surrogate en algoritmos evolutivos}
-% \label{sec:estado_tecnicas}
-
-% Junto a las revisiones panorámicas, algunos trabajos estudiaron mecanismos concretos para integrar los surrogados en algoritmos evolutivos. Jin et al.\ \cite{jin2000evolution} analizaron una estrategia evolutiva cuyas evaluaciones de \textit{fitness} se aproximaban mediante redes neuronales. Sus experimentos mostraron que los errores del modelo podían conducir la búsqueda hacia falsos óptimos. Este problema motivó la posterior formalización de un marco de gestión de modelos aproximados, en el que los mismos autores introdujeron estrategias de \textit{evolution control} basadas en individuos y en generaciones \cite{jin2002framework}. La combinación de evaluaciones aproximadas y reales permite así limitar el riesgo de que el surrogate desvíe el proceso de optimización.
-
-% Esta dificultad no desaparece al ampliar el marco de aplicación. Lim et al.\ \cite{lim2010} generalizaron la computación evolutiva asistida por surrogados a problemas con objetivos y restricciones cuya evaluación resulta costosa. Su trabajo incide en una cuestión relevante para el presente TFG: la elección del esquema de modelado puede afectar significativamente al rendimiento de la búsqueda, pero existe un conocimiento teórico limitado para seleccionar de antemano el modelo más adecuado.
-
-% En este contexto, conviene precisar el significado del término \textit{offline}. Liang et al.\ \cite{liang2025survey} diferencian entre SAEA \textit{online}, capaces de obtener nuevas evaluaciones reales durante la optimización, y SAEA \textit{off-line}, limitados al uso de un conjunto de datos históricos. En el presente TFG, la expresión evaluación \textit{offline} se emplea en un sentido metodológico más acotado: los modelos se entrenan y validan sobre trayectorias previamente generadas, sin intervenir todavía en la búsqueda. La Figura~\ref{fig:online_vs_offline} ilustra la diferencia entre esta fase experimental previa y la futura integración \textit{online}.
-
-% \begin{figure}[H]
-%         \centering
-%         \begin{tikzpicture}[x=1cm,y=1cm,scale=1.0,transform shape,
-%                         every node/.style={font=\small},
-%                         box/.style={draw=black!55,rounded corners=2pt,fill=white,
-%                                         minimum width=3.1cm,minimum height=0.62cm,
-%                                         align=center,line width=0.7pt},
-%                         surr/.style={draw=blue!65!black,rounded corners=2pt,fill=blue!10,
-%                                         minimum width=3.1cm,minimum height=0.62cm,
-%                                         align=center,line width=1pt},
-%                         arr/.style={->,line width=0.8pt,draw=black!60},
-%                         panel/.style={draw=black!30,rounded corners=3pt,
-%                                         fill=gray!4,line width=0.7pt},
-%                         hdr/.style={font=\small\bfseries},
-%                         note/.style={font=\scriptsize,text=black!55,
-%                                         align=center,text width=3.2cm},
-%                 ]
-%                 % ===== Panel izquierdo: Integración online =====
-%                 \draw[panel] (-0.2,0.7) rectangle (4.0,-6.0);
-%                 \node[hdr] at (1.9,0.33) {Integración \textit{online}};
-
-%                 \node[box]  (pop)   at (1.9,-0.45) {Población};
-%                 \node[surr] (surr)  at (1.9,-1.60) {Surrogate\\{\scriptsize(se actualiza)}};
-%                 \node[box]  (pred)  at (1.9,-2.75) {Predicción de \textit{fitness}};
-%                 \node[box]  (infll) at (1.9,-3.90) {Selección (infill)};
-%                 \node[box]  (eval)  at (1.9,-5.05) {Evaluación real};
-
-%                 \draw[arr] (pop)   -- (surr);
-%                 \draw[arr] (surr)  -- (pred);
-%                 \draw[arr] (pred)  -- (infll);
-%                 \draw[arr] (infll) -- (eval);
-%                 \draw[arr] (eval.west) -- ++(-0.45,0) |- (pop.west);
-%                 \draw[arr] (eval.east) -- ++(0.35,0) |- (surr.east);
-
-%                 % ===== Panel derecho: Evaluación offline =====
-%                 \draw[panel] (4.4,0.7) rectangle (8.6,-6.0);
-%                 \node[hdr] at (6.5,0.33) {Evaluación \textit{offline} del TFG};
-
-%                 \node[box]  (mh)    at (6.5,-0.45) {Metaheurística};
-%                 \node[box]  (data)  at (6.5,-1.60) {Dataset temporal\\{\scriptsize(trayectoria fija)}};
-%                 \node[surr] (train) at (6.5,-2.75) {Entrenamiento\\surrogate};
-%                 \node[box]  (val)   at (6.5,-3.90) {Validación en\\bloques futuros};
-
-%                 \draw[arr] (mh)    -- (data);
-%                 \draw[arr] (data)  -- (train);
-%                 \draw[arr] (train) -- (val);
-
-%                 \node[note] at (6.5,-5.15)
-%                 {Sin retroalimentación hacia la búsqueda};
-%         \end{tikzpicture}
-%         \caption{Distinción entre la integración \textit{online} de un surrogate dentro del bucle
-%                 de optimización y la evaluación metodológica \textit{offline} empleada en este trabajo antes de realizar dicha integración.}
-%         \label{fig:online_vs_offline}
-% \end{figure}
-
-% Dentro del escenario basado exclusivamente en históricos, Wang et al.\ \cite{wang2019offline} estudiaron el caso en que no es posible obtener nuevas evaluaciones reales durante la búsqueda. Su propuesta construye múltiples surrogados antes de iniciar la optimización y selecciona adaptativamente un subconjunto diverso para mejorar la aproximación local y reducir la complejidad computacional. Aunque este escenario es más restrictivo que el protocolo experimental del presente TFG, pone de manifiesto la importancia de la calidad y la cobertura de los datos disponibles. Desde una perspectiva más general, Jin et al.\ \cite{jin2019datadriven} publicaron una panorámica de la optimización evolutiva basada en datos, ampliada posteriormente en forma de monografía \cite{jin2021book}.
-
-% En el ámbito específico de la evolución diferencial, Yu et al.\ \cite{yu2025sade} revisaron el marco general de los SAEA y analizaron la rama de DE asistida por surrogados atendiendo a los modelos empleados, las variantes del algoritmo, los mecanismos de búsqueda, los métodos de evaluación y las aplicaciones reales. Esta línea resulta especialmente próxima al presente trabajo, que considera algoritmos pertenecientes a esta familia. Su papel concreto se presenta en el capítulo siguiente.
-
-% Algunas propuestas no aproximan directamente el valor numérico del \textit{fitness}. Lin et al.\ \cite{lin2023classification} propusieron SA-IMODE para problemas costosos de alta dimensionalidad. Su estrategia de selección ambiental emplea un clasificador para distinguir soluciones prometedoras y no prometedoras, descartando estas últimas sin evaluarlas mediante la función costosa. Siguiendo una orientación también ordinal, Xue y Zhu \cite{yuxue2024effective} aplicaron un modelo de competición a la búsqueda evolutiva de arquitecturas neuronales. Su método obtiene el ranking de los individuos y utiliza aprendizaje progresivo \textit{online} para reducir el consumo de recursos.
-
-% \section{Modelos de aprendizaje automático como surrogate}
-% \label{sec:estado_modelos_ml}
-
-% La forma de integrar un surrogate es solo una parte del problema; también es necesario decidir qué modelo utilizar. Entre los antecedentes de esta línea, Sacks et al.\ \cite{sacks1989} establecieron un marco estadístico para el diseño y análisis de experimentos computacionales. Posteriormente, Jones et al.\ \cite{jones1998} propusieron el algoritmo EGO (\textit{Efficient Global Optimization}) para funciones de caja negra costosas, apoyándose en Kriging y en el criterio de mejora esperada (\textit{Expected Improvement}). Con la extensión de estas técnicas a distintos ámbitos, Queipo et al.\ \cite{queipo2005surrogate} revisaron el análisis y la optimización basados en surrogados en el sector aeroespacial, incluyendo el diseño de experimentos, la selección y construcción de modelos, la validación, la sensibilidad y la optimización. Forrester y Keane \cite{forrester2009recent} revisaron avances posteriores y destacaron una idea fundamental: ningún método resulta universal y su elección debe atender a las características del problema.
-
-% La expansión del aprendizaje automático amplió el abanico de modelos disponibles. Bhosekar e Ierapetritou \cite{bhosekar2018advances} revisaron avances en modelado surrogate, análisis de factibilidad y optimización, y compararon RBF y Kriging sobre distintos problemas de prueba. Sus resultados refuerzan la idea de que la elección del modelo depende del problema considerado. Ante esta dependencia, Goel et al.\ \cite{goel2007ensemble} estudiaron el uso de ensembles de surrogados como alternativa a la selección de un único modelo. Su propuesta utiliza combinaciones ponderadas a partir de los errores de los modelos con el propósito de obtener aproximaciones más robustas e identificar regiones donde las predicciones discrepan.
-
-% En un contexto evolutivo mono-objetivo, Tong et al.\ \cite{tong2021surrogate} compararon cuatro modelos representativos de su taxonomía: RBF como regresor, kNN-R como modelo basado en similitud, RankSVM como modelo de ranking y SVC como clasificador. El estudio analizó el tiempo de construcción y predicción, la capacidad para preservar el orden entre soluciones, la influencia de los parámetros y el rendimiento de los SAEA resultantes. En sus experimentos, RBF obtuvo el mejor comportamiento global entre los cuatro modelos comparados y kNN-R destacó por su bajo coste computacional. Este trabajo resulta especialmente relevante para el presente TFG porque justifica evaluar tanto métricas numéricas como métricas ordinales, aunque su protocolo experimental no coincide con el utilizado en esta memoria.
-
-% \section{Posicionamiento del trabajo en el estado del arte}
-% \label{sec:estado_posicionamiento}
-
-% La literatura revisada conduce a una conclusión común: no existe un único surrogate adecuado para cualquier escenario. Jin \cite{jin2011surrogate} señaló la necesidad de realizar comparativas rigurosas sobre problemas de prueba apropiados para evaluar SAEA, mientras que Lim et al.\ \cite{lim2010} destacaron la relevancia de elegir correctamente el esquema de modelado. Tong et al.\ \cite{tong2021surrogate} mostraron además que la aproximación numérica no es el único criterio de interés: dentro de un algoritmo evolutivo también resulta útil preservar el orden entre candidatos. Por último, los trabajos sobre optimización \textit{off-line} basada en datos ponen de manifiesto que la calidad y la cobertura de los históricos disponibles condicionan la utilidad del modelo \cite{wang2019offline,liang2025survey}.
-
-% Este punto de partida motiva la caracterización experimental desarrollada en el presente TFG antes de abordar una integración \textit{online}. Distintos modelos surrogate se comparan sobre trayectorias de búsqueda previamente generadas mediante esquemas de evaluación \textit{offline} que preservan la estructura temporal del proceso evolutivo. El análisis combina métricas de error numérico, capacidad de ranking y coste temporal, con el objetivo de reunir evidencia empírica que permita seleccionar modelos y configuraciones antes de incorporarlos al bucle de optimización. Los capítulos siguientes presentan las metaheurísticas, los modelos, las estrategias de evaluación y el marco experimental utilizados.
