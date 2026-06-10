@@ -281,3 +281,9 @@ informes/
 # Memoria — solo conservar el PDF compilado
 memoria/*
 !memoria/proyecto.pdf
+
+# Documentación bibliográfica y notas de trabajo
+docs/
+updates/
+proyecto_marino_revisar.pdf
+.vscode/
