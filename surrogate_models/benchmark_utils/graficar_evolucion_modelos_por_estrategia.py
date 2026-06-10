@@ -139,12 +139,104 @@ def filter_strategy_models(
     return strategy_df
 
 
-def aggregate(df: pd.DataFrame) -> pd.DataFrame:
+def aggregate(df: pd.DataFrame, by_algorithm: bool = False) -> pd.DataFrame:
+    group_cols = ["estrategia", "modelo", "bloque"]
+    if by_algorithm:
+        group_cols = ["estrategia", "modelo", "bloque", "algoritmo"]
     return (
-        df.groupby(["estrategia", "modelo", "bloque"], as_index=False)
+        df.groupby(group_cols, as_index=False)
         .agg(valor=("valor", "mean"), n_metricas=("valor", "count"))
-        .sort_values(["estrategia", "modelo", "bloque"])
+        .sort_values(group_cols)
     )
+
+
+def plot_strategy_by_algorithm(
+    agg_df: pd.DataFrame,
+    strategy: str,
+    metric: str,
+    out_dir: Path,
+    prefix: str,
+) -> list[Path]:
+    """Genera una figura independiente por algoritmo (para uso como subfiguras)."""
+    algoritmos = sorted(agg_df["algoritmo"].unique())
+    outputs = []
+    for algoritmo in algoritmos:
+        df_algo = agg_df[
+            (agg_df["estrategia"] == strategy) & (agg_df["algoritmo"] == algoritmo)
+        ]
+        out_path = _plot_single(
+            df_algo, strategy, metric, out_dir,
+            prefix=f"{prefix}_{strategy}_{algoritmo}",
+            title=algoritmo.upper(),
+        )
+        outputs.append(out_path)
+    return outputs
+
+
+def _plot_single(
+    agg_df: pd.DataFrame,
+    strategy: str,
+    metric: str,
+    out_dir: Path,
+    prefix: str,
+    title: str | None = None,
+) -> Path:
+    metric_label = {
+        "spearman": "Spearman medio",
+        "nmae": "nMAE medio",
+        "nrmse": "nRMSE medio",
+        "train_time_s": "Tiempo medio de entrenamiento (s)",
+    }[metric]
+
+    blocks = BLOCKS[strategy]
+    x = [20, 40, 60, 80]
+
+    fig, ax = plt.subplots(figsize=(7.4, 5.1))
+    models = [m for m in ORDER_MODELS if m in set(agg_df["modelo"])]
+    for model in models:
+        model_df = agg_df[agg_df["modelo"] == model].set_index("bloque")
+        y = [model_df.loc[block, "valor"] if block in model_df.index else None for block in blocks]
+        ax.plot(
+            x, y,
+            marker="o",
+            linewidth=1.9,
+            markersize=5.2,
+            color=MODEL_COLORS.get(model, None),
+            label=MODEL_LABELS.get(model, model),
+        )
+
+    ax.axhline(0, color="#777777", linewidth=0.8, linestyle="--", alpha=0.65)
+    if title:
+        ax.set_title(title)
+    ax.set_xlabel("Presupuesto usado para entrenamiento (%)")
+    ax.set_ylabel(metric_label)
+    ax.set_xticks(x)
+    ax.set_xticklabels([str(v) for v in x])
+    ax.grid(axis="y", alpha=0.25, linestyle="--")
+    ax.spines["top"].set_visible(False)
+    ax.spines["right"].set_visible(False)
+
+    if metric == "spearman":
+        values = agg_df["valor"].dropna()
+        ymin = min(-0.2, values.min() - 0.05)
+        ymax = min(1.0, max(0.65, values.max() + 0.05))
+        ax.set_ylim(ymin, ymax)
+
+    ax.legend(
+        loc="upper center",
+        bbox_to_anchor=(0.5, -0.30),
+        ncol=4,
+        frameon=True,
+        facecolor="white",
+        edgecolor="#dddddd",
+    )
+    fig.tight_layout(rect=(0, 0.20, 1, 1))
+
+    out_path = out_dir / f"{prefix}.png"
+    fig.savefig(out_path, dpi=300, bbox_inches="tight")
+    fig.savefig(out_path.with_suffix(".pdf"), bbox_inches="tight")
+    plt.close(fig)
+    return out_path
 
 
 def plot_strategy(
@@ -252,9 +344,17 @@ def main() -> None:
             exclude_common=exclude_common,
             exclude_strategy=strategy_excludes[strategy],
         )
+        # Figura original agregada (sin cambios)
         agg_df = aggregate(strategy_df)
         summary_frames.append(agg_df)
         outputs.append(plot_strategy(agg_df, strategy, args.metric, out_dir, args.prefix))
+
+        # Figuras por algoritmo (subfiguras independientes)
+        agg_df_algo = aggregate(strategy_df, by_algorithm=True)
+        algo_outputs = plot_strategy_by_algorithm(
+            agg_df_algo, strategy, args.metric, out_dir, args.prefix
+        )
+        outputs.extend(algo_outputs)
 
     summary = pd.concat(summary_frames, ignore_index=True)
     summary_path = out_dir / f"{args.prefix}_datos.csv"
@@ -263,7 +363,6 @@ def main() -> None:
     print("Graficos generados:")
     for output in outputs:
         print(f"  {output}")
-        print(f"  {output.with_suffix('.pdf')}")
     print(f"Datos agregados: {summary_path}")
 
 

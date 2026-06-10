@@ -1,0 +1,20 @@
+\begin{table}[H]
+    \centering
+    \small
+    \setlength{\tabcolsep}{4pt}
+    \begin{adjustbox}{max width=\textwidth}
+        \begin{tabular}{lll|rrrr}
+            \toprule
+            \textbf{$\varepsilon$} & \textbf{Smoothing} & \textbf{Vecinos} & \textbf{Rank medio} & \textbf{Spearman} & \textbf{Entren.\ (s)} & \textbf{Pred.\ (s)} \\
+            \midrule
+            $0.1$ & $10^{-2}$ & 25 & \textbf{11.964} & 0.5955 & 0.0030 & 0.1879 \\
+            $0.1$ & $10^{-3}$ & 25 & 12.954 & 0.5894 & 0.0030 & \textbf{0.1876} \\
+            $1.0$ & $10^{-2}$ & 25 & 13.339 & \textbf{0.6546} & 0.0030 & 0.1877 \\
+            $0.1$ & $10^{-2}$ & 50 & 14.089 & 0.5920 & \textbf{0.0030} & 0.2593 \\
+            $1.0$ & $10^{-3}$ & 25 & 14.111 & 0.6483 & 0.0030 & 0.1879 \\
+            \bottomrule
+        \end{tabular}
+    \end{adjustbox}
+    \caption[Cinco mejores configuraciones de RBF para AGE según rango medio sobre Spearman interno.]{Cinco mejores configuraciones de RBF para AGE. El rango medio se calcula por combinación función$\times$bloque$\times$semilla sobre las 36 configuraciones candidatas (todas con $\text{kernel}=\textit{multiquadric}$ y $\text{degree}=-1$).}
+    \label{tab:ajuste_interno_rbf_age}
+\end{table}

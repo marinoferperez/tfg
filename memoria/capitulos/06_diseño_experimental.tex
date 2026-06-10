@@ -16,18 +16,10 @@
 
 %% hay que adaptarlo cuando vayamos incrementando el contenido experimental: ahora mismo solo referencia a las dos estrategias offline que vamos a evaluar.
 
-En este capítulo se describe el protocolo experimental seguido para evaluar las técnicas subrogadas consideradas en este trabajo y su integración en el bucle de optimización. El objetivo es establecer un procedimiento homogéneo que permita comparar su comportamiento de forma controlada y reproducible a partir de las trayectorias generadas por las metaheurísticas de referencia.
+En este capítulo se recoge el protocolo experimental seguido para evaluar las técnicas subrogadas consideradas en este trabajo y su integración en el bucle de optimización.
 
-
-Para ello, se presenta en primer lugar el benchmark utilizado y se detallan las condiciones bajo las que se ejecutan las metaheurísticas encargadas de generar
-las trayectorias de búsqueda. A continuación, se describe cómo se registran y
-organizan dichas trayectorias, así como las técnicas subrogadas consideradas y
-las transformaciones aplicadas a los datos antes de su entrenamiento.
-Posteriormente, se definen las estrategias de evaluación \textit{offline} y
-\textit{online}, las métricas empleadas y el criterio seguido para comparar los
-modelos. Finalmente, se documenta el protocolo de ajuste fino de
-hiperparámetros y el entorno experimental utilizado para reproducir las
-ejecuciones.
+Para ello, se presenta en primer lugar el benchmark utilizado y se detallan las condiciones bajo las que se ejecutan las metaheurísticas. A continuación, se describen las técnicas subrogadas consideradas y las transformaciones aplicadas a los datos antes de su entrenamiento.
+Posteriormente, se definen las estrategias de evaluación, las métricas empleadas y el criterio seguido para comparar los modelos. Finalmente, se documentan de forma separada los detalles de implementación y el entorno necesario para reproducir las ejecuciones.
 
 %%%%%%%%%%%%%%%%%%%%%%
 \section{Benchmark utilizado}
@@ -53,13 +45,9 @@ Computation de 2017~\cite{awad2017cec2017}.
 \textbf{CEC2017} está formada por problemas de optimización continua,
 monoobjetivo y con variables acotadas. Cada solución candidata se representa
 mediante un vector \(\mathbf{x} \in [-100,100]^D\), donde \(D\) indica la
-dimensión del problema. Las funciones que la componen incorporan
-transformaciones como desplazamientos y rotaciones, lo que permite evitar
-paisajes excesivamente simples y plantear escenarios de optimización con distintos niveles de
-dificultad.
+dimensión del problema.
 
-Estas se agrupan en cuatro familias según las características de su
-paisaje de búsqueda:
+Las funciones que la componen plantean escenarios de optimización con distintos niveles de dificultad y se agrupan en cuatro familias según las características de su paisaje de búsqueda:
 
 \begin{itemize}
     \item \textbf{Funciones unimodales}: permiten analizar la capacidad de
@@ -73,13 +61,7 @@ paisaje de búsqueda:
           una estructura de búsqueda más compleja.
 \end{itemize}
 
-Esta diversidad resulta especialmente adecuada para el presente trabajo, ya
-que el paisaje de búsqueda condiciona tanto el comportamiento de las
-metaheurísticas como la utilidad de los modelos subrogados. Un
-algoritmo o un modelo aproximador puede comportarse de forma diferente en
-paisajes suaves y unimodales que en funciones altamente multimodales,
-híbridas o compuestas, donde la relación entre las soluciones y su valor
-objetivo puede ser más irregular. La Figura~\ref{fig:paisajes_cec2017}
+La Figura~\ref{fig:paisajes_cec2017}
 ilustra esta diferencia mediante la representación de dos
 funciones con características distintas.
 
@@ -101,23 +83,13 @@ funciones con características distintas.
     \label{fig:paisajes_cec2017}
 \end{figure}
 
-La suite fue definida inicialmente con \textbf{30 funciones}. Una revisión
-posterior eliminó la función original \(f_2\) debido a su inestabilidad
-numérica y renumeró las restantes. En este trabajo se mantiene la formulación
-inicial de 30 funciones, ya que es la expuesta por la implementación empleada.
-Por tanto, la numeración utilizada en los experimentos se corresponde con
-dicha versión.
+La suite fue definida inicialmente con \textbf{30 funciones}, aunque revisiones posteriores eliminaron \(f_2\) debido a su inestabilidad numérica. En este trabajo, consideramos la suite completa ya que es la expuesta por la implementación empleada.
 
 \input{tablas/familias_cec2017}
 
-Para ejecutar el benchmark se emplea la implementación disponible en el
-repositorio mantenido por Daniel Molina%
-\footnote{\url{https://github.com/dmolina/cec2017real}},
-basada en el código de referencia de la competición y escrita en \textit{C++}.
-
-Sobre esta biblioteca se ha definido un adaptador común
-en \textit{Python}, que permite a AGE, DE y SHADE evaluar las soluciones
-candidatas mediante la misma interfaz.
+Los detalles concretos de la integración software del benchmark y de la
+interfaz de evaluación empleada se recogen en la
+Sección~\ref{sec:detalles_implementacion}.
 
 % \subsection{Funciones consideradas en cada fase experimental}
 
@@ -150,29 +122,26 @@ candidatas mediante la misma interfaz.
 % Recoge en tablas los parámetros específicos de cada algoritmo.
 
 Las metaheurísticas AGE, DE y SHADE, descritas en el
-Capítulo~\ref{chap:algo_tecnicas_ref}, se ejecutan bajo unas condiciones
-comunes con el objetivo de obtener trayectorias comparables. Todas las pruebas
+Capítulo~\ref{chap:algo_tecnicas_ref}, se ejecutan bajo las mismas condiciones
+con el objetivo de obtener historiales de evaluaciones comparables. Todas las pruebas
 se realizan en dimensión \(D=10\), sobre el dominio de búsqueda
 \([-100,100]^{10}\), y utilizan un tamaño de población fijo de \textbf{50 individuos.}
 
 El criterio de parada se establece mediante el número de evaluaciones de la
-función objetivo. Siguiendo la convención empleada en CEC2017, cada ejecución
+función objetivo. Siguiendo la definición propia de CEC2017, cada ejecución
 dispone de un presupuesto máximo de \(10000 \cdot D\) evaluaciones. Por tanto,
 al considerar \(D=10\), el límite se fija en \(100000\) evaluaciones por
 ejecución.
 
-Dado que las metaheurísticas consideradas incorporan \textbf{componentes aleatorias}, una única ejecución no resulta suficiente para valorar su comportamiento. Por este motivo, cada combinación de función y metaheurística se ejecuta un total de \textbf{\(51\) veces}. Cada semilla se fija al comienzo de la ejecución correspondiente, de forma que la trayectoria obtenida pueda reproducirse posteriormente sin que las distintas
-repeticiones generen resultados idénticos.
+Dado que las metaheurísticas consideradas incorporan \textbf{componentes aleatorias}, una única ejecución no resulta suficiente para valorar su comportamiento. Por este motivo, cada combinación de función y metaheurística se ejecuta un total de \textbf{\(51\) veces}.
 
 \input{tablas/parametros_comunes}
 
 A partir del entorno de evaluación definido, cada metaheurística mantiene la
-configuración propia de su esquema de búsqueda. Las particularidades de los
+configuración propia de su esquema de búsqueda. Los operadores y particularidades de los
 algoritmos se desarrollaron en el Capítulo~\ref{chap:algo_tecnicas_ref}, por lo
 que a continuación se recogen únicamente los valores utilizados durante la
-generación de las trayectorias y las implementaciones empleadas.
-
-Las implementaciones no proceden de una única biblioteca. AGE se ha implementado directamente en \textit{Python} a partir del pseudocódigo descrito en el capítulo anterior. Para DE y SHADE se parte de las implementaciones disponibles en la biblioteca \texttt{PyADE}\footnote{\url{https://github.com/xKuZz/pyade}}, adaptadas para utilizar una interfaz común con CEC2017, registrar las trayectorias generadas durante la búsqueda e incorporar el mecanismo de reinicio si es necesario.
+generación del histórico de evaluaciones.
 
 \begin{enumerate}
     \item \textbf{AGE:} para la implementación propia se utilizan los parámetros recogidos en la Tabla~\ref{tab:parametros_age}.
@@ -198,9 +167,8 @@ Las implementaciones no proceden de una única biblioteca. AGE se ha implementad
               \label{tab:parametros_age}
           \end{table}
 
-    \item \textbf{DE:} se emplea la variante DE/rand/1/bin proporcionada por
-          \texttt{PyADE}. Salvo el tamaño de la población, se conservan los valores definidos por defecto en la
-          implementación utilizada (véase en la Tabla~\ref{tab:parametros_de}).
+    \item \textbf{DE:} se emplea la variante DE/rand/1/bin por defecto de la implementación empleada (véase en la
+          Tabla~\ref{tab:parametros_de}).
 
           \begin{table}[htbp]
               \centering
@@ -221,8 +189,8 @@ Las implementaciones no proceden de una única biblioteca. AGE se ha implementad
               \label{tab:parametros_de}
           \end{table}
 
-    \item \textbf{SHADE:} se parte igualmente de la implementación disponible en
-          \texttt{PyADE}. Se mantiene su configuración base, excepto por el tamaño de la población común fijado para los experimentos (vease en la Tabla~\ref{tab:parametros_shade}).
+    \item \textbf{SHADE:} se mantiene la configuración por defecto de la implementación empleada (véase en
+          la Tabla~\ref{tab:parametros_shade}).
 
           \begin{table}[htbp]
               \centering
@@ -247,26 +215,30 @@ Las implementaciones no proceden de una única biblioteca. AGE se ha implementad
 
 \end{enumerate}
 
-Finalmente, los resultados obtenidos se agregan para comparar las distintas configuraciones bajo las mismas condiciones experimentales. A partir de estos, se utiliza \textbf{TACOLAB}\footnote{\url{https://tacolab.org/}}, una herramienta web orientada al análisis comparativo de algoritmos de optimización que permite obtener tablas de media y rankings medios. En este trabajo, al utilizar un benchmark como CEC2017 cuyas funciones tienen escalas de error muy distintas, la comparación principal se basa en este ranking medio, que evita que funciones con errores de mayor magnitud dominen la comparación agregada.
 
-También se utilizarán \textbf{gráficas de convergencia y diversidad} que permitan identificar situaciones de \textbf{estancamiento}. Si esto ocurre, se incorpora el mecanismo de reinicio elitista definido en el Capítulo~\ref{chap:algo_tecnicas_ref}, parametrizado mediante una ventana de estancamiento $\rho$ que expresa, como \textbf{proporción del presupuesto total de evaluaciones}, el tiempo sin mejoras a partir del cual se considera que la búsqueda ha quedado bloqueada.
+\subsection{Criterio de reinicio elitista}
+\label{subsec:criterio_reinicio}
 
-Además, es necesario determinar cuándo una variación del segundo mejor individuo se corresponde con una mejora efectiva. Dado que la suite CEC2017 considera nulos los valores por debajo de $10^{-8}$, cualquier variación de \textit{fitness} por debajo de ese orden corresponde a ruido numérico y no a un progreso real de la búsqueda. Para descartarlas sin filtrar mejoras pequeñas, se contabilizan como mejora únicamente aquellas variaciones cuya magnitud supere una \textbf{tolerancia} de $10^{-6}$.
+Para identificar situaciones de \textbf{estancamiento}, se utilizan gráficas de convergencia y diversidad. Si se detecta este comportamiento, se incorpora el mecanimos de reinicio descrito en el Capítulo~\ref{chap:algo_tecnicas_ref}, parametrizado medienta una ventana de estancamiento $\rho$ que expresa, como \textbf{proporción del presupuesto total de evaluaciones}, el tiempo sin mejoras a partir del cual se considera que el algoritmo ha convergido prematuramente.
 
-Para valorar el impacto de este mecanismo sobre las trayectorias generadas, se evalúa un conjunto de configuraciones del criterio frente a la versión \textit{base} sin reinicio, correspondiente a valores de $\rho$ del $1\%$, $3\%$, $5\%$, $7\%$ y $10\%$. Entre ellos, se recogen desde \textbf{criterios muy sensibles}, capaces de reaccionar ante señales mínimas de estancamiento, hasta \textbf{umbrales más conservadores} que apenas intervienen sobre la dinámica natural del algoritmo. Al comparar las distintas variantes, el análisis se realiza de forma \textbf{independiente} por cada algoritmo ya que la finalidad no es establecer una clasificación global entre AGE, DE y SHADE, sino determinar qué configuración de cada metaheurística resulta más adecuada para generar trayectorias útiles en la fase subrogada.
+Tal y como está definido, es necesario definir el criterio de activación, y por tanto, determinar cuándo una variación del segundo mejor individuo se corresponde con una mejora efectiva. Dado que CEC2017 considera nulos los valores por debajo de $10^{-8}$, cualquier variación de \textit{fitness} de menor orden corresponde a ruido numérico. Para descartarlas sin filtrar progresos reales, se contabilizan como mejora únicamente aquellas variaciones cuya magnitud supere una \textbf{tolerancia} de $10^{-6}$.
+
+El impacto de este mecanismo sobre la búsqueda se evalúa con un conjunto de configuraciones del criterio frente a la versión \textit{base} sin reinicio, correspondiente a valores de $\rho$ del $1\%$, $3\%$, $5\%$, $7\%$ y $10\%$.
+
+El análisis se realiza de forma \textbf{independiente} por cada algoritmo ya que el objetivo no es comparar AGE, DE y SHADE entre sí, sino determinar qué configuración de cada uno resulta más adecuada para generar un históral de evaluaciones útil en la fase subrogada. Para ello, se utiliza el \textbf{ranking medio}, agregando los resultados sobre todas las funciones sin que las de mayor magnitud de error distorsionen la agregación.
 
 %%%%%%%%%%%%%%%%%%%%%%
-\section{Generación y registro de las trayectorias}
+\section{Registro temporal de evaluaciones}
 \label{sec:generacion_trayectorias}
 
 Durante la ejecución de las metaheurísticas se registran cronológicamente las
-evaluaciones reales realizadas sobre la función objetivo. Cada
-\textbf{trayectoria de búsqueda} representa, por tanto, la secuencia de
-soluciones evaluadas por un algoritmo durante una ejecución concreta.
+evaluaciones reales realizadas sobre la función objetivo.
 
-Para cada evaluación se almacena el vector de decisión
+En lugar de analizar únicamente el resultado final de cada ejecución, este trabajo utiliza la secuencia temporal de soluciones evaluadas para estudiar cómo evoluciona la información disponible a lo largo de la búsqueda y cómo puede aprovecharse posteriormente en la fase de evaluación subrogada sobre el histórico de datos.
+
+Para cada evaluación se registra el vector de decisión
 \(\mathbf{x} \in \mathbb{R}^{D}\), el valor real de \textit{fitness} obtenido al
-evaluar la función objetivo y un \textbf{identificador temporal} que refleja el orden en el que se generó la muestra. La Tabla~\ref{tab:estructura_trayectorias}
+evaluar la función objetivo y un \textbf{identificador temporal} que indica el orden en el que se generó la muestra. La Tabla~\ref{tab:estructura_trayectorias}
 resume la información registrada y su utilidad posterior.
 
 \begin{table}[H]
@@ -285,36 +257,25 @@ resume la información registrada y su utilidad posterior.
                        & Valor real obtenido al evaluar la función objetivo.                                                             \\
         \bottomrule
     \end{tabular}
-    \caption{Información registrada para cada evaluación de una trayectoria.}
+    \caption{Información registrada para cada evaluación.}
     \label{tab:estructura_trayectorias}
 \end{table}
 
-Las trayectorias se almacenan en \textbf{ficheros HDF5 comprimidos} (\textit{datasets}) y se organizan de forma independiente para cada combinación de función, metaheurística y semilla.
-
-A partir de ellas, seguidamente se construyen los conjuntos de entrenamiento y validación empleados para evaluar los modelos subrogados en la fase \textit{offline}.
-
-Además de las evaluaciones individuales, durante la ejecución se generan
-ficheros JSON y CSV auxiliares con información sobre la evolución de la población. Estos incluyen estadísticas descriptivas del \textit{fitness}, medidas de diversidad y metadatos asociados al mecanismo de reinicio, que  \textbf{no se utilizan como variables de entrada} de los modelos subrogados, pero son útiles para interpretar el comportamiento de las metaheurísticas y analizar
-cómo afectan las fases de estancamiento a las muestras generadas.
+A partir de este histórico de evaluaciones, cada ejecución se organiza posteriormente en bloques temporales que permiten construir los conjuntos de entrenamiento y validación empleados en la evaluación posterior de los modelos subrogados.
 
 %%%%%%%%%%%%%%%%%%%%%%
 \section{Técnicas subrogadas: modelos candidatos y de referencia}
 
 Los modelos empleados en este trabajo se presentaron conceptualmente en el Capítulo~\ref{chap:algo_tecnicas_ref}. Esta sección se centra en cómo se preparan los datos antes de entrenar cada modelo y qué configuración concreta se utiliza en la Sección~\ref{subsec:comparacion_modelos}.
 
-\subsection{Detalles de implementación}
+\subsection{Configuración experimental de los modelos}
 
-Para facilitar el trabajo, se utilizan distintas librerías públicas que contienen la implementación directa de los modelos y simplifican la configuración de sus hiperparámetros.
+Como se comentó en la Sección \ref{sec:tecnicas_subrogadas}, Kriging y
+PCE se incorporan como técnicas clásicas de referencia, por lo que no forman
+parte del mismo protocolo experimental aplicado inicialmente al resto de
+regresores.
 
-La mayoría de los modelos se implementan mediante \textit{scikit-learn}\footnote{\url{https://scikit-learn.org/stable/}}, una biblioteca de aprendizaje automático para \textit{Python}. Las
-excepciones son el interpolador RBF, construido sobre \texttt{RBFInterpolator}
-de \textit{SciPy}\footnote{\url{https://scipy.org/}}; XGBoost, basado en su biblioteca oficial para
-\textit{Python}\footnote{\url{https://xgboost.readthedocs.io/}}; y las técnicas clásicas Kriging y PCE, implementadas mediante
-\textit{Surrogate Modeling Toolbox} (SMT)\footnote{\url{https://smt.readthedocs.io/}}.
-
-Tal y como se comentó en la Sección \ref{sec:tecnicas_subrogadas}, Kriging y PCE se incorporan como técnicas clásicas de referencia, por lo que no forman parte del mismo protocolo experimental aplicado inicialmente al resto de regresores.
-
-Para garantizar una comparación justa y no sobreajustada a los problemas de optimización de CEC2017, metaheurística o semilla, se mantienen algunos parámetros en sus valores por defecto y se modifican aquellos que sí merecen ser ajustados para evitar comportamientos inesperados. La configuración no predeterminada empleada en cada modelo se recoge en la Tabla~\ref{tab:surrogate_models_config}.
+Para garantizar una comparación no sobreajustada a los problemas de optimización de CEC2017, metaheurística o semilla, se mantienen algunos parámetros en sus valores por defecto y se modifican los que sí merecen ser ajustados para evitar comportamientos sesgados. La configuración no predeterminada empleada en cada modelo se recoge en la Tabla~\ref{tab:surrogate_models_config}.
 
 %% hay que cambiar la implementacion de pce
 
@@ -322,27 +283,27 @@ Para garantizar una comparación justa y no sobreajustada a los problemas de opt
     \centering
     \begin{tabular}{l p{7cm}}
         \toprule
-        \textbf{Modelo} & \textbf{Configuración no predeterminada}                                                                         \\
+        \textbf{Modelo} & \textbf{Configuración no predeterminada}                                                \\
         \midrule
-        LASSO           & \makecell[l]{\texttt{alpha=0.01}                                                                                 \\ \texttt{max\_iter=5000} \\ \texttt{random\_state=42}} \\
+        LASSO           & \makecell[l]{\texttt{alpha=0.01}                                                        \\ \texttt{max\_iter=5000} \\ \texttt{random\_state=42}} \\
         \midrule
-        RSM             & \texttt{PolynomialFeatures} sobre regresión lineal ordinaria. Configuración por defecto de \textit{scikit-learn} \\
+        RSM             & \texttt{PolynomialFeatures} sobre regresión lineal ordinaria. Configuración por defecto \\
         \midrule
-        RBF             & \makecell[l]{\texttt{neighbors=50}                                                                               \\ \texttt{smoothing=1} \\ \texttt{kernel=gaussian} \\ \texttt{degree=-1} \\ \texttt{epsilon=1.0}} \\
+        RBF             & \makecell[l]{\texttt{neighbors=50}                                                      \\ \texttt{smoothing=1} \\ \texttt{kernel=gaussian} \\ \texttt{degree=-1} \\ \texttt{epsilon=1.0}} \\
         \midrule
-        SVR             & Configuración por defecto de \textit{scikit-learn}                                                               \\
+        SVR             & Configuración por defecto                                                               \\
         \midrule
-        MLP             & \makecell[l]{\texttt{hidden\_layer\_sizes=(128,\,64)}                                                            \\ \texttt{alpha=1e-3} \\ \texttt{max\_iter=2000} \\ \texttt{random\_state=42} \\ \texttt{early\_stopping=True}} \\
+        MLP             & \makecell[l]{\texttt{hidden\_layer\_sizes=(128,\,64)}                                   \\ \texttt{alpha=1e-3} \\ \texttt{max\_iter=2000} \\ \texttt{random\_state=42} \\ \texttt{early\_stopping=True}} \\
         \midrule
-        Random Forest   & \makecell[l]{\texttt{n\_estimators=200}                                                                          \\ \texttt{max\_depth=16} \\ \texttt{min\_samples\_leaf=5} \\ \texttt{max\_features=0.5} \\ \texttt{random\_state=42} \\ \texttt{n\_jobs=-1}} \\
+        Random Forest   & \makecell[l]{\texttt{n\_estimators=200}                                                 \\ \texttt{max\_depth=16} \\ \texttt{min\_samples\_leaf=5} \\ \texttt{max\_features=0.5} \\ \texttt{random\_state=42} \\ \texttt{n\_jobs=-1}} \\
         \midrule
-        HGB             & \makecell[l]{\texttt{max\_iter=200}                                                                              \\ \texttt{learning\_rate=0.05} \\ \texttt{max\_depth=4} \\ \texttt{l2\_regularization=1e-3} \\ \texttt{random\_state=42}} \\
+        HGB             & \makecell[l]{\texttt{max\_iter=200}                                                     \\ \texttt{learning\_rate=0.05} \\ \texttt{max\_depth=4} \\ \texttt{l2\_regularization=1e-3} \\ \texttt{random\_state=42}} \\
         \midrule
-        XGBoost         & \makecell[l]{\texttt{n\_estimators=400}                                                                          \\ \texttt{max\_depth=4} \\ \texttt{learning\_rate=0.05} \\ \texttt{subsample=0.8} \\ \texttt{colsample\_bytree=0.8} \\ \texttt{random\_state=42} \\ \texttt{n\_jobs=-1} \\ \texttt{tree\_method=hist}} \\
+        XGBoost         & \makecell[l]{\texttt{n\_estimators=400}                                                 \\ \texttt{max\_depth=4} \\ \texttt{learning\_rate=0.05} \\ \texttt{subsample=0.8} \\ \texttt{colsample\_bytree=0.8} \\ \texttt{random\_state=42} \\ \texttt{n\_jobs=-1} \\ \texttt{tree\_method=hist}} \\
         \midrule
-        Kriging         & \texttt{corr=matern52}                                                                                           \\
+        Kriging         & \texttt{corr=matern52}                                                                  \\
         \midrule
-        PCE             & \texttt{order=3}                                                                                                 \\
+        PCE             & \texttt{order=3}                                                                        \\
         \bottomrule
     \end{tabular}
     \caption{Configuración inicial empleada para la evaluación de los modelos subrogados.}
@@ -350,30 +311,24 @@ Para garantizar una comparación justa y no sobreajustada a los problemas de opt
 \end{table}
 
 \subsection{Preprocesamiento de los datos}
+\label{subsec:preprocesamiento}
 
 Antes de entrenar cada modelo, los datos generados por las distintas metaheurísticas requieren dos \textbf{transformaciones independientes} que afectan, respectivamente, a las variables de entrada y a la variable objetivo.
 
-\textbf{Escalado de las variables de entrada.} Para mantener un protocolo homogéneo y robusto entre modelos, \textbf{todas las técnicas} se entrenan con las variables de entrada escaladas. Esta transformación es especialmente importante en técnicas sensibles a la magnitud de las variables, como LASSO, MLP, SVR, RBF y RSM. Aunque no es estrictamente necesario en métodos basados en árboles o técnicas matemáticas clásicas,  se mantiene también en estos casos con el fin de garantizar la consistencia del procedimiento experimental. Dado que en \textbf{CEC2017} las variables de decisión se definen sobre el dominio \([-100,100]^{D}\), todas las muestras se reescalan al intervalo \([-1,1]^{D}\) mediante la transformación \[
+\textbf{Escalado de las variables de entrada.} Para mantener un protocolo homogéneo y robusto entre modelos, \textbf{todas las técnicas} se entrenan con las variables de entrada escaladas. Esta transformación es especialmente importante en técnicas sensibles a la magnitud de las variables, como LASSO, MLP, SVR, RBF y RSM. Aunque no es estrictamente necesario para el resto, se mantiene también en estos casos para mantener la consistencia del procedimiento experimental. Dado que en \textbf{CEC2017} las variables de decisión se definen sobre el dominio \([-100,100]^{D}\), todas las muestras se reescalan al intervalo \([-1,1]^{D}\) mediante la transformación \[
     x_{j}^{\ast} = \frac{x_{j}}{100}.
 \]
-consiguiendo reducir diferencias de escala innecesarias para aquellos modelos más sensibles y favorecer una representación numéricamente más estable del espacio de búsqueda durante el ajuste de modelos.
+De este modo, se evitan diferencias de escala innecesarias entre variables y se aplica el mismo preprocesamiento a todos los modelos considerados.
 
-\textbf{Escalado de la variable objetivo.} Si el modelo es sensible a la escala de la variable a predecir, se estandariza para mejorar la estabilidad numérica y facilitar el aprendizaje cuando el rango de valores del \textit{fitness} cambia notablemente entre funciones o regiones del espacio de búsqueda. A partir de las formulaciones matemáticas de cada modelo definidas en el Capítulo~\ref{chap:algo_tecnicas_ref}, las técnicas se agrupan en dos categorías:
+\textbf{Escalado de la variable objetivo.} En algunos modelos, la escala de la variable objetivo puede influir directamente en el ajuste. Por este motivo, se estandiraza el valor de \textit{fitness} únicamente en aquellos modelos donde resulta necesario: LASSO, RSM, RBF, SVR y MLP. En estos casos, y a partir de las formulaciones matemáticas de cada modelo definidas en el Capítulo~\ref{chap:algo_tecnicas_ref}, la magnitud de \(y\) puede afectar a la regularización, al condicionamiento numérico o al proceso de optimización interno del modelo.
 
-\begin{itemize}
-    \item \textbf{Modelos sensibles a la escala de \(y\)}: LASSO, RSM, RBF, SVR y MLP. En estos casos, la magnitud absoluta del \textit{fitness} puede afectar a la función de pérdida, a la regularización, al condicionamiento numérico o al procedimiento de optimización. Sin estandarizar, parámetros como la penalización \(\lambda\) de LASSO, el margen \(\varepsilon\) y la constante de regularización \(C\) de SVR, o los gradientes del MLP, pueden perder interpretabilidad o provocar entrenamientos menos estables.
-    \item \textbf{Modelos que no requieren estandarización explícita de \(y\)}: Random Forest, HGB, XGBoost, Kriging y PCE. En los modelos basados en árboles, la construcción de las particiones depende de las variables de entrada, por lo que no resulta necesario estandarizar la variable objetivo en el protocolo empleado. Kriging, por su parte, se implementa mediante SMT, que realiza una normalización interna del objetivo durante el ajuste, por lo que aplicar un escalado adicional sería redundante. En el caso de PCE, la magnitud de \(y\) queda incorporada en los coeficientes \(c_{\alpha}\) de la expansión, de modo que tampoco se aplica una estandarización externa.
-\end{itemize}
-
-Para los modelos del primer grupo, la estandarización se aplica mediante \texttt{StandardScaler} de \textit{scikit-learn}\footnote{\url{https://scikit-learn.org/}}, dada por
+Para los modelos en los que sí se estandariza la variable objetivo, se utiliza la transformación
 \[
     y^{\ast} = \frac{y - \mu_{y}}{\sigma_{y}}, \qquad
     \mu_{y} = \frac{1}{n}\sum_{i=1}^{n} y_{i}, \qquad
     \sigma_{y} = \sqrt{\frac{1}{n}\sum_{i=1}^{n} (y_{i} - \mu_{y})^{2}}.
 \]
-Los valores $\mu_{y}$ y $\sigma_{y}$ se calculan \textbf{exclusivamente sobre el conjunto de entrenamiento}, evitando así filtraciones de información (\textit{data leakage}) desde el conjunto de validación. Tras la predicción, el resultado se devuelve a la escala original del problema mediante la \textbf{transformación inversa}, de modo que las métricas de error se computan siempre sobre los valores reales del \textit{fitness} y resultan comparables entre todos los modelos, independientemente de si su entrenamiento utilizó escalado.
-
-Una vez definidos los modelos considerados y su configuración experimental, el siguiente paso consiste en establecer cómo se construyen los conjuntos de entrenamiento y validación a partir de las trayectorias temporales generadas por las metaheurísticas.
+Los valores $\mu_{y}$ y $\sigma_{y}$ se calculan \textbf{exclusivamente sobre el conjunto de entrenamiento}, evitando así filtraciones de información (\textit{data leakage}) desde el conjunto de validación. Tras la predicción, el resultado se devuelve a la escala original del problema mediante la \textbf{transformación inversa}, de forma que todos los modelos se comparan sobre los valores reales de  \textit{fitness}.
 
 \section{Métricas empleadas}
 
@@ -383,7 +338,8 @@ Para evaluar el rendimiento de los modelos subrogados se utilizan distintas mét
 
 La capacidad de predicción de un modelo determina su calidad como regresor.
 Para cuantificarla se emplean el \textbf{error absoluto medio} (MAE) y la
-\textbf{raíz del error cuadrático medio} (RMSE), junto con sus correspondientes versiones normalizadas. En la implementación, MAE y RMSE se calculan mediante las funciones de la librería \textit{scikit-learn}.
+\textbf{raíz del error cuadrático medio} (RMSE), junto con sus correspondientes
+versiones normalizadas.
 
 Dado un conjunto de validación formado por \(n\) pares
 \(\{(\mathbf{x}_i, y_i)\}_{i=1}^{n}\), donde \(y_i\) es el valor real del
@@ -401,9 +357,9 @@ métricas se definen como
     \label{eq:rmse}
 \end{equation}
 
-Ambas son métricas muy interpretables al expresarse en las mismas unidades que la variable objetivo. La diferencia entre ambas es la \textbf{sensibilidad al penalizar errores de mayor magnitud}. A diferencia del MAE, el RMSE penaliza con mayor intensidad \textbf{casos atípicos}, por lo que resulta muy útil para detectar fallos puntuales relevantes.
+La diferencia entre ambas es la \textbf{sensibilidad al penalizar errores de mayor magnitud}. A diferencia del MAE, el RMSE penaliza con mayor intensidad \textbf{casos atípicos}, por lo que resulta muy útil para detectar fallos puntuales relevantes.
 
-Dado que las funciones de CEC2017 presentan rangos de \textit{fitness} muy distintos, los valores absolutos de MAE y RMSE no resultan comparables entre funciones ni entre bloques temporales de una misma trayectoria. Para facilitar su interpretación, ambas se normalizan dividiéndolas por la media de los valores absolutos del \textit{fitness} real en el conjunto de validación, denotada como \(\bar{|y|} = \frac{1}{n}\sum_{i=1}^{n}|y_i|\):
+Dado que las funciones de CEC2017 presentan rangos de \textit{fitness} muy distintos, los valores absolutos de MAE y RMSE no resultan comparables entre funciones ni entre bloques temporales de una mismo histórico de evaluaciones. Para facilitar su interpretación, ambas se normalizan dividiéndolas por la media de los valores absolutos del \textit{fitness} real en el conjunto de validación, denotada como \(\bar{|y|} = \frac{1}{n}\sum_{i=1}^{n}|y_i|\):
 
 \begin{equation}
     \text{NMAE} = \frac{\text{MAE}}{\bar{|y|}},
@@ -415,10 +371,8 @@ Dado que las funciones de CEC2017 presentan rangos de \textit{fitness} muy disti
     \label{eq:nrmse}
 \end{equation}
 
-Al expresar el error de forma relativa, ambas métricas permiten interpretar los resultados con independencia de la escala propia de cada función.
 En este caso, los valores próximos a cero indican que las predicciones se
-mantienen cercanas a los valores reales de \textit{fitness}. A medida que NMAE o NRMSE aumentan, también lo hace la magnitud del error cometido por el modelo respecto a la escala media del \textit{fitness} real en el conjunto de
-validación.
+mantienen cercanas a los valores reales de \textit{fitness}.
 
 \subsection{Capacidad de ordenación}
 
@@ -452,7 +406,6 @@ donde \(\bar{R}\) y \(\bar{Q}\) son los rangos medios.
 
 El coeficiente toma valores en \([-1, 1]\). Un valor \(1\) indica concordancia perfecta de orden, \(-1\) refleja un orden completamente invertido, y \(0\) señala ausencia de relación ordinal.
 
-En este trabajo se utiliza una variante ordinal para resolver los empates.
 Cuando dos o más valores coinciden, se les asignan rangos consecutivos según
 su orden de aparición en el vector correspondiente. De este modo, incluso si
 un subrogado genera predicciones constantes, se mantiene una ordenación total
@@ -465,14 +418,14 @@ ejecuciones.
 
 \subsection{Coste computacional}
 
-La viabilidad de un modelo subrogado en un esquema \textit{online} también depende de su coste computacional:
+La viabilidad de un modelo subrogado para la hibridación también depende de su coste computacional:
 
 \begin{itemize}
-    \item \textbf{Tiempo de entrenamiento:} tiempo necesario (en segundos) para ajustar el modelo sobre el conjunto de entrenamiento.
-    \item \textbf{Tiempo de predicción:} tiempo requerido (en segundos) para evaluar el modelo sobre las muestras del conjunto de validación.
+    \item \textbf{Tiempo de entrenamiento:} tiempo necesario, en segundos, para ajustar el modelo sobre el conjunto de entrenamiento.
+    \item \textbf{Tiempo de predicción:} tiempo requerido, en segundos, para evaluar el modelo sobre las muestras del conjunto de validación.
 \end{itemize}
 
-Un tiempo de entrenamiento \textbf{excesivo} puede hacer \textbf{inviable reajustar} el modelo con la frecuencia requerida durante la ejecución del algoritmo. Por otro lado, un tiempo de predicción elevado \textbf{reduce el beneficio de sustituir evaluaciones} reales de la función objetivo por estimaciones del subrogado. Este segundo componente es especialmente relevante cuando un mismo modelo se utiliza para valorar numerosos candidatos antes de su siguiente actualización. Por tanto, ambos tiempos deben analizarse conjuntamente para identificar configuraciones cuyo coste pueda comprometer su posterior integración \textit{online}.
+Un modelo con un tiempo de entrenamiento elevado puede no ser adecuado si debe reajustarse varias veces durante la ejecución. Del mismo modo, un tiempo de predicción alto reduce la ventaja de usar el subrogado para filtrar candidatos antes de realizar evaluaciones reales. Por tanto, ambos deben analizarse conjuntamente para identificar configuraciones cuyo coste pueda comprometer su posterior integración.
 
 \subsection{Criterio de comparación de los modelos}
 \label{subsec:criterio_comparacion_modelos}
@@ -489,17 +442,10 @@ A lo largo de este trabajo, la comparación entre modelos se realiza analizando 
     \item \textbf{NMAE y NRMSE:} se emplean como métricas complementarias para evaluar la calidad predictiva ya que no es el objetivo de este trabajo.
 \end{enumerate}
 
-La selección prioriza aquellos modelos que mantienen una \textbf{capacidad de ordenación elevada} y estable a lo largo de los bloques temporales, descartando configuraciones cuyo error o coste computacional puedan comprometer su posterior integración \textit{online}.
-
-Las métricas se calculan de forma independiente para cada función,
-metaheurística, semilla y bloque temporal. Posteriormente, los valores obtenidos se agregan mediante la media para facilitar la comparación global entre modelos. Por tanto, los resultados de funciones distintas sí intervienen en
-los resúmenes agregados, pero sus muestras no se combinan directamente antes
-de calcular cada métrica.
-
 %%%%%%%%%%%%%%%%%%%%%%
-\section{Estrategias \textit{offline} para la evaluación subrogada}
+\section{Evaluación de modelos subrogados sobre históricos de evaluaciones}
 
-Cada trayectoria generada por las metaheurísticas se organiza en \textbf{cinco bloques temporales consecutivos}, cada uno de ellos correspondiente al \textbf{20\,\% del presupuesto total de evaluaciones}. Dado que cada ejecución comprende \(100\,000\) evaluaciones, cada bloque agrupa \(20\,000\) muestras, ordenadas cronológicamente según el instante en que fueron generadas durante la búsqueda. Los bloques se identifican por el intervalo porcentual que ocupan dentro de la trayectoria: \textbf{1--20\,\%}, \textbf{21--40\,\%}, \textbf{41--60\,\%}, \textbf{61--80\,\%} y \textbf{81--100\,\%}.
+Los datos de búsqueda generados por las metaheurísticas se organizan en \textbf{cinco bloques temporales consecutivos}, cada uno de ellos correspondiente al \textbf{20\,\% del presupuesto total de evaluaciones}. Dado que cada ejecución comprende \(100\,000\) evaluaciones, cada bloque agrupa \(20\,000\) muestras, ordenadas cronológicamente según el instante en que fueron generadas durante la búsqueda. Los bloques se identifican por el intervalo porcentual que ocupan dentro de las evaluaciones realizadas: \textbf{1--20\,\%}, \textbf{21--40\,\%}, \textbf{41--60\,\%}, \textbf{61--80\,\%} y \textbf{81--100\,\%}.
 
 A partir de esta partición, las dos estrategias definidas en la
 Sección~\ref{sec:metodologia_estrategias_offline} se instancian en este trabajo mediante los
@@ -510,15 +456,12 @@ Tabla~\ref{tab:pares_entrenamiento_validacion}. La \textbf{estrategia no acumula
 
 Como se observa en la tabla, el bloque~5 queda reservado exclusivamente para validación al no haber más muestras sobre las que validar el modelo si utilizase dicho bloque como entrenamiento.
 
-Para que los resultados sean comparables y no dependan del tamaño del conjunto de entrenamiento empleado, el conjunto de validación se extrae del bloque temporal inmediatamente posterior al último bloque incluido en el entrenamiento. Dado que cada bloque temporal contiene \(20000\)
-evaluaciones, se selecciona el \textbf{25\% de sus muestras}, lo que equivale a \textbf{5000 muestras} por trayectoria,
-independientemente de que la estrategia de entrenamiento sea acumulativa o no
-acumulativa. La selección de estas muestras se realiza de manera \textbf{determinista}: el generador aleatorio se inicializa combinando el valor fijo \texttt{random\_state=42}, la semilla asociada a la trayectoria y el identificador del bloque utilizado para la validación. De este modo, para una misma trayectoria, el conjunto de validación asociado a cada bloque es \textbf{idéntico para todos los modelos y estrategias considerados}, permitiendo una comparación directa sobre las mismas muestras.
+Para que los resultados sean comparables y no dependan del tamaño del conjunto de entrenamiento empleado, el conjunto de validación se toma siempre del bloque temporal inmediatamente posterior al último bloque utilizado para entrenar el mdoelo. Como cada bloque contiene \(20000\)
+evaluaciones, se selecciona el \textbf{25\% de sus muestras}, es decir, \textbf{5000 soluciones} evaluadas por ejecución. Este criterio se aplica tanto en la estrategia acumulativa como en la no acumulativa, de forma que el tamaño del conjunto de validación no depende del número de bloques empleadas en el entrenamiento.
 
-% \subsection{Subconjunto de funciones para el cribado de modelos \textit{offline}}
-% \label{subsec:funciones_cribado_offline}
+La selección de las muestras se realiza de forma determinista a partir de la semilla de la ejecución y del bloque temporal utilizado para validación. De esta forma, para una misma ejecución y un mismo bloque, el conjunto de validación queda fijado y es común a todos los modelos y estrategias evaluados.
 
-Dado el elevado coste computacional que supondría evaluar todos los modelos, estrategias de entrenamiento y semillas sobre la suite completa, la fase inicial de cribado \textit{offline} se realiza sobre un subconjunto representativo de funciones de CEC2017. Esta selección mantiene las \(51\) semillas empleadas en la generación de trayectorias, pero reduce el número de funciones con el fin de comparar los modelos bajo un coste computacional asumible.
+Dado el coste computacional de evaluar todas las combinaciones de modelos, estrategias de entrenamiento y semillas sobre la suite completa, la primera comparación se realiza sobre un subconjunto de funciones de CEC2017. En esta fase se mantienen las \(51\) semillas empleadas en las ejecuciones de las metaheurísticas, pero se reduce el número de funciones para hacer viable la comparación inicial entre modelos.
 
 El subconjunto se elige para cubrir las principales familias de funciones del benchmark:
 
@@ -529,7 +472,7 @@ El subconjunto se elige para cubrir las principales familias de funciones del be
     \item \textbf{Compuesta:} \(f_{22}\), \(f_{29}\).
 \end{itemize}
 
-Esta selección permite analizar el comportamiento de los modelos ante distintos niveles de complejidad paisajística sin multiplicar innecesariamente el coste experimental. Las configuraciones que superen esta fase se validan posteriormente sobre la suite completa.
+Con esta selección se comparan los modelos en funciones con características distintas, sin elevar innecesariamente el coste experimental. Las configuraciones seleccionadas en esta fase se evalúan posteriormente sobre la suite completa.
 
 %%%%%%%%%%%%%%%%%%%%%%
 \section{Ajuste fino de hiperparámetros}
@@ -539,114 +482,88 @@ Esta selección permite analizar el comportamiento de los modelos ante distintos
 
 % idea clave: El ajuste fino no constituye una nueva fase de comparación global entre todos los regresores, sino una optimización acotada de los modelos que hayan mostrado mejor comportamiento en la fase offline.
 
-El ajuste fino de hiperparámetros se plantea como una fase posterior a la
-comparación inicial de los modelos bajo las distintas estrategias
-\textit{offline}. Su objetivo no es establecer una nueva comparación global
-entre todos los regresores considerados, sino refinar de forma acotada la
-configuración de aquellos que hayan mostrado un comportamiento más
-prometedor antes de su validación final. De este modo, el coste
-experimental se concentra en los modelos con mayor probabilidad de resultar
-útiles en una posterior integración \textit{online}.
+El ajuste fino de hiperparámetros se plantea como una fase posterior a la decisión de la mejor estrategia y la comparación inicial de modelos. Su objetivo no es repetir la comparación completa entre todos los regresores, sino refinar la configuración de aquellos que hayan obtenido mejores resultados antes de evaluarlos sobre la suite completa. De esta forma, el coste experimental se concentra en el modelo o modelos con mayor probabilidad de resultar útiles en una posterior integración.
 
-Dado que el coste de entrenamiento y predicción puede variar de forma notable entre modelos, el número de semillas empleado en esta fase puede ajustarse a la viabilidad computacional de cada técnica seleccionada. Cuando dicho coste sea elevado, el ajuste fino podrá realizarse sobre un subconjunto fijo de semillas para mantener asumible la búsqueda de hiperparámetros. Esta reducción afecta únicamente a la fase de ajuste, ya que las configuraciones finalmente seleccionadas se comparan posteriormente sobre las \(30\) funciones de CEC2017
-y las \(51\) semillas empleadas en la generación de trayectorias.
+Dado que el coste de entrenamiento y predicción no es el mismo para todos los modelos, el número de semillas usado en esta fase puede variar según la técnica considerada. Cuando dicho coste sea elevado, el ajuste se realizará sobre un subconjunto fijo de semillas para que la búsqueda de hiperparámetros sea asumible.
+Esta reducción afecta únicamente a la fase de ajuste, ya que la configuración o configuraciones finalmente seleccionadas se comparan posteriormente sobre las \(30\) funciones de CEC2017
+y las \(51\) semillas empleadas para el histórico de evaluaciones.
 
-El procedimiento respeta la estructura temporal de las trayectorias
-generadas por las metaheurísticas. Para evitar filtrado de información hacia
-el futuro (\textit{data leakage}), el ajuste se realiza dentro del propio
-bloque de entrenamiento mediante una partición cronológica interna:
+El procedimiento mantiene el orden temporal de los datos generados por cada metaheurística. Para evitar que la elección de hiperparámetros utilice información posterior al bloque de entrenamiento (\textit{data leakage}), se aplica una partición interna dentro de dicho bloque:
 
 \begin{itemize}
     \item El \textbf{80\% inicial} de las muestras del bloque se utiliza para el entrenamiento de las distintas configuraciones candidatas que componen el espacio de búsqueda.
     \item El \textbf{20\% final} de dicho bloque se reserva como conjunto de validación interna para evaluar el rendimiento de cada configuración y estimar su capacidad de generalización dentro de la misma etapa temporal.
 \end{itemize}
 
-Una vez seleccionada la configuración más adecuada, el modelo se reentrena
-utilizando el 100\% de las muestras del bloque y se evalúa sobre
-un subconjunto extraído del bloque inmediatamente posterior (conjunto de validación). Así, estas \textbf{muestras futuras no intervienen} en la elección de los hiperparámetros, sino que se utilizan únicamente para comprobar el rendimiento del modelo ya ajustado.
+Una vez elegida la configuración, el modelo se reentrena con todas las muestras del bloque de entrenamiento y se evalúa sobre un subconjunto del bloque temporal inmediatamente posterior (conjunto de validación). Así, las muestras futuras no intervienen en la selección de hiperparámetros, sino solo en la evaluación del modelo ya ajustado.
 
 La Figura~\ref{fig:ajuste_hiperparametros_validacion_interna} representa este
 procedimiento para una transición concreta. En el ejemplo, el ajuste interno
 se realiza sobre el bloque correspondiente al intervalo 20--40\% de la
-trayectoria y la evaluación posterior utiliza muestras pertenecientes al
+búsqueda y la evaluación posterior utiliza muestras pertenecientes al
 intervalo 40--60\%.
 
 \input{figuras/06_diseño_experimental/validacion_interna_hiperparametros}
 
-Mediante una búsqueda exhaustiva sobre un espacio de valores acotado para reducir el riesgo de sobreajuste al conjunto de funciones usado en la fase \textit{offline},
-la selección de configuraciones sigue el criterio general definido en la
-Subsección~\ref{subsec:criterio_comparacion_modelos}. Debe remarcarse que el ajuste fino no genera nuevas evaluaciones de la función objetivo y mantiene la separación temporal entre los datos usados para ajuste, validación interna y evaluación futura.
+La búsqueda de hiperparámetros se realiza de forma exhaustiva sobre un espacio acotado de valores definido y la selección final sigue el criterio definido en la Subsección~\ref{subsec:criterio_comparacion_modelos}.
 
 Las configuraciones consideradas para los modelos finalistas se presentan junto con
 sus resultados en el capítulo siguiente.
 
+\section{Integración del modelo subrogado durante la búsqueda}
+\label{sec:integracion_subrogado_busqueda}
 
-\section{Estrategia \textit{online} para la integración subrogada}
-\label{sec:diseno_online}
+La integración del modelo subrogado durante la búsqueda se evalúa mediante el mecanismo de filtrado definido en la Sección~\ref{sec:estrategia_online_integracion_surrogate}. En esta fase, a diferencia de la evaluación sobre históricos de evaluaciones, las predicciones del subrogado pueden modificar las decisiones de la metaheurística. Por tanto, la comparación ya no se limita a medir la calidad de ordenación del modelo, sino que trata la hibridación como una variante del algoritmo original.
 
-La integración \textit{online} se evalúa a partir del mecanismo de filtrado definido en la Sección~\ref{sec:estrategia_online_integracion_surrogate}. A diferencia de la evaluación \textit{offline}, en esta fase las predicciones del
-subrogado pueden modificar la trayectoria seguida por la metaheurística. Por ello, la comparación deja de centrarse únicamente en la calidad de ordenación y predictiva del modelo y pasa a tratar la hibridación como una variante modificada del proceso de optimización.
+Para mantener acotado el coste experimental, la integración no se aplica a todos los modelos candidatos. Solo se considera el modelo y la estrategia de entrenamiento seleccionados tras la evaluación previa y el ajuste de hiperparámetros. El objetivo es comprobar si el subrogado elegido mejora el comportamiento de la metaheurística cuando interviene directamente en el proceso de búsqueda, tomando como referencia la versión original sin subrogado.
 
-Con el fin de mantener acotado el coste experimental, la integración
-\textit{online} no se aplica a todos los modelos candidatos. Se reserva para el modelo y la estrategia de entrenamiento que resulten seleccionados tras la evaluación \textit{offline} y el ajuste fino de hiperparámetros. De este modo, la fase \textit{online} se concentra en estudiar si el subrogado finalmente seleccionado resulta útil cuando sus predicciones intervienen en la toma de decisiones de las distintas metaheurísticas consideradas.
-
-A partir de este esquema, el protocolo \textit{online} queda determinado por las siguientes decisiones experimentales:
+A partir de este esquema, el protocolo de integración queda definido por las siguientes decisiones experimentales:
 
 \begin{enumerate}
-    \item \textbf{Periodo inicial de calentamiento.} Antes de activar el subrogado como filtro, es necesario disponer de un conjunto mínimo de evaluaciones reales sobre el que ajustar el primer modelo para que pueda generar predicciones útiles. Por este motivo, si \(E_{\max}\) representa el presupuesto total de evaluaciones y
-          \(\alpha_{\text{warm}}\) la proporción reservada para este tramo, el
-          número de evaluaciones iniciales viene dado por
+    \item \textbf{Periodo inicial de calentamiento.} El filtro subrogado no se activa desde el inicio, ya que primero es necesario disponer de evaluaciones reales para entrenar el primer modelo y que pueda generar predicciones útiles. Si \(E_{\max}\) es el presupuesto total y \(\alpha_{\text{warm}}\) la proporción reservada a esta fase, el número de evaluaciones iniciales es
           \[
               E_{\text{warm}} = \alpha_{\text{warm}} E_{\max}.
           \]
-          En esta fase, la metaheurística sigue su flujo de evaluación real, y
-          las muestras generadas se incorporan al conjunto disponible para el
-          entrenamiento posterior.
+          En coherencia con la división temporal utilizada en la evaluación previa, este periodo inicial se fija en el \(20\%\) del presupuesto total de evaluaciones (\(\alpha_{\text{warm}}=0.20\)).
 
-          En coherencia con la división temporal utilizada en la evaluación \textit{offline}, este periodo inicial se fija en el \(20\%\) del presupuesto total de evaluaciones (\(\alpha_{\text{warm}}=0.20\)).
-
-    \item \textbf{Conjunto de entrenamiento.} Durante la ejecución
-          \textit{online}, el modelo solo se entrena con evaluaciones reales ya
+    \item \textbf{Conjunto de entrenamiento.} El modelo se entrena únicamente con evaluaciones reales ya
           observadas. La construcción de este conjunto mantiene el orden temporal
           de la búsqueda y queda determinada por la estrategia de entrenamiento
-          seleccionada tras la evaluación \textit{offline}.
+          seleccionada previamente.
 
     \item \textbf{Frecuencia de actualización.} Para evitar reentrenamientos
           excesivamente frecuentes que supongan un coste computacional excesivo o modelos desfasados, se estudian distintas
           frecuencias de actualización expresadas como proporción del conjunto
           temporal de entrenamiento. Los valores considerados son \(0.25\),
           \(0.50\) y \(0.75\).
-    \item \textbf{Probabilidad de uso del filtro.} El subrogado no se aplica necesariamente a todos los candidatos generados. Para cada candidato generado se extrae \(u \sim \mathcal{U}(0,1)\), y el filtro se consulta solo si
+
+    \item \textbf{Probabilidad de uso del filtro.} El subrogado no se consulta necesariamente para todos los candidatos generados. Para cada candidato se extrae \(u \sim \mathcal{U}(0,1)\), y el filtro se aplica solo si
           \[
               u < p_{\text{sub}},
           \]
           donde \(p_{\text{sub}}\) controla la proporción esperada de candidatos sometidos a preevaluación subrogada. Cuando esta condición no se cumple, el candidato sigue el flujo de evaluación real de la metaheurística original.
 
-          Se consideran los valores \(p_{\text{sub}} \in \{0.00, 0.25, 0.50,
-          0.75\}\), donde \(0.00\) representa la variante sin intervención
-          subrogada.
+          Se consideran los valores \(p_{\text{sub}} \in \{0.25, 0.50,
+          0.75\}\).
 
-
-    \item \textbf{Tratamiento tras reinicio.} Si se activa el reinicio, la
+    \item \textbf{Tratamiento tras reinicio.} Después de un reinicio, la
           distribución de soluciones puede cambiar de forma brusca, reduciendo
-          temporalmente la representatividad del modelo. Por ello, se estudia un
-          periodo de enfriamiento durante el que el filtro permanece desactivado
-          y solo se incorporan evaluaciones reales al conjunto disponible. Se
-          consideran \(0\), \(50\), \(100\) y \(500\) evaluaciones reales,
-          equivalentes a \(0\), \(1\), \(2\) y \(10\) tamaños de población para
-          \(N=50\), donde \(0\) representa la variante sin enfriamiento.
+          temporalmente la representatividad del modelo. Por ello, se evalúa un periodo de enfriamiento durante el cual el filtro permanece desactivado y solo se incorporan evaluaciones reales. Se
+          consideran \(50\), \(100\) y \(500\) evaluaciones reales,
+          equivalentes a \(1\), \(2\) y \(10\) poblaciones generadas para
+          \(N=50\). No se escoge un mayor número de evaluaciones ya que podría ocurrir que el modelo se apagase durante gran parte del proceso de optimización.
 \end{enumerate}
 
-Al tratarse como variantes de las metaheurísticas originales, las ejecuciones \textit{online} mantienen las condiciones generales definidas en la Tabla~\ref{tab:parametros_comunes_metaheuristicas}. No obstante, para la calibración de los parámetros de integración se emplea un subconjunto reducido de funciones y semillas, distinto al utilizado en las fases previas.
+Al tratarse como variantes de las metaheurísticas originales, las ejecuciones híbridas mantienen las condiciones generales definidas en la Tabla~\ref{tab:parametros_comunes_metaheuristicas}.
 
-Esta fase no busca una optimización exhaustiva, sino seleccionar una
-configuración homogénea y computacionalmente viable para las distintas
-metaheurísticas. Por ello, las decisiones experimentales se evalúan sobre las funciones \(f_3\), \(f_5\), \(f_9\), \(f_{15}\), \(f_{19}\), \(f_{24}\) y \(f_{27}\), junto con \(10\) semillas independientes no utilizadas en la generación de trayectorias ni en la evaluación \textit{offline}. Esta separación reduce el riesgo de ajustar la configuración de la hibridación a las mismas ejecuciones usadas en las fases anteriores.
+No obstante, para la calibración de los parámetros de integración se emplea un subconjunto reducido de funciones y semillas, distinto al utilizado en las fases previas. Esta fase no busca una optimización exhaustiva, sino tratar de seleccionar una
+configuración homogénea para las distintas
+metaheurísticas. Por ello, las decisiones experimentales se evalúan sobre las funciones \(f_3\), \(f_5\), \(f_9\), \(f_{15}\), \(f_{19}\), \(f_{24}\) y \(f_{27}\), junto con \(10\) semillas independientes no utilizadas en la selección del modelo.
 
 La comparación entre variantes sigue el criterio agregado definido en la
-Sección~\ref{sec:metaheuristicas}, basado en medias y rankings medios sobre CEC2017. En este caso, dicho criterio se aplica para comparar configuraciones de hibridación y no metaheurísticas independientes. Además, se consideran contadores propios de la integración, como el número de reentrenamientos, el tiempo dedicado al modelo y el porcentaje de candidatos rechazados por el filtro.
+Sección~\ref{sec:metaheuristicas}, basado en rankings medios sobre CEC2017. Además, se consideran contadores propios de la integración, como el número de reentrenamientos, el tiempo dedicado al modelo y el porcentaje de candidatos rechazados por el filtro.
 
-Una vez seleccionada la configuración, la evaluación final se realiza de nuevo sobre las \(30\) funciones de CEC2017, utilizando un conjunto de \(51\) semillas distinto tanto al empleado en la calibración \textit{online} como al utilizado en la generación de trayectorias y evaluación \textit{offline}. En esta fase, la variante híbrida se compara con la metaheurística original sin intervención subrogada, lo que permite medir si el filtro aporta una mejora real frente al algoritmo base bajo las mismas condiciones experimentales. Además, se incluyen como referencia las hibridaciones basadas en Kriging y PCE, descritas en la Sección~\ref{sec:tecnicas_subrogadas_clasicas}, con el fin de contrastar el modelo seleccionado frente a técnicas subrogadas clásicas ampliamente utilizadas en optimización asistida por modelos.
+Una vez seleccionada la configuración, la evaluación final se realiza sobre las \(30\) funciones de CEC2017 y \(51\) semillas nuevas, distintas tanto de las usadas en la calibración como de las empleadas en la evaluación previa. En esta fase, la variante híbrida se compara con la metaheurística original sin intervención subrogada. También se incluyen como referencia las hibridaciones basadas en Kriging y PCE, descritas en la Sección~\ref{sec:tecnicas_subrogadas_clasicas}.
 
 Los resultados de las distintas decisiones experimentales y las comparaciones descritas se presentan en el Capítulo~\ref{chap:experimentacion}.
 
@@ -676,28 +593,49 @@ Los resultados de las distintas decisiones experimentales y las comparaciones de
 % Para la calibración de la estrategia online se consideran tres parámetros específicos: el periodo de enfriamiento tras reinicio, la frecuencia de actualización del modelo y la probabilidad de uso del filtro. Los valores candidatos se recogen en la Tabla~X. Esta fase no pretende realizar una optimización exhaustiva de hiperparámetros, sino seleccionar una configuración homogénea y computacionalmente viable para AGE, DE y SHADE.
 
 %%%%%%%%%%%%%%%%%%%%%%
-\section{Entorno experimental}
+\section{Detalles de la implementación}
+\label{sec:detalles_implementacion}
 
-% Documenta las condiciones técnicas necesarias para reproducir el estudio.
 
-% Indica procesador, memoria RAM, sistema operativo y entorno de ejecución.
+A diferencia de las secciones anteriores, centradas en definir el protocolo experimental, esta sección recoge las principales decisiones técnicas tomadas para implementar y reproducir los experimentos.
 
-% debe indicar procesador, número de núcleos, memoria RAM, sistema operativo y si se utilizó paralelización. Si distintos experimentos se ejecutaron en máquinas diferentes, debe especificarse para no comparar tiempos de forma engañosa
 
-Todos los experimentos se han ejecutado en un MacBook Air, equipado con el procesador Apple M4, que dispone de 10 núcleos distribuidos en 4 de rendimiento y 6 de eficiencia, junto con 16~GB de memoria RAM unificada y el sistema operativo macOS 26.3. Los experimentos se han lanzado de forma \textbf{secuencial}, sin paralelización entre ejecuciones, aunque algunos modelos como Random Forest y XGBoost hacen uso de paralelización interna mediante \texttt{n\_jobs=-1}. Los tiempos de entrenamiento y predicción presentados son directamente comparables entre sí al haberse obtenido bajo las mismas condiciones de ejecución.
+\subsection{Bibliotecas y herramientas empleadas}
 
-\subsection{Librerías y dependencias}
+La implementación de este trabajo se ha desarrollado en \texttt{Python}, al tratarse de un lenguaje de programación ampliamente utilizado en computación científica, optimización numérica y aprendizaje automático. Gracias a la gran variedad de bibliotecas consolidadas en este ámbito, se homogeniza la integración de las metaheurísticas, modelos subrogados y herramientas de análisis, reduciendo la necesidad de implementar estas componentes desde cero y minimizando posibles errores en el desarrollo.
 
-La implementación se ha desarrollado en \texttt{Python}. Para reproducir los
-experimentos se requiere un entorno configurado con las siguientes librerías
-y versiones:
+
+La integración del benchmark se realiza a partir del repositorio mantenido por Daniel Molina%
+\footnote{\url{https://github.com/dmolina/cec2017real}}, basado en el código de referencia de la competición CEC2017 y escrito en \textit{C++}. Sobre este código se ha construido un adaptador común en \textit{Python}, de modo que AGE, DE y SHADE evalúen candidatos mediante una misma interfaz.
+
+Las implementaciones de las metaheurísticas no proceden de una única biblioteca. AGE se ha desarrollado directamente en \textit{Python} a partir del pseudocódigo descrito en el Capítulo~\ref{chap:algo_tecnicas_ref}. En cambio, DE y SHADE parten de las implementaciones de \texttt{PyADE}%
+\footnote{\url{https://github.com/xKuZz/pyade}}, que se han adaptado para utilizar la misma infraestructura común que AGE: interfaz de evaluación, registro de históricos e integración del mecanismo de reinicio. De esta forma se aprovechan implementaciones existentes de algoritmos, reduciendo el esfuerzo de desarrollo y manteniendo al mismo tiempo un protocolo homogéneo para las tres metaheurísticas consideradas.
+
+En el caso de los modelos subrogados, la mayoría de los regresores se implementan mediante \textit{scikit-learn}, biblioteca de aprendizaje automático que proporciona una interfaz común para entrenamiento, predicción y ajuste de hiperparámetros. Además, el escalado de la variable objetivo descrito en la Sección~\ref{subsec:preprocesamiento} se realiza mediante \texttt{StandardScaler}, propio de esa misma librería. El modelo RBF se construye con \texttt{RBFInterpolator} de \textit{SciPy}, al ajustarse directamente a la formulación empleada en este trabajo. XGBoost utiliza su biblioteca oficial, ya que las consideradas no cuentan con implementación propia. Por último, Kriging y PCE se implementan mediante \textit{Surrogate Modeling Toolbox} (SMT), una biblioteca especializada en modelado subrogado que permite incorporar estas técnicas clásicas de referencia.
+
+Para describir el comportamiento de estos modelos, las métricas de evaluación se calculan combinando funciones de \textit{scikit-learn}, \textit{SciPy} y \textit{NumPy}. En particular, \textit{scikit-learn} se utiliza para las métricas de error, mientras que \textit{SciPy} y \textit{NumPy} se emplean para las operaciones necesarias en las métricas normalizadas y en el cálculo de la correlación de Spearman.
+
+El procesamiento posterior de los resultados obtenidos por los distintos experimentos combina varias herramientas:
+
+\begin{itemize}
+    \item Los ficheros \textbf{HDF5} se gestionan mediante \texttt{PyTables}.
+    \item \texttt{pandas} se utiliza
+          para agrupar ejecuciones, calcular medias y preparar las tablas del Capítulo~\ref{chap:experimentacion}.
+    \item \texttt{Matplotlib} se emplea para generar el soporte visual de los resultados como las curvas de convergencia o de diversidad.
+    \item \texttt{DEAP} se usa para el registro de estadísticas
+          generacionales, mediante sus utilidades \texttt{Statistics} y \texttt{Logbook}.
+    \item La comparación agregada de medias y rankings medios sobre el benchmark se obtiene mediante \textbf{TACOLAB}\footnote{\url{https://tacolab.org/}}, una herramienta web
+          orientada al análisis comparativo de algoritmos de optimización.
+\end{itemize}
+
+Las versiones concretas de las principales liberías empleadas en el entorno experimental para poder reproducir los experimentos son:
 
 \begin{itemize}
     \item \texttt{Python} 3.14.5
     \item \texttt{NumPy} 2.4.3
     \item \texttt{Matplotlib} 3.10.8
     \item \texttt{SciPy} 1.17.1
-    \item \texttt{scikit-Learn} 1.8.0
+    \item \texttt{scikit-learn} 1.8.0
     \item \texttt{SMT} 2.14.0
     \item \texttt{XGBoost} 3.2.0
     \item \texttt{pandas} 3.0.1
@@ -706,15 +644,26 @@ y versiones:
     \item \texttt{PyTables} 3.11.1
 \end{itemize}
 
-Adicionalmente, la integración del benchmark CEC2017 requiere compilar el
-código de referencia escrito en C++. Para ello se han utilizado
-\texttt{CMake}~4.0.1 y \texttt{Apple Clang}~17.0.0.
+Adicionalmente, la integración del benchmark CEC2017 requiere compilar el código de referencia escrito en C++. Para ello se han utilizado \texttt{CMake}~4.0.1 y \texttt{Apple Clang}~17.0.0.
 
-Estas dependencias cubren la ejecución de las metaheurísticas, el ajuste y la
-evaluación de los modelos subrogados, y el posterior procesamiento de los
-resultados.
+\subsection{Registro y almacenamiento de resultados}
+
+Los resultados generados por las metaheurísticas se almacenan de forma independiente para cada combinación de función, algoritmo y semilla en formato \textbf{HDF5 comprimido}, ya que permite manejar eficientemente grandes volúmenes de datos, con un tamaño reducido por la compresión sin perdida y manteniendo separados los distintos experimentos. Además, al conservar los datos en formato numérico, se preserva la precisión asociada al tipo de dato utilizado. El contenido de este fichero se corresponde con el especificado en la Tabla~\ref{tab:estructura_trayectorias}.
+
+Además del fichero principal, durante la ejecución se generan ficheros
+\textbf{JSON} y \textbf{CSV} auxiliares con estadísticas descriptivas de la
+población, medidas de diversidad y metadatos asociados al mecanismo de
+reinicio. Estos archivos no se emplean como variables de entrada para los modelos subrogados, pero sí son útiles para analizar la dinámica de búsqueda y construir gráficas informativas.
+
+El resto de experimentos también genera archivos auxiliares que recogen, para cada función, metaheurística, semilla, bloque y
+modelo, las métricas principales, los hiperparámetros empleados y
+los tiempos de entrenamiento y predicción. En la integración del modelo subrogado durante la búsqueda, se registra además información específica sobre su uso, como el número de reentrenamientos, el tiempo dedicado al modelo o la proporción de candidatos filtrados.
+
+De este modo, los datos principales de cada ejecución se almacenan en formatos compactos y eficientes y se reservan formatos más ligeros y fáciles de interpretar para el análisis de resultados.
 
 \subsection{Reproducibilidad de los experimentos}
+
+El equipo utilizado para las ejecuciones se corresponde con un MacBook Air, equipado con el procesador Apple M4, que dispone de 10 núcleos distribuidos en 4 de rendimiento y 6 de eficiencia, junto con 16~GB de memoria RAM unificada y el sistema operativo macOS 26.3. Los experimentos se han lanzado de forma \textbf{secuencial}, sin paralelización entre ejecuciones, aunque algunos modelos como Random Forest y XGBoost hacen uso de paralelización interna mediante \texttt{n\_jobs=-1}. Los tiempos de entrenamiento y predicción presentados son directamente comparables dentro del entorno descrito, al haberse obtenido bajo las mismas condiciones de ejecución.
 
 Los experimentos descritos en este capítulo se organizan mediante distintos
 programas de ejecución. Cada uno de ellos corresponde a una fase concreta del
@@ -724,7 +673,7 @@ implementación de los algoritmos.
 \begin{enumerate}
     \item \textbf{\texttt{ejecutar\_metaheuristicas.py}}: implementa el diseño propuesto en las
           Secciones~\ref{sec:benchmark} y~\ref{sec:metaheuristicas}. Ejecuta las metaheurísticas
-          sobre CEC2017 y registra las trayectorias descritas en la
+          sobre CEC2017 y registra los históricos de evaluaciones descritos en la
           Sección~\ref{sec:generacion_trayectorias}.
     \item \textbf{\texttt{ejecutar\_no\_acumulativo.py}} y \textbf{\texttt{ejecutar\_acumulativo.py}}:
           realizan la evaluación temporal de los modelos subrogados. Ambos comparten los mismos
@@ -733,474 +682,7 @@ implementación de los algoritmos.
     \item \textbf{\texttt{ajustar\_hiperparametros.py}}: lleva a cabo el ajuste fino de
           hiperparámetros conservando la estructura temporal
           e introduciendo una partición interna dentro de cada bloque de entrenamiento.
-    \item \textbf{\texttt{ejecutar\_metaheuristicas\_online.py}}: ejecuta las variantes
-          \textit{online} de AGE, DE y SHADE sobre CEC2017, incorporando el filtro
-          subrogado y registrando tanto el rendimiento final como los contadores
-          asociados a la hibridación.
+    \item \textbf{\texttt{ejecutar\_metaheuristicas\_online.py}}: ejecuta las metaheurísticas consideradas sobre CEC2017, incorporando el filtro subrogado y registrando tanto el rendimiento final como los contadores asociados a la hibridación.
 \end{enumerate}
 
-Los parámetros de cada programa se recogen en las tablas siguientes:
-
-\clearpage
-\begingroup
-\setlength{\tabcolsep}{5pt}
-\renewcommand{\arraystretch}{1.3}
-
-\begin{longtable}[htbp]{|p{3.3cm}|p{2.8cm}|p{5.15cm}|}
-    \hline
-    \textbf{Parámetro} & \textbf{Valor por defecto}                                         & \textbf{Descripción} \\
-    \hline
-    \endfirsthead
-
-    \hline
-    \textbf{Parámetro} & \textbf{Valor por defecto}                                         & \textbf{Descripción} \\
-    \hline
-    \endhead
-
-    \texttt{--algoritmo}
-                       & \texttt{all}
-                       & Metaheurística ejecutada. Valores posibles:
-    \begin{itemize}
-        \setlength{\itemsep}{0pt}
-        \setlength{\topsep}{2pt}
-        \item \texttt{age}: algoritmo genético estacionario.
-        \item \texttt{de}: evolución diferencial.
-        \item \texttt{shade}: variante adaptativa SHADE.
-        \item \texttt{all}: ejecuta las tres metaheurísticas.
-    \end{itemize}                                                           \\
-    \hline
-
-    \texttt{--cec-funcid}
-                       & \texttt{-}
-                       & Funciones de CEC2017 ejecutadas. Valores posibles:
-    \begin{itemize}
-        \setlength{\itemsep}{0pt}
-        \setlength{\topsep}{2pt}
-        \item Lista de identificadores: \texttt{1 4 10}
-        \item Lista separada por comas: \texttt{1,4,10}
-        \item Suite completa: \texttt{all}
-    \end{itemize}                                                                 \\
-    \hline
-
-    \texttt{--cec-dim}
-                       & \(10\)
-                       & Dimensión de las funciones de CEC2017. Valores posibles:
-    \begin{itemize}
-        \setlength{\itemsep}{0pt}
-        \setlength{\topsep}{2pt}
-        \item 2
-        \item 5
-        \item 10
-        \item 30
-        \item 50
-    \end{itemize}                                                                                       \\
-    \hline
-
-    \texttt{--seed-start}
-                       & \(1\)
-                       & Primera semilla si no se usa \texttt{--seeds}.                                            \\
-    \hline
-
-    \texttt{--n-seeds}
-                       & \(10\)
-                       & Semillas consecutivas desde \texttt{--seed-start}.                                        \\
-    \hline
-
-    \texttt{--tam-poblacion}
-                       & \(50\)
-                       & Tamaño de la población.                                                                   \\
-    \hline
-
-    \texttt{--max-evals}
-                       & \(10000 \cdot D\)
-                       & Evaluaciones máximas (\(D\) = dimensión del problema).                                    \\
-    \hline
-
-    \texttt{--reinicio}
-                       & \texttt{False}
-                       & Activa el reinicio elitista si se incluye.                                                \\
-    \hline
-
-    \texttt{--reinicio-ratio}
-                       & -
-                       & Fracción del presupuesto total que debe transcurrir sin una mejora
-    relevante del segundo mejor individuo antes de activar el reinicio. Valores evaluados:
-    \begin{itemize}
-        \setlength{\itemsep}{0pt}
-        \setlength{\topsep}{2pt}
-        \item \(0.01\)
-        \item \(0.03\)
-        \item \(0.05\)
-        \item \(0.07\)
-        \item \(0.10\)
-    \end{itemize}                                                                                       \\
-    \hline
-
-    \texttt{--outdir}
-                       & \makecell[l]{\texttt{results/}                                                            \\\texttt{resultados\_}\\\texttt{benchmark\_mhs}}
-                       & Directorio utilizado para almacenar los resultados.                                       \\
-    \hline
-
-    \texttt{--seeds}
-                       & -
-                       & Lista explícita de semillas. Si se utiliza, sustituye a
-    \texttt{--seed-start} y \texttt{--n-seeds}. Admite valores separados
-    por espacios o comas. Por ejemplo:
-    \begin{itemize}
-        \setlength{\itemsep}{0pt}
-        \setlength{\topsep}{2pt}
-        \item \texttt{--seeds 1 2 3}
-        \item \texttt{--seeds 1,2,3}
-    \end{itemize}                                                                                    \\
-    \hline
-
-    \texttt{--sin-metricas}
-                       & \texttt{False}
-                       & Desactiva el registro de métricas y trayectorias.                                         \\
-    \hline
-
-    \texttt{--verbose}
-                       & \texttt{False}
-                       & Muestra progreso por terminal si se incluye.                                              \\
-    \hline
-    \caption{Parámetros de \texttt{ejecutar\_metaheuristicas.py}.}
-    \label{tab:parametros_mhs_benchmark}
-\end{longtable}
-
-\endgroup
-
-\clearpage
-\begingroup
-\setlength{\tabcolsep}{5pt}
-\renewcommand{\arraystretch}{1.3}
-
-\begin{longtable}[htbp]{|p{4.2cm}|p{1.8cm}|p{5.25cm}|}
-    \hline
-    \textbf{Parámetro} & \textbf{Valor por defecto}                                                                   & \textbf{Descripción} \\
-    \hline
-    \endfirsthead
-
-    \hline
-    \textbf{Parámetro} & \textbf{Valor por defecto}                                                                   & \textbf{Descripción} \\
-    \hline
-    \endhead
-
-    \texttt{--resultados-dir}
-                       & -
-                       & Directorio con los resultados generados por el programa de ejecución de metaheurísticas.                            \\
-    \hline
-
-    \texttt{--algoritmo}
-                       & \texttt{all}
-                       & Metaheurística que generó los datos. Valores posibles:
-    \begin{itemize}
-        \setlength{\itemsep}{0pt}
-        \setlength{\topsep}{2pt}
-        \item \texttt{age}: algoritmo genético estacionario.
-        \item \texttt{de}: evolución diferencial.
-        \item \texttt{shade}: variante adaptativa SHADE.
-        \item \texttt{all}: evalúa las tres metaheurísticas.
-    \end{itemize}                                                                                      \\
-    \hline
-
-    \texttt{--cec-funcid}
-                       & -
-                       & Funciones de CEC2017 ejecutadas. Valores posibles:
-    \begin{itemize}
-        \setlength{\itemsep}{0pt}
-        \setlength{\topsep}{2pt}
-        \item Lista de identificadores: \texttt{1 4 10}
-        \item Lista separada por comas: \texttt{1,4,10}
-        \item Suite completa: \texttt{all}
-    \end{itemize}                                                                                           \\
-    \hline
-
-    \texttt{--modelo}
-                       & -
-                       & Técnica subrogada a evaluar.                                                                                        \\
-    \hline
-
-    \texttt{--seed}
-                       & \(42\)
-                       & Semilla utilizada por el generador pseudoaleatorio para construir el conjunto de validación.                        \\
-    \hline
-
-    \texttt{--max-seeds}
-                       & -
-                       & Número máximo de trayectorias. Sin límite si se omite.                                                              \\
-    \hline
-
-    \texttt{--modelo-params-json}
-                       & -
-                       & Configuración JSON de hiperparámetros del modelo. Opcional.                                                         \\
-    \hline
-    \caption[Parámetros de los programas de evaluación \textit{offline}.]{Parámetros de los programas de evaluación \textit{offline} acumulativa y no acumulativa.}
-    \label{tab:parametros_runners_offline}
-\end{longtable}
-
-\endgroup
-
-\begingroup
-\setlength{\tabcolsep}{5pt}
-\renewcommand{\arraystretch}{1.3}
-
-\begin{longtable}[htbp]{|p{4.2cm}|p{2.2cm}|p{4.85cm}|}
-    \hline
-    \textbf{Parámetro} & \textbf{Valor por defecto}                                                    & \textbf{Descripción} \\
-    \hline
-    \endfirsthead
-
-    \hline
-    \textbf{Parámetro} & \textbf{Valor por defecto}                                                    & \textbf{Descripción} \\
-    \hline
-    \endhead
-
-    \texttt{--trayectoria-dir}
-                       & -
-                       & Directorio con las trayectorias generadas por las metaheurísticas.                                   \\
-    \hline
-
-    \makecell[l]{\texttt{--ajuste-}                                                                                           \\\texttt{resultados-dir}}
-                       & \makecell[l]{\scriptsize\texttt{resultados\_}                                                        \\\scriptsize\texttt{benchmark\_}      \\\scriptsize\texttt{surrogates\_}      \\\scriptsize\texttt{offline\_ajuste}}
-                       & Subdirectorio donde se almacenan los resultados del ajuste.                                          \\
-    \hline
-
-    \texttt{--algoritmo}
-                       & \texttt{all}
-                       & Metaheurística que generó los datos. Valores posibles:
-    \begin{itemize}
-        \setlength{\itemsep}{0pt}
-        \setlength{\topsep}{2pt}
-        \item \texttt{age}: algoritmo genético estacionario.
-        \item \texttt{de}: evolución diferencial.
-        \item \texttt{shade}: variante adaptativa SHADE.
-        \item \texttt{all}: evalúa las tres metaheurísticas.
-    \end{itemize}                                                                       \\
-    \hline
-
-    \texttt{--cec-funcid}
-                       & -
-                       & Funciones de CEC2017 utilizadas en la ejecución. Valores posibles:
-    \begin{itemize}
-        \setlength{\itemsep}{0pt}
-        \setlength{\topsep}{2pt}
-        \item Identificador individual: \texttt{1} o \texttt{f1}.
-        \item Lista separada por comas: \texttt{1,4,10}.
-        \item Suite completa: \texttt{all}.
-    \end{itemize}                                                                  \\
-    \hline
-
-    \texttt{--modelo}
-                       & \texttt{all}
-                       & Técnica subrogada sometida al ajuste fino. Valores posibles:
-    \begin{itemize}
-        \setlength{\itemsep}{0pt}
-        \setlength{\topsep}{2pt}
-        \item \texttt{rbf}
-        \item \texttt{svr}
-        \item \texttt{mlp}
-        \item \texttt{rsm}
-        \item \texttt{random\_forest}
-        \item \texttt{hgb}
-        \item \texttt{lasso}
-        \item \texttt{xgboost}
-        \item \texttt{all}
-    \end{itemize}                                                                                              \\
-    \hline
-
-    \texttt{--param-grid-json}
-                       & -
-                       & Fichero JSON opcional con el espacio de hiperparámetros. Si se omite, se usa
-    el grid interno por defecto del modelo.                                                                                   \\
-    \hline
-
-    \texttt{--metrica-ajuste}
-                       & \texttt{spearman}
-                       & Métrica para seleccionar la configuración óptima. Valores posibles:
-    \begin{itemize}
-        \setlength{\itemsep}{0pt}
-        \setlength{\topsep}{2pt}
-        \item \texttt{spearman}
-        \item \texttt{mae}
-        \item \texttt{rmse}
-        \item \texttt{nmae}
-        \item \texttt{nrmse}
-    \end{itemize}                                                                                                  \\
-    \hline
-
-    \texttt{--validacion-ratio}
-                       & \(0.20\)
-                       & Fracción final del bloque para validación interna. Debe cumplir
-    \(0 < r < 0.5\).                                                                                                          \\
-    \hline
-
-    \texttt{--seed}
-                       & \(42\)
-                       & Semilla empleada durante el ajuste.                                                                  \\
-    \hline
-
-    \makecell[l]{\texttt{--seed-selection-}                                                                                   \\\texttt{random-state}}
-                       & \(42\)
-                       & Semilla utilizada para seleccionar el subconjunto de trayectorias
-    cuando se limita el número de semillas con
-    \texttt{--max-seeds}.                                                                                                     \\
-    \hline
-
-    \texttt{--max-seeds}
-                       & -
-                       & Número máximo de trayectorias. Sin límite si se omite. Si se indica, debe ser
-    mayor o igual que \(1\) y no superar las trayectorias disponibles.                                                        \\
-    \hline
-    \caption{Parámetros de \texttt{ajustar\_hiperparametros.py}.}
-    \label{tab:parametros_tuning_runner}
-\end{longtable}
-
-\endgroup
-
-Los espacios de hiperparámetros
-concretos y las configuraciones seleccionadas se presentan junto con sus
-resultados en el capítulo siguiente.
-
-\clearpage
-\begingroup
-\setlength{\tabcolsep}{5pt}
-\renewcommand{\arraystretch}{1.3}
-
-\begin{longtable}[htbp]{|p{4.2cm}|p{2.3cm}|p{4.75cm}|}
-    \hline
-    \textbf{Parámetro} & \textbf{Valor por defecto}                                                     & \textbf{Descripción} \\
-    \hline
-    \endfirsthead
-
-    \hline
-    \textbf{Parámetro} & \textbf{Valor por defecto}                                                     & \textbf{Descripción} \\
-    \hline
-    \endhead
-
-    \texttt{--algoritmo}
-                       & \texttt{age}
-                       & Metaheurística \textit{online} ejecutada. Valores posibles:
-    \begin{itemize}
-        \setlength{\itemsep}{0pt}
-        \setlength{\topsep}{2pt}
-        \item \texttt{age}
-        \item \texttt{de}
-        \item \texttt{shade}
-        \item \texttt{all}
-    \end{itemize}
-    También admite listas separadas por espacios o comas.                                                                      \\
-    \hline
-
-    \texttt{--cec-funcid}
-                       & -
-                       & Funciones de CEC2017 ejecutadas. Admite identificadores individuales, listas
-    separadas por espacios o comas, y \texttt{all} para la suite completa.                                                     \\
-    \hline
-
-    \texttt{--cec-dim}
-                       & \(10\)
-                       & Dimensión de las funciones CEC2017. Valores posibles: \(2\), \(5\), \(10\),
-    \(30\) y \(50\).                                                                                                           \\
-    \hline
-
-    \texttt{--seed-start}
-                       & \(1\)
-                       & Primera semilla si no se proporciona una lista explícita mediante
-    \texttt{--seeds}.                                                                                                          \\
-    \hline
-
-    \texttt{--n-seeds}
-                       & \(10\)
-                       & Número de semillas consecutivas generadas a partir de
-    \texttt{--seed-start}.                                                                                                     \\
-    \hline
-
-    \texttt{--seeds}
-                       & -
-                       & Lista explícita de semillas. Si se indica, sustituye a
-    \texttt{--seed-start} y \texttt{--n-seeds}.                                                                                \\
-    \hline
-
-    \texttt{--tam-poblacion}
-                       & \(50\)
-                       & Tamaño de población utilizado por las metaheurísticas.                                                \\
-    \hline
-
-    \texttt{--max-evals}
-                       & \(10000 \cdot D\)
-                       & Presupuesto máximo de evaluaciones reales.                                                            \\
-    \hline
-
-    \texttt{--reinicio}
-                       & \texttt{False}
-                       & Activa el mecanismo de reinicio elitista en la metaheurística \textit{online}.                        \\
-    \hline
-
-    \texttt{--reinicio-ratio}
-                       & -
-                       & Fracción del presupuesto que debe transcurrir sin mejora antes de permitir
-    el reinicio. Solo puede utilizarse junto con \texttt{--reinicio}.                                                          \\
-    \hline
-
-    \texttt{--modelo}
-                       & Modelo seleccionado
-                       & Modelo subrogado empleado por el filtro \textit{online}.                                              \\
-    \hline
-
-    \makecell[l]{\texttt{--modelo-params-}                                                                                     \\\texttt{json}}
-                       & Config. del modelo seleccionado
-                       & Fichero JSON con los hiperparámetros del modelo subrogado.                                            \\
-    \hline
-
-    \texttt{--modelo-prob}
-                       & \(0.50\)
-                       & Probabilidad \(p\) de aplicar el filtro subrogado a un candidato. Debe estar
-    en \([0,1]\). En las pruebas se consideran \(0.00\), \(0.25\), \(0.50\)
-    y \(0.75\).                                                                                                                \\
-    \hline
-
-    \texttt{--warmup-ratio}
-                       & \(0.20\)
-                       & Proporción inicial del presupuesto durante la cual el subrogado permanece
-    inactivo y todas las evaluaciones aceptadas se realizan con la función real.                                               \\
-    \hline
-
-    \texttt{--window-ratio}
-                       & \(0.20\)
-                       & Proporción del presupuesto utilizada para definir la ventana reciente de
-    entrenamiento del subrogado.                                                                                               \\
-    \hline
-
-    \texttt{--retrain-ratio}
-                       & \(0.25\)
-                       & Fracción de la ventana que debe renovarse antes de reentrenar el modelo.
-    En las pruebas se consideran \(0.25\), \(0.50\) y \(0.75\).                                                                \\
-    \hline
-
-    \makecell[l]{\texttt{--cooldown-}                                                                                          \\\texttt{reinicio-evals}}
-                       & \(0\)
-                       & Número de evaluaciones reales de enfriamiento tras cada reinicio. El valor
-    \(0\) desactiva este mecanismo. En las pruebas se consideran \(0\), \(50\),
-    \(100\) y \(500\).                                                                                                         \\
-    \hline
-
-    \makecell[l]{\texttt{--guardar-}                                                                                           \\\texttt{decisiones-subrogado}}
-                       & \texttt{False}
-                       & Guarda un fichero con las decisiones del filtro, incluyendo la predicción,
-    la referencia real y el margen entre ambas.                                                                                \\
-    \hline
-
-    \texttt{--outdir}
-                       & \makecell[l]{\texttt{results/}                                                                        \\\texttt{cec/}                           \\\texttt{cec2017\_d10}                  \\\texttt{\_tam50}                       \\\texttt{\_online}}
-                       & Directorio donde se almacenan los resultados de la ejecución \textit{online}.                         \\
-    \hline
-
-    \texttt{--verbose}
-                       & \texttt{False}
-                       & Muestra el progreso de las ejecuciones por terminal.                                                  \\
-    \hline
-    \caption{Parámetros de \texttt{ejecutar\_metaheuristicas\_online.py}.}
-    \label{tab:parametros_runner_online}
-\end{longtable}
-
-\endgroup
+Los parámetros de cada programa se recogen en el Apéndice~\ref{ap:parametros_experimentos}.

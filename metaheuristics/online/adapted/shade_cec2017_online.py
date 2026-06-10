@@ -16,8 +16,8 @@ from metaheuristics.online.surrogate_stats import (
     EstadisticasSubrogado,
     guardar_decisiones_subrogado_csv,
 )
-from metaheuristics.problems.cec2017_problem import CEC2017Problem
-from metaheuristics.shade.adapted.shade_cec2017 import SHADECEC2017
+from metaheuristics.cec2017 import CEC2017Problem
+from metaheuristics.offline.adapted.shade_cec2017 import SHADECEC2017
 
 
 class SHADECEC2017Online(SHADECEC2017):
@@ -88,7 +88,7 @@ class SHADECEC2017Online(SHADECEC2017):
                         int(g) + 1,
                     ),
                     offset_current_generation=1,
-                    restart_manager=self.shade.aplicar_reinicio_elitista_desde_estado,
+                    restart_manager=self.shade._aplicar_reinicio,
                 )
 
             max_evals = (
@@ -184,10 +184,9 @@ class SHADECEC2017Online(SHADECEC2017):
                         )
 
                     metadata_reinicios = construir_metadata_reinicios(
-                        self.shade.eventos_reinicio_elitista,
-                        self.shade.reinicio_elitista_ratio_estabilidad_diversidad,
-                        self.shade.reinicio_elitista_ratio_paciencia,
-                        self.shade.reinicio_elitista,
+                        self.shade.eventos_reinicio,
+                        self.shade.reinicio_ratio,
+                        self.shade.reinicio,
                     )
 
                     ficheros_metricas = recolector.guardar_csv_json(
@@ -211,7 +210,7 @@ class SHADECEC2017Online(SHADECEC2017):
 
                     ruta_reinicios_csv = guardar_reinicios_elitistas_csv(
                         ruta_base,
-                        self.shade.eventos_reinicio_elitista,
+                        self.shade.eventos_reinicio,
                     )
                     ficheros_dataset = (
                         dataset.guardar_csv_json(ruta_base)
@@ -240,7 +239,7 @@ class SHADECEC2017Online(SHADECEC2017):
                     )
                     resultado["ruta_decisiones_subrogado_csv"] = ruta_decisiones_csv
 
-            resultado["reinicios_elitistas"] = list(self.shade.eventos_reinicio_elitista)
+            resultado["reinicios"] = list(self.shade.eventos_reinicio)
             return resultado
 
         finally:

@@ -4,7 +4,7 @@ from pathlib import Path
 
 import numpy as np
 
-from metaheuristics.age.adapted.genetic_stationary_cec2017 import GeneticStationaryCEC2017
+from metaheuristics.offline.adapted.age_cec2017 import GeneticStationaryCEC2017
 from metaheuristics.metrics import CallbackMetricasAGE, SurrogateDataset
 from metaheuristics.metrics.reinicio_elitista import (
     construir_metadata_reinicios,
@@ -19,7 +19,7 @@ from metaheuristics.online.surrogate_stats import (
     EstadisticasSubrogado,
     guardar_decisiones_subrogado_csv,
 )
-from metaheuristics.problems.cec2017_problem import CEC2017Problem
+from metaheuristics.cec2017 import CEC2017Problem
 
 
 class GeneticStationaryCEC2017Online(GeneticStationaryCEC2017):
@@ -130,10 +130,9 @@ class GeneticStationaryCEC2017Online(GeneticStationaryCEC2017):
                         )
 
                     metadata_reinicios = construir_metadata_reinicios(
-                        self.age.eventos_reinicio_elitista,
-                        self.age.reinicio_elitista_ratio_estabilidad_diversidad,
-                        self.age.reinicio_elitista_ratio_paciencia,
-                        self.age.reinicio_elitista,
+                        self.age.eventos_reinicio,
+                        self.age.reinicio_ratio,
+                        self.age.reinicio,
                     )
 
                     ficheros_metricas = recolector.guardar_csv_json(
@@ -158,7 +157,7 @@ class GeneticStationaryCEC2017Online(GeneticStationaryCEC2017):
 
                     ruta_reinicios_csv = guardar_reinicios_elitistas_csv(
                         ruta_base,
-                        self.age.eventos_reinicio_elitista,
+                        self.age.eventos_reinicio,
                     )
 
                     ficheros_dataset = (
@@ -201,7 +200,7 @@ class GeneticStationaryCEC2017Online(GeneticStationaryCEC2017):
                 resultado["ruta_decisiones_subrogado_csv"] = ruta_decisiones_csv
                 resultado["ruta_resumen_online"] = str(ruta_online_json)
 
-            resultado["reinicios_elitistas"] = list(self.age.eventos_reinicio_elitista)
+            resultado["reinicios"] = list(self.age.eventos_reinicio)
             return resultado
 
         finally:

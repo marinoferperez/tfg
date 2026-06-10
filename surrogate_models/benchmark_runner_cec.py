@@ -12,7 +12,6 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 from sklearn.preprocessing import StandardScaler
-from surrogate_models.feature_builders import construir_features
 from surrogate_models.select_model import select_model
 from preprocesado_de_datos.utils.path_utils import (
     ALGORITMOS_MH,
@@ -101,7 +100,7 @@ def ejecutar_benchmark(
 
     for dataset_path in dataset_paths:
         dataset = cargar_dataset(dataset_path)
-        x = construir_features(dataset, feature_mode)
+        x = np.asarray(dataset["x"], dtype=float)
         y = np.asarray(dataset["fitness"], dtype=float).ravel()
 
         splits = split_por_run_aleatorio(

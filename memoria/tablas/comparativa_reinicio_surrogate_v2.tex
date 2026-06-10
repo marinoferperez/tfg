@@ -1,0 +1,17 @@
+\begin{table}[H]
+    \centering
+    \small
+    \begin{adjustbox}{max width=\textwidth}
+\begin{tabular}{l r r r r r r r}
+\toprule
+\textbf{Algoritmo} & \textbf{Vic. con (\%)} & \textbf{Sp. con} & \textbf{Sp. sin} & \textbf{Tr. con (s)} & \textbf{Tr. sin (s)} & \textbf{Pred. con (s)} & \textbf{Pred. sin (s)} \\
+\midrule
+AGE & 21.7\% & 0.5334 & \textbf{0.6312} & 0.0060 & \textbf{0.0049} & 0.8066 & \textbf{0.5059} \\
+DE & \textbf{55.0\%} & \textbf{0.3673} & 0.3284 & 0.0054 & \textbf{0.0047} & 0.6703 & \textbf{0.3483} \\
+SHADE & \textbf{50.8\%} & \textbf{0.6216} & 0.5472 & 0.0058 & \textbf{0.0047} & 0.6460 & \textbf{0.3291} \\
+\bottomrule
+\end{tabular}
+    \end{adjustbox}
+    \caption[Comparación de RBF con y sin reinicio por algoritmo.]{Comparación de RBF con y sin reinicio por algoritmo. Victorias: porcentaje de combinaciones (función~$\times$~bloque) en las que el escenario con reinicio supera al sin reinicio en Spearman. Tiempos medios de entrenamiento y predicción agregados sobre funciones y bloques.}
+    \label{tab:comparativa_reinicio_surrogate_v2}
+\end{table}

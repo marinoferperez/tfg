@@ -1,6 +1,6 @@
 import numpy as np
 
-from metaheuristics.de.differential_evolution import (
+from metaheuristics.offline.algorithms.de import (
     DifferentialEvolution,
     pyade_commons,
     pyade_de,
@@ -52,7 +52,7 @@ class DifferentialEvolutionOnline(DifferentialEvolution):
 
     def _evaluar_reinicio_real(self, individuo):
         return self._evaluar_individuo_real(
-            problem=self._problem,
+            problem=self._problema,
             individuo=individuo,
             eval_id=self.evals + 1,
             generacion=getattr(self, "_generacion_actual", 0),
@@ -61,8 +61,8 @@ class DifferentialEvolutionOnline(DifferentialEvolution):
             evaluacion_filtrada_por_subrogado=False,
         )
 
-    def aplicar_reinicio_elitista_desde_estado(self, estado, generacion):
-        aplicado = super().aplicar_reinicio_elitista_desde_estado(
+    def _aplicar_reinicio(self, estado, generacion):
+        aplicado = super()._aplicar_reinicio(
             estado=estado,
             generacion=generacion,
         )
@@ -78,8 +78,8 @@ class DifferentialEvolutionOnline(DifferentialEvolution):
         dim = int(limites.shape[0])
 
         self.evals = 0
-        self.eventos_reinicio_elitista = []
-        self._problem = problem
+        self.eventos_reinicio = []
+        self._problema = problem
         self._dataset = dataset
         self._controlador_subrogado = controlador_subrogado
         self._generacion_actual = 0
@@ -113,15 +113,13 @@ class DifferentialEvolutionOnline(DifferentialEvolution):
         bounds = np.asarray(params["bounds"], dtype=float)
 
         self._max_evals_reales = max_evals
-        if self.reinicio_elitista:
-            self._control_reinicio_elitista = ControlReinicioElitista(
-                self.reinicio_elitista_ratio_estabilidad_diversidad,
+        if self.reinicio:
+            self._gestor_reinicio = ControlReinicioElitista(
                 max_evals=max_evals,
-                ratio_paciencia=self.reinicio_elitista_ratio_paciencia,
-                ventana_evaluaciones=self.reinicio_elitista_ventana_evaluaciones,
+                ratio_paciencia=self.reinicio_ratio,
             )
         else:
-            self._control_reinicio_elitista = None
+            self._gestor_reinicio = None
 
         np.random.seed(seed)
         population = pyade_commons.init_population(population_size, individual_size, bounds)
@@ -227,8 +225,8 @@ class DifferentialEvolutionOnline(DifferentialEvolution):
 
             if callback_metricas is not None:
                 callback_metricas(**estado)
-            elif self.reinicio_elitista:
-                self.aplicar_reinicio_elitista_desde_estado(
+            elif self.reinicio:
+                self._aplicar_reinicio(
                     estado=estado,
                     generacion=generacion,
                 )

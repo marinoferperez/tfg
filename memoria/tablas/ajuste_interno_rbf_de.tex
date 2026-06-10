@@ -1,0 +1,20 @@
+\begin{table}[H]
+    \centering
+    \small
+    \setlength{\tabcolsep}{4pt}
+    \begin{adjustbox}{max width=\textwidth}
+        \begin{tabular}{llll|rrrr}
+            \toprule
+            \textbf{Kernel} & \textbf{$\varepsilon$} & \textbf{Smoothing} & \textbf{Vecinos} & \textbf{Rank medio} & \textbf{Spearman} & \textbf{Entren.\ (s)} & \textbf{Pred.\ (s)} \\
+            \midrule
+            \textit{mq} & $10.0$ & $10^{-3}$ & 100 & \textbf{14.807} & \textbf{0.3730} & 0.0030 & 0.4159 \\
+            \textit{mq} & $1.0$ & $10^{-3}$ & 100 & 15.420 & 0.3480 & 0.0030 & 0.4168 \\
+            \textit{mq} & $10.0$ & $10^{-2}$ & 100 & 15.739 & 0.3602 & 0.0030 & \textbf{0.4156} \\
+            \textit{gauss} & $10.0$ & $10^{-3}$ & 100 & 16.436 & 0.3274 & \textbf{0.0030} & 0.4499 \\
+            \textit{gauss} & $1.0$ & $10^{-3}$ & 100 & 16.580 & 0.3085 & 0.0030 & 0.4510 \\
+            \bottomrule
+        \end{tabular}
+    \end{adjustbox}
+    \caption[Cinco mejores configuraciones de RBF para DE según rango medio sobre Spearman interno.]{Cinco mejores configuraciones de RBF para DE. El rango medio se calcula por combinación función$\times$bloque$\times$semilla sobre las 36 configuraciones candidatas ($\text{degree}=-1$ en todas; \textit{mq} = \textit{multiquadric}, \textit{gauss} = \textit{gaussian}).}
+    \label{tab:ajuste_interno_rbf_de}
+\end{table}

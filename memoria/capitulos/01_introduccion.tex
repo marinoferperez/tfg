@@ -7,36 +7,47 @@
 
 \chapter{Introducción}
 \label{chap:introduccion}
-\label{ref:introduccion}
 
-La optimización de problemas complejos continuos constituye un área de alta relevancia dentro de la informática y, en particular, dentro de los ámbitos relacionados con la inteligencia artificial y la computación evolutiva. En un gran número de aplicaciones reales, desde el ajuste de parámetros y el diseño de sistemas hasta la planificación, la asignación de recursos o la optimización de procesos, el objetivo consiste en encontrar configuraciones de alta calidad dentro de espacios de búsqueda de gran dimensión y, normalmente, difíciles de abordar mediante métodos exactos o deterministas. En estos casos, la dificultad no reside únicamente en el tamaño del espacio de búsqueda, sino también en la complejidad del propio problema de optimización, que puede presentar múltiples óptimos locales, interacciones no triviales entre variables o elementos de decisión, y una estructura global difícil de modelar.
+La optimización de problemas complejos continuos constituye un área de alta relevancia dentro de la informática y, en particular, dentro del marco de la inteligencia artificial y la computación evolutiva. En un gran número de aplicaciones reales, el objetivo consiste en encontrar configuraciones de alta calidad dentro de espacios de búsqueda de gran dimensión y, normalmente, difíciles de abordar mediante métodos exactos o deterministas. La dificultad no reside únicamente en el tamaño del espacio de búsqueda, sino también en la complejidad del propio problema de optimización.
 
-En este contexto, las metaheurísticas han adquirido un papel relevante debido a su capacidad para explorar espacios de búsqueda complejos. A diferencia de otros métodos de optimización, estas técnicas permiten trabajar con problemas multimodales, no lineales o de estructura desconocida, lo que explica su utilización cuando no existen métodos exactos adecuados o cuando su aplicación no es favorecedora desde el punto de vista computacional. Entre ellas, los algoritmos evolutivos ocupan una posición destacada, ya que combinan mecanismos de exploración y explotación inspirados en procesos adaptativos para aproximar soluciones de alta calidad en problemas de muy diversa naturaleza.
+En este contexto, las metaheurísticas han adquirido un papel relevante debido a su capacidad para explorar espacios de búsqueda complejos. A diferencia de otros métodos de optimización, estas técnicas permiten trabajar con problemas multimodales, no lineales o de estructura desconocida, lo que explica su utilización cuando no existen métodos exactos adecuados o cuando su aplicación no es óptima computacionalmente. Entre ellas, los algoritmos evolutivos destacan por combinar mecanismos de exploración y explotación para aproximar soluciones de alta calidad en problemas de muy diversa naturaleza.
 
-Sin embargo, esta versatilidad suele venir acompañada de un inconveniente crítico: el elevado número de evaluaciones de la función objetivo necesarias para alcanzar soluciones competitivas. En la mayoría de algoritmos evolutivos, cada nueva solución generada debe ser evaluada para determinar su calidad y guiar así el proceso de búsqueda. Cuando dicha evaluación es sencilla, este coste no supone un gran impacto computacional. No obstante, en numerosos problemas reales la función objetivo representa simulaciones complejas, procesos físicos o procedimientos numéricos de alta carga computacional, de modo que el tiempo total de ejecución queda dominado por el coste acumulado de esas evaluaciones. En estas situaciones, incluso metaheurísticas bien diseñadas resultan inviables si no se dispone de mecanismos que reduzcan dicho esfuerzo computacional.
+Sin embargo, esta versatilidad tiene un coste importante: las metaheurísticas suelen necesitar muchas evaluaciones de la función objetivo para obtener soluciones competitivas. En la mayoría de algoritmos evolutivos, cada solución candidata debe evaluarse para estimar su calidad y orientar el proceso de búsqueda. Cuando dicha evaluación es sencilla, este proceso no supone un problema computacional. No obstante, en problemas reales donde la función objetivo representa simulaciones complejas, procesos físicos o procedimientos numéricos de alta carga computacional, el tiempo total de ejecución queda dominado por el coste acumulado de esas evaluaciones. En estos casos, incluso metaheurísticas bien diseñadas resultan inviables si no se dispone de mecanismos que reduzcan dicho esfuerzo computacional.
 
-Esta limitación ha impulsado el interés por investigar estrategias que permitan mantener la capacidad exploratoria de las metaheurísticas reduciendo el número de evaluaciones reales. Entre las alternativas más utilizadas se encuentra la incorporación de técnicas de aprendizaje automático capaces de aproximar el comportamiento de la función objetivo a partir de los datos observados durante el propio proceso de optimización. Estos enfoques, conocidos como técnicas subrogadas, facilitan el aprovechamiento de la información acumulada durante la optimización para orientar la búsqueda de forma más eficiente.
+Esta limitación ha impulsado el interés por investigar estrategias que permitan
+mantener la capacidad exploratoria de las metaheurísticas reduciendo el número
+de evaluaciones reales. Entre las alternativas más utilizadas se encuentran las
+técnicas subrogadas, capaces de estimar el comportamiento de la función objetivo
+a partir de los datos observados durante el propio proceso de optimización. De
+este modo, la información obtenida por la metaheurística puede utilizarse no
+solo para actualizar la población, sino también para construir un modelo
+auxiliar capaz de orientar la búsqueda de forma más eficiente. En este tipo de
+integración, la utilidad del subrogado no depende únicamente de aproximar con
+precisión el valor numérico de la función objetivo, sino también de preservar
+correctamente las relaciones de calidad entre soluciones candidatas, ya que
+muchas decisiones evolutivas se basan en comparar individuos más que en conocer
+su valor exacto.
 
 \section{Motivación}
 \label{sec:motivacion}
 
-Ante este escenario, se evidencia una brecha metodológica: el aprendizaje automático y la computación evolutiva han operado tradicionalmente como dos comunidades científicas independientes, lo que genera una falta de retroalimentación (\textit{feedback}) mutua en el diseño de algoritmos híbridos. La oportunidad de conectar ambas disciplinas motiva el núcleo de esta investigación. Sin embargo, integrar un modelo de aproximación en un procedimiento evolutivo plantea desafíos críticos, ya que la distribución de las soluciones evaluadas cambia conforme la población evoluciona y transita entre fases de exploración y explotación. Un modelo mal ajustado o poco representativo puede introducir sesgos perjudiciales, lo que exige fundamentar la hibridación en un análisis riguroso de los datos generados por las propias trayectorias de búsqueda.
+Debido a que el aprendizaje automático y la computación evolutiva se han desarrollado tradicionalmente como dos comunidades científicas independientes, existe una falta de retroalimentación mutua en el diseño de algoritmos híbridos. La oportunidad de conectar ambas disciplinas motiva y define el objetivo de esta investigación. Sin embargo, integrar un modelo de aproximación en un procedimiento evolutivo plantea dificultades, ya que la distribución de las soluciones evaluadas  cambian conforme la población evoluciona y dependen de la naturaleza de la propia metaheurística. Esta característica hace que no baste con entrenar un modelo de forma aislada, sino que sea necesario fundamentar la hibridación en un análisis de los datos generados por la metaheurística y cómo pueden aprovecharse.
 
-Con el objetivo de resolver esta problemática, en este Trabajo de Fin de Grado vamos a estudiar y ajustar cómo se pueden utilizar los algoritmos de aprendizaje automático a partir del histórico de soluciones de los distintos algoritmos evolutivos para aplicarlas como técnicas de subrogado, y vamos a demostrar experimentalmente cómo se comportan. Para ello, evaluaremos el rendimiento de las metaheurísticas sobre un banco de problemas continuos estandarizado a través de un enfoque metodológico dividido en dos etapas consecutivas. En primer lugar, realizaremos un análisis \textit{offline} aprovechando el histórico de datos recolectado de manera nativa por las dinámicas de búsqueda y los mecanismos de reinicio de los algoritmos, permitiendo entrenar, validar y parametrizar diferentes modelos regresivos para determinar con precisión qué técnicas y bajo qué configuraciones de hiperparámetros exhiben mayor utilidad métrica y ranking. En segundo lugar, utilizaremos las conclusiones extraídas de dicha caracterización previa para integrar de forma \textit{online} los mejores modelos detectados dentro del propio bucle operativo de los algoritmos evolutivos, validando de manera dinámica su capacidad real para guiar eficazmente el proceso de optimización.
+Con el objetivo de conectar estas dos comunidades, en este Trabajo de Fin de Grado vamos a estudiar y mejorar el proceso de cómo se pueden utilizar los algoritmos de aprendizaje automático a partir del histórico de soluciones de los distintos algoritmos evolutivos para aplicarlas como técnicas de subrogado, y vamos a demostrar experimentalmente cómo se comportan.
+Para ello, evaluaremos el rendimiento de las metaheurísticas sobre un banco de problemas continuos a través de un enfoque metodológico dividido en dos etapas. En primer lugar, analizaremos el histórico de datos recolectado por los algoritmos para determinar con precisión qué técnicas y bajo qué configuraciones de hiperparámetros muestran mayor utilidad para ordenar soluciones candidatas. En segundo lugar, utilizaremos las conclusiones extraídas para integrar los mejores modelos detectados dentro de los algoritmos evolutivos, validando de manera dinámica su capacidad real para guiar eficazmente el proceso de optimización.
 
 \section{Objetivos}
 
-El objetivo principal de este Trabajo de Fin de Grado consiste en estudiar, implementar y evaluar el uso de modelos de aproximación como técnicas de subrogado para asistir a algoritmos evolutivos en problemas de optimización continua. Para ello, se parte del histórico de soluciones generado por las propias metaheurísticas, se analiza de forma \textit{offline} qué modelos y estrategias resultan más adecuados y, posteriormente, se estudia su integración \textit{online} dentro del proceso de búsqueda. Con ello se persigue valorar en qué medida estas técnicas pueden reducir el uso de evaluaciones reales o guiar la búsqueda sin deteriorar de forma relevante la calidad final de las soluciones.
+El objetivo principal de este Trabajo de Fin de Grado consiste en estudiar, implementar y evaluar el uso de modelos de aproximación como técnicas de subrogado para asistir a algoritmos evolutivos en problemas de optimización continua.
 
-Para alcanzar este objetivo general, se plantean los siguientes objetivos específicos:
+En resumen, los objetivos de este trabajo son:
 
 \begin{enumerate}
-  \item Analizar el comportamiento de las metaheurísticas seleccionadas sobre el banco de problemas considerado, identificando situaciones de convergencia prematura o estancamiento que puedan generar trayectorias poco informativas para la fase de aprendizaje.
-  \item Evaluar un mecanismo de reinicio elitista como herramienta auxiliar para reducir el estancamiento de las trayectorias, preservando la mejor solución encontrada y evitando deterioros relevantes en la calidad final.
-  \item Construir y evaluar protocolos \textit{offline} de entrenamiento y validación que respeten la estructura temporal de las muestras, comparando estrategias acumulativas y no acumulativas, así como distintos momentos del presupuesto de evaluaciones.
-  \item Entrenar y comparar diferentes familias de modelos de subrogado, incluyendo técnicas de aprendizaje automático y aproximadores clásicos, mediante métricas de error numérico, métricas de ranking y coste temporal de entrenamiento.
-  \item Determinar, a partir del análisis experimental, qué combinaciones de metaheurística, estrategia \textit{offline}, modelo y momento de integración resultan más prometedoras para su posterior uso en una hibridación \textit{online}.
-  \item Diseñar, implementar y evaluar la integración \textit{online} de los modelos seleccionados dentro del bucle operativo de los algoritmos evolutivos, analizando su efecto sobre la calidad de las soluciones, la dinámica de convergencia y el uso de evaluaciones reales de la función objetivo.
+    \item Evaluar el comportamiento de las metaheurísticas seleccionadas sobre el banco de problemas considerado, incorporando estrategias de reinicio orientadas a mitigar la convergencia prematura y a favorecer la obtención de datos de búsqueda más informativos.
+
+    \item Construir y evaluar estrategias de entrenamiento y validación que respeten la estructura temporal de las muestras, con el fin de comparar distintas familias de modelos subrogados, incluyendo algoritmos de aprendizaje automático y aproximadores clásicos. Esta comparación se centra principalmente en la capacidad de ordenación de los modelos, considerando también su coste computacional.
+
+    \item Diseñar, implementar y evaluar la integración de los modelos más prometedores dentro de los algoritmos evolutivos, comparando su impacto final sobre la calidad de las soluciones, la dinámica de convergencia y el ahorro efectivo en el uso de evaluaciones reales, frente a las metaheurísticas originales.
 \end{enumerate}
 
 \section{Estructura de la memoria}
@@ -59,21 +70,21 @@ optimización, metaheurísticas, aprendizaje automático y modelos subrogados. E
 Capítulo~\ref{chap:estado_arte} recoge el estado del arte, revisando los principales enfoques existentes en la literatura sobre la integración de modelos subrogados en procesos de optimización evolutiva.
 
 Seguidamente, el Capítulo~\ref{chap:algo_tecnicas_ref} presenta las
-metaheurísticas, los modelos y las estrategias de referencia utilizadas durante
-el estudio. El Capítulo~\ref{chap:metodologia_experimental} describe el diseño
-experimental adoptado, detallando el benchmark empleado, la generación de
-trayectorias, las estrategias de evaluación \textit{offline}, las métricas
-consideradas, el ajuste de hiperparámetros y el entorno de ejecución.
+metaheurísticas, los modelos subrogados y las estrategias de referencia
+utilizadas durante el estudio. El
+Capítulo~\ref{chap:metodologia_experimental} describe el diseño experimental
+aplicado sobre dichas componentes, incluyendo el benchmark, las métricas, las
+estrategias de evaluación, el ajuste de configuraciones y los detalles
+principales de implementación.
 
 El Capítulo~\ref{chap:experimentacion} recoge los resultados experimentales
-obtenidos. En él se analiza el comportamiento de las metaheurísticas, el efecto
-del mecanismo de reinicio elitista, la comparación entre estrategias
-\textit{offline}, la selección del modelo subrogado más adecuado y la evaluación
-de su integración \textit{online} dentro del bucle de optimización.
+obtenidos y analiza el comportamiento de las metaheurísticas, la evaluación de
+los modelos subrogados y su posterior integración en el proceso de
+optimización.
 
 Por último, el Capítulo~\ref{chap:conclusion} resume las principales
 conclusiones alcanzadas y plantea las líneas de trabajo futuro. La memoria se
-completa con el Apéndice~\ref{ap:tablas_tacolab_reinicio}, donde se incluyen
-tablas complementarias generadas durante la comparación de las configuraciones
-de reinicio.
+completa con apéndices que recogen tablas complementarias utilizadas para
+apoyar el análisis experimental, así como los parámetros necesarios para
+reproducir las ejecuciones principales.
 

@@ -231,8 +231,8 @@ tmp/
 /input_data
 
 # Artefactos de compilación dentro del submódulo cec2017real
-metaheuristics/problems/cec2017/cec2017real/build/
-metaheuristics/problems/cec2017/cec2017real/results_*/
+metaheuristics/cec2017/cec2017real/build/
+metaheuristics/cec2017/cec2017real/results_*/
 
 # Datos QAP
 data/qapdata/

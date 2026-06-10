@@ -267,7 +267,6 @@ def reconstruir_errores_desde_metricas(metricas):
         funcion=metricas["funcion"],
         algoritmo=metricas["algoritmo"],
         model_name=metricas["model"],
-        feature_mode=metricas["feature_mode"],
         model_kwargs=metricas.get("model_params") or {},
         constructor_casos=construir_casos_no_acumulativos,
         protocol="no_acumulativo",

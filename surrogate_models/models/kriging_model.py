@@ -4,31 +4,29 @@ from smt.surrogate_models import KRG
 from surrogate_models.base import BaseSurrogateModel
 
 class Kriging(BaseSurrogateModel):
+    """
+    Kriging es un modelo de regresión no paramétrico que utiliza la correlación espacial 
+    para aproximar la función objetivo.
+    """
     nombre = "kriging"
 
     def __init__(self, corr="matern52", poly="constant"):
+        """
+        Inicializa el modelo Kriging con los parámetros por defecto.
+
+        corr: tipo de correlación espacial.
+        poly: tipo de polinomio.
+        """
         self.corr = corr
         self.poly = poly
-        self.model = None
-
+        self.model = KRG( corr=corr, poly=poly, theta0=[1e-2] * X.shape[1], print_global=False)
+        
     def fit(self, X, y):
-        X = np.asarray(X, dtype=float)
-        y = np.asarray(y, dtype=float).reshape(-1, 1)
-
-        self.model = KRG(
-            corr=self.corr,
-            poly=self.poly,
-            theta0=[1e-2] * X.shape[1],
-            print_global=False,
-        )
         self.model.set_training_values(X, y)
         self.model.train()
-
+        
     def predict(self, X):
-        if self.model is None:
-            raise RuntimeError("El modelo Kriging debe entrenarse antes de predecir.")
-        X = np.asarray(X, dtype=float)
-        return self.model.predict_values(X).ravel()
+        return self.model.predict_values(X)
 
     def get_params(self):
         return {"corr": self.corr, "poly": self.poly}

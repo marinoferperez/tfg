@@ -36,7 +36,6 @@ from surrogate_models.benchmark_utils.benchmark_paths import (
     resolver_rutas_salida_benchmark,
 )
 from surrogate_models.benchmark_utils.evaluacion_offline import MODELOS_ARBOL, escalar_X
-from surrogate_models.feature_builders import construir_features
 from surrogate_models.metrics import calcular_errores_por_muestra, calcular_metricas
 from surrogate_models.select_model import select_model
 
@@ -282,7 +281,6 @@ def ejecutar_benchmark_tuned(
     funcion,
     algoritmo,
     model_name,
-    feature_mode,
     param_grid,
     tuning_metric,
     inner_validation_ratio,
@@ -312,7 +310,7 @@ def ejecutar_benchmark_tuned(
             "fraccion_retenida": float(convergencia_fraccion),
         }
 
-        x = escalar_X(construir_features(dataset, feature_mode))
+        x = escalar_X(np.asarray(dataset["x"], dtype=float))
         y = np.asarray(dataset["fitness"], dtype=float).ravel()
         eval_id = np.asarray(dataset["eval_id"], dtype=np.int64)
         casos = construir_casos_no_acumulativos(
@@ -423,7 +421,7 @@ def ejecutar_benchmark_tuned(
             "selected_seeds": [int(inferir_seed(path)) for path in dataset_paths],
             "n_datasets_entrada": int(len(dataset_paths)),
             "model": model_name,
-            "feature_mode": feature_mode,
+            "feature_mode": "x",
             "model_params": {
                 "tuning": True,
                 "tuning_metric": tuning_metric,
@@ -522,7 +520,6 @@ def main():
                     funcion=normalizar_funcion(args_run.funcion),
                     algoritmo=args_run.algoritmo,
                     model_name=args_run.model,
-                    feature_mode="x",
                     param_grid=param_grid,
                     tuning_metric=args_run.tuning_metric,
                     inner_validation_ratio=args_run.inner_validation_ratio,

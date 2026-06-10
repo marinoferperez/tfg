@@ -1,12 +1,12 @@
 import numpy as np
 
-from metaheuristics.age.genetic_stationary_continuous import GeneticAlgorithmContinuo
+from metaheuristics.offline.algorithms.age import GeneticoEstacionario
 from metaheuristics.metrics.reinicio_elitista import (
     ControlReinicioElitista,
     seleccionar_indice_elitista,
 )
 
-class GeneticAlgorithmContinuoOnline(GeneticAlgorithmContinuo):
+class GeneticAlgorithmContinuoOnline(GeneticoEstacionario):
     """
     Variante online de AGE.
 
@@ -49,16 +49,14 @@ class GeneticAlgorithmContinuoOnline(GeneticAlgorithmContinuo):
         dim = limites.shape[0]
         max_evals = int(self.max_evals if self.max_evals is not None else 10000 * dim)
 
-        self.eventos_reinicio_elitista = []
-        if self.reinicio_elitista:
-            self._control_reinicio_elitista = ControlReinicioElitista(
-                self.reinicio_elitista_ratio_estabilidad_diversidad,
+        self.eventos_reinicio = []
+        if self.reinicio:
+            self._gestor_reinicio = ControlReinicioElitista(
                 max_evals=max_evals,
-                ratio_paciencia=self.reinicio_elitista_ratio_paciencia,
-                ventana_evaluaciones=self.reinicio_elitista_ventana_evaluaciones,
+                ratio_paciencia=self.reinicio_ratio,
             )
         else:
-            self._control_reinicio_elitista = None
+            self._gestor_reinicio = None
 
         poblacion = self._generar_poblacion_uniforme(limites, self.tam_poblacion)
 
@@ -157,7 +155,7 @@ class GeneticAlgorithmContinuoOnline(GeneticAlgorithmContinuo):
                     poblacion=poblacion.copy(),
                 )
 
-            poblacion, fitness, evals, reiniciado = self._aplicar_reinicio_elitista_online(
+            poblacion, fitness, evals, reiniciado = self._aplicar_reinicio_online(
                 poblacion=poblacion,
                 fitness=fitness,
                 limites=limites,
@@ -181,7 +179,7 @@ class GeneticAlgorithmContinuoOnline(GeneticAlgorithmContinuo):
         mejor_idx = int(np.argmin(fitness))
         return poblacion[mejor_idx].copy(), float(fitness[mejor_idx])
 
-    def _aplicar_reinicio_elitista_online(self, poblacion, fitness, limites, problem, evals, generacion, max_evals, dataset, controlador):
+    def _aplicar_reinicio_online(self, poblacion, fitness, limites, problem, evals, generacion, max_evals, dataset, controlador):
         """
         Reinicio elitista para AGE online.
 
@@ -189,19 +187,17 @@ class GeneticAlgorithmContinuoOnline(GeneticAlgorithmContinuo):
         funcion real. No se filtran con el subrogado porque la poblacion debe
         quedar completamente valida tras el reinicio.
         """
-        if self._control_reinicio_elitista is None:
+        if self._gestor_reinicio is None:
             return poblacion, fitness, evals, False
 
-        if not self._control_reinicio_elitista.debe_reiniciar(
+        if not self._gestor_reinicio.debe_reiniciar(
             fitness=fitness,
-            poblacion=poblacion,
             evaluaciones=int(evals),
             generacion=generacion,
-            bounds=limites,
         ):
             return poblacion, fitness, evals, False
 
-        diagnostico = self._control_reinicio_elitista.diagnostico_reinicio()
+        diagnostico = self._gestor_reinicio.diagnostico_reinicio()
 
         n_nuevos = int(self.tam_poblacion) - 1
         evals_restantes = int(max_evals) - int(evals)
@@ -234,7 +230,7 @@ class GeneticAlgorithmContinuoOnline(GeneticAlgorithmContinuo):
 
         evals_despues = controlador.evals_reales
 
-        self._control_reinicio_elitista.registrar_estado_post_reinicio(
+        self._gestor_reinicio.registrar_estado_post_reinicio(
             fitness=nuevo_fitness,
             evaluaciones=int(evals_despues),
         )
@@ -250,7 +246,7 @@ class GeneticAlgorithmContinuoOnline(GeneticAlgorithmContinuo):
                 "mejor_fitness": float(elite_fit),
             }
         )
-        self.eventos_reinicio_elitista.append(evento)
+        self.eventos_reinicio.append(evento)
         controlador.registrar_reinicio()
 
         return nueva_poblacion, nuevo_fitness, evals_despues, True

@@ -1,4 +1,12 @@
 def select_model(model_name, **kwargs):
+    """
+    Selecciona e instancia un modelo subrogado a partir de su nombre.
+
+    model_name: nombre identificador del modelo que se desea utilizar.
+    kwargs: parámetros adicionales que se pasan al constructor del modelo.
+
+    Retorna una instancia del modelo subrogado seleccionado.
+    """
     if model_name == "rbf":
         from surrogate_models.models.rbf_model import RBF
         return RBF(**kwargs)

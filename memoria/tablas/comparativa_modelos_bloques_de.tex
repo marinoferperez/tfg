@@ -1,0 +1,24 @@
+\begin{table}[H]
+    \centering
+    \small
+    \setlength{\tabcolsep}{4pt}
+    \begin{adjustbox}{max width=\textwidth}
+        \begin{tabular}{lrrrr|rr}
+            \toprule
+            \multicolumn{1}{l}{} & \multicolumn{4}{c}{\textbf{Rank medio por bloque}} & \multicolumn{2}{c}{\textbf{Tiempos medios}} \\
+            \cmidrule(lr){2-5} \cmidrule(lr){6-7}
+            \textbf{Modelo} & \textbf{20\%} & \textbf{40\%} & \textbf{60\%} & \textbf{80\%} & \textbf{Entren.\ (s)} & \textbf{Pred.\ (s)} \\
+            \midrule
+            RBF & \textbf{2.00} & \textbf{1.67} & \textbf{1.33} & \textbf{1.33} & 0.0039 & 0.2304 \\
+            XGBoost & 5.17 & 3.67 & 4.00 & 3.50 & 0.3616 & 0.0020 \\
+            HGB & 5.83 & 4.33 & 3.83 & 2.83 & 0.3117 & 0.0079 \\
+            RF & 5.33 & 4.17 & 3.67 & 4.00 & 1.3868 & 0.0317 \\
+            MLP & 2.67 & 4.50 & 5.00 & 5.83 & 1.5273 & 0.0011 \\
+            RSM & 3.00 & 4.83 & 5.00 & 5.17 & 0.0150 & 0.0009 \\
+            LASSO & 4.00 & 4.83 & 5.17 & 5.33 & \textbf{0.0006} & \textbf{0.0000} \\
+            \bottomrule
+        \end{tabular}
+    \end{adjustbox}
+    \caption{Competición de modelos para DE bajo la estrategia no acumulativa, desglosada por bloque temporal. Rank medio calculado sobre las funciones de prueba para cada bloque de validación (1\,=\,mejor Spearman). Tiempos agregados sobre funciones y bloques.}
+    \label{tab:comparativa_modelos_bloques_de}
+\end{table}

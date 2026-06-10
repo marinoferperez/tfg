@@ -4,7 +4,7 @@ import numpy as np
 import scipy.stats
 
 from metaheuristics.metrics.reinicio_elitista import ControlReinicioElitista
-from metaheuristics.shade.shade import SHADE, pyade_commons, pyade_shade
+from metaheuristics.offline.algorithms.shade import SHADE, pyade_commons, pyade_shade
 
 class SHADEOnline(SHADE):
     """
@@ -58,7 +58,7 @@ class SHADEOnline(SHADE):
         pasan por el filtro subrogado.
         """
         return self._evaluar_individuo_real(
-            problem=self._problem,
+            problem=self._problema,
             individuo=individuo,
             eval_id=self.evals + 1,
             generacion=getattr(self, "_generacion_actual", 0),
@@ -67,14 +67,14 @@ class SHADEOnline(SHADE):
             evaluacion_filtrada_por_subrogado=False,
         )
         
-    def aplicar_reinicio_elitista_desde_estado(self, estado, generacion):
+    def _aplicar_reinicio(self, estado, generacion):
         """
         Aplica el reinicio original de SHADE y notifica al controlador online.
 
         Notificar el reinicio es importante porque invalida el modelo actual y
         activa el cooldown si esta configurado.
         """
-        aplicado = super().aplicar_reinicio_elitista_desde_estado(
+        aplicado = super()._aplicar_reinicio(
             estado=estado,
             generacion=generacion,
         )
@@ -99,8 +99,8 @@ class SHADEOnline(SHADE):
         dim = int(limites.shape[0])
 
         self.evals = 0
-        self.eventos_reinicio_elitista = []
-        self._problem = problem
+        self.eventos_reinicio = []
+        self._problema = problem
         self._dataset = dataset
         self._controlador_subrogado = controlador_subrogado
         self._generacion_actual = 0
@@ -128,15 +128,13 @@ class SHADEOnline(SHADE):
         bounds = np.asarray(params["bounds"], dtype=float)
 
         self._max_evals_reales = max_evals
-        if self.reinicio_elitista:
-            self._control_reinicio_elitista = ControlReinicioElitista(
-                self.reinicio_elitista_ratio_estabilidad_diversidad,
+        if self.reinicio:
+            self._gestor_reinicio = ControlReinicioElitista(
                 max_evals=max_evals,
-                ratio_paciencia=self.reinicio_elitista_ratio_paciencia,
-                ventana_evaluaciones=self.reinicio_elitista_ventana_evaluaciones,
+                ratio_paciencia=self.reinicio_ratio,
             )
         else:
-            self._control_reinicio_elitista = None
+            self._gestor_reinicio = None
 
         # PYADE usa ambos generadores en SHADE.
         np.random.seed(seed)
@@ -310,8 +308,8 @@ class SHADEOnline(SHADE):
 
             if callback_metricas is not None:
                 callback_metricas(**estado)
-            elif self.reinicio_elitista:
-                self.aplicar_reinicio_elitista_desde_estado(
+            elif self.reinicio:
+                self._aplicar_reinicio(
                     estado=estado,
                     generacion=generacion,
                 )

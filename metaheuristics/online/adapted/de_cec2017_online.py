@@ -4,7 +4,7 @@ from pathlib import Path
 
 import numpy as np
 
-from metaheuristics.de.adapted.differential_evolution_cec2017 import (
+from metaheuristics.offline.adapted.de_cec2017 import (
     DifferentialEvolutionCEC2017,
 )
 from metaheuristics.metrics import CallbackMetricasDE, SurrogateDataset
@@ -21,7 +21,7 @@ from metaheuristics.online.surrogate_stats import (
     EstadisticasSubrogado,
     guardar_decisiones_subrogado_csv,
 )
-from metaheuristics.problems.cec2017_problem import CEC2017Problem
+from metaheuristics.cec2017 import CEC2017Problem
 
 
 class DifferentialEvolutionCEC2017Online(DifferentialEvolutionCEC2017):
@@ -87,7 +87,7 @@ class DifferentialEvolutionCEC2017Online(DifferentialEvolutionCEC2017):
                     lambda: self.de.evals,
                     en_generacion=lambda g: setattr(self.de, "_generacion_actual", int(g) + 1),
                     offset_current_generation=1,
-                    restart_manager=self.de.aplicar_reinicio_elitista_desde_estado,
+                    restart_manager=self.de._aplicar_reinicio,
                 )
 
             max_evals = (
@@ -170,10 +170,9 @@ class DifferentialEvolutionCEC2017Online(DifferentialEvolutionCEC2017):
                         )
 
                     metadata_reinicios = construir_metadata_reinicios(
-                        self.de.eventos_reinicio_elitista,
-                        self.de.reinicio_elitista_ratio_estabilidad_diversidad,
-                        self.de.reinicio_elitista_ratio_paciencia,
-                        self.de.reinicio_elitista,
+                        self.de.eventos_reinicio,
+                        self.de.reinicio_ratio,
+                        self.de.reinicio,
                     )
                     ficheros_metricas = recolector.guardar_csv_json(
                         ruta_base=ruta_base,
@@ -197,7 +196,7 @@ class DifferentialEvolutionCEC2017Online(DifferentialEvolutionCEC2017):
                     )
                     ruta_reinicios_csv = guardar_reinicios_elitistas_csv(
                         ruta_base,
-                        self.de.eventos_reinicio_elitista,
+                        self.de.eventos_reinicio,
                     )
                     ficheros_dataset = (
                         dataset.guardar_csv_json(ruta_base)
@@ -224,7 +223,7 @@ class DifferentialEvolutionCEC2017Online(DifferentialEvolutionCEC2017):
                     )
                     resultado["ruta_decisiones_subrogado_csv"] = ruta_decisiones_csv
 
-            resultado["reinicios_elitistas"] = list(self.de.eventos_reinicio_elitista)
+            resultado["reinicios"] = list(self.de.eventos_reinicio)
             return resultado
 
         finally:

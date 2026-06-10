@@ -8,8 +8,7 @@ ROOT = Path(__file__).resolve().parents[3]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from metaheuristics.experiments.ejecutar_metaheuristicas import (
-    VENTANA_DIAGNOSTICA_REINICIO,
+from metaheuristics.offline.experiments.ejecutar_metaheuristicas import (
     construir_resumen,
     gestiona_funcids_cec,
     gestiona_semillas,
@@ -70,14 +69,14 @@ def parse_args():
     parser.add_argument(
         "--reinicio",
         "--reinicio-elitista",
-        dest="reinicio_elitista",
+        dest="reinicio",
         action="store_true",
         help="Activa el reinicio elitista.",
     )
     parser.add_argument(
         "--reinicio-ratio",
         "--reinicio-elitista-ratio-paciencia",
-        dest="reinicio_elitista_ratio_paciencia",
+        dest="reinicio_ratio",
         type=float,
         default=None,
         help="Fraccion de max_evals sin mejora antes de permitir reinicio.",
@@ -224,19 +223,19 @@ def gestiona_algoritmos_online(valores):
 
 
 def validar_args(args):
-    args.reinicio_elitista_ratio_paciencia = normalizar_ratio_paciencia_reinicio(
-        args.reinicio_elitista_ratio_paciencia
+    args.reinicio_ratio = normalizar_ratio_paciencia_reinicio(
+        args.reinicio_ratio
     )
-    args.reinicio_elitista = bool(args.reinicio_elitista)
+    args.reinicio = bool(args.reinicio)
 
     if args.max_evals is None:
         args.max_evals = 10000 * int(args.cec_dim)
     if int(args.max_evals) <= 0:
         raise ValueError("--max-evals debe ser positivo.")
 
-    if args.reinicio_elitista and args.reinicio_elitista_ratio_paciencia is None:
+    if args.reinicio and args.reinicio_ratio is None:
         raise ValueError("--reinicio requiere indicar --reinicio-ratio.")
-    if not args.reinicio_elitista and args.reinicio_elitista_ratio_paciencia is not None:
+    if not args.reinicio and args.reinicio_ratio is not None:
         raise ValueError("--reinicio-ratio solo puede utilizarse junto con --reinicio.")
 
     args.algoritmos = gestiona_algoritmos_online(args.algoritmo)
@@ -276,14 +275,13 @@ def construir_config_subrogado(args, seed):
 
 def construir_age_online(args, seed):
     kwargs = {
-        "seed": int(seed),
         "tam_poblacion": int(args.tam_poblacion),
         "max_evals": int(args.max_evals),
     }
-    if args.reinicio_elitista:
-        kwargs["reinicio_elitista"] = True
-        kwargs["reinicio_elitista_ratio_paciencia"] = float(
-            args.reinicio_elitista_ratio_paciencia
+    if args.reinicio:
+        kwargs["reinicio"] = True
+        kwargs["reinicio_ratio"] = float(
+            args.reinicio_ratio
         )
 
     return GeneticStationaryCEC2017Online(
@@ -294,14 +292,13 @@ def construir_age_online(args, seed):
 
 def construir_de_online(args, seed):
     kwargs = {
-        "seed": int(seed),
         "tam_poblacion": int(args.tam_poblacion),
         "max_evals": int(args.max_evals),
     }
-    if args.reinicio_elitista:
-        kwargs["reinicio_elitista"] = True
-        kwargs["reinicio_elitista_ratio_paciencia"] = float(
-            args.reinicio_elitista_ratio_paciencia
+    if args.reinicio:
+        kwargs["reinicio"] = True
+        kwargs["reinicio_ratio"] = float(
+            args.reinicio_ratio
         )
 
     return DifferentialEvolutionCEC2017Online(
@@ -312,15 +309,14 @@ def construir_de_online(args, seed):
 
 def construir_shade_online(args, seed):
     kwargs = {
-        "seed": int(seed),
         "tam_poblacion": int(args.tam_poblacion),
         "max_evals": int(args.max_evals),
     }
 
-    if args.reinicio_elitista:
-        kwargs["reinicio_elitista"] = True
-        kwargs["reinicio_elitista_ratio_paciencia"] = float(
-            args.reinicio_elitista_ratio_paciencia
+    if args.reinicio:
+        kwargs["reinicio"] = True
+        kwargs["reinicio_ratio"] = float(
+            args.reinicio_ratio
         )
 
     return SHADECEC2017Online(
@@ -351,17 +347,13 @@ def fila_run(args, algoritmo, funcid, seed, resultado, tiempo_s, ruta_metricas, 
         "tiempo_s": float(tiempo_s),
         "ruta_metricas": str(ruta_metricas or ""),
         "ruta_resumen_online": str(resultado.get("ruta_resumen_online", "")),
-        "reinicio_elitista": bool(args.reinicio_elitista),
-        "reinicio_elitista_ratio_estabilidad_diversidad": "",
-        "reinicio_elitista_ratio_paciencia": (
-            float(args.reinicio_elitista_ratio_paciencia)
-            if args.reinicio_elitista
+        "reinicio": bool(args.reinicio),
+        "reinicio_ratio": (
+            float(args.reinicio_ratio)
+            if args.reinicio
             else ""
         ),
-        "reinicio_elitista_ventana_evaluaciones": (
-            int(VENTANA_DIAGNOSTICA_REINICIO) if args.reinicio_elitista else ""
-        ),
-        "n_reinicios_elitistas": int(len(resultado.get("reinicios_elitistas", []))),
+        "n_reinicios": int(len(resultado.get("reinicios", []))),
         "modelo_subrogado": str(resumen_online.get("modelo_nombre", args.modelo)),
         "probabilidad_subrogado": float(args.probabilidad_subrogado),
         "warmup_ratio": float(args.warmup_ratio),
@@ -397,8 +389,8 @@ def fila_run(args, algoritmo, funcid, seed, resultado, tiempo_s, ruta_metricas, 
 def ejecutar_cec_online(args, algoritmo, semillas, outdir_metricas, funcid):
     filas = []
     registrar_metricas = not args.sin_metricas
-    ratio_paciencia_reinicio = args.reinicio_elitista_ratio_paciencia
-    reinicio_activo = bool(args.reinicio_elitista)
+    ratio_paciencia_reinicio = args.reinicio_ratio
+    reinicio_activo = bool(args.reinicio)
     sufijo_reinicio = (
         "_reinicio" + sufijo_ratio_paciencia_reinicio(ratio_paciencia_reinicio)
         if reinicio_activo
@@ -484,15 +476,11 @@ def config_base(args, semillas, funcids):
         "problema": "cec2017",
         "registrar_metricas": bool(not args.sin_metricas),
         "guardar_dataset": bool(not args.sin_dataset),
-        "reinicio_elitista": bool(args.reinicio_elitista),
-        "reinicio_elitista_ratio_estabilidad_diversidad": None,
-        "reinicio_elitista_ratio_paciencia": (
-            float(args.reinicio_elitista_ratio_paciencia)
-            if args.reinicio_elitista
+        "reinicio": bool(args.reinicio),
+        "reinicio_ratio": (
+            float(args.reinicio_ratio)
+            if args.reinicio
             else None
-        ),
-        "reinicio_elitista_ventana_evaluaciones": (
-            int(VENTANA_DIAGNOSTICA_REINICIO) if args.reinicio_elitista else None
         ),
         "modelo": str(args.modelo).lower(),
         "surrogate_model": str(args.modelo).lower(),

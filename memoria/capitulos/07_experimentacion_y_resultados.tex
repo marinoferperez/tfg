@@ -243,7 +243,8 @@ Mientras que el volumen de datos se mantiene constante en bloques fijos del 20 \
 
 Para garantizar una comparación justa, los resultados globales de ambas estrategias presentados en esta sección se han computado agregando de forma exclusiva los modelos que finalizaron exitosamente ambas configuraciones.
 
-\input{tablas/resumen_global_por_estrategia_sin_svr.tex}
+% \input{tablas/resumen_global_por_estrategia_sin_svr.tex}
+\input{tablas/comparativa_estrategias_offline_v2.tex}
 
 Los resultados agregados de la Tabla~\ref{tab:comparativa_estrategias_offline} muestran una ventaja clara de la estrategia no acumulativa frente a la acumulativa. En concreto, la estrategia no acumulativa obtiene un valor medio de Spearman superior y logra reducir casi a la mitad tanto los errores normalizados como los tiempos de cómputo.
 
@@ -254,10 +255,16 @@ agregado de la tabla, la Figura~\ref{fig:evolucion_spearman_bloques_offline}
 muestra la evolución del coeficiente de Spearman a lo largo de los bloques
 temporales evaluados.
 
-\begin{figure}[htbp]
+% \begin{figure}[htbp]
+%     \centering
+%     \includegraphics[width=0.8\textwidth]{figuras/surrogates_offline/evolucion_spearman_por_bloque_sin_svr.png}
+%     \caption[Evolución de la correlación de Spearman media por bloque temporal para las estrategias acumulativa y no acumulativa.]{Evolución de la correlación de Spearman media por bloque temporal para las estrategias acumulativa y no acumulativa, excluyendo SVR por no completar la evaluación acumulativa.}
+%     \label{fig:evolucion_spearman_bloques_offline}
+% \end{figure}
+\begin{figure}[H]
     \centering
-    \includegraphics[width=0.8\textwidth]{figuras/surrogates_offline/evolucion_spearman_por_bloque_sin_svr.png}
-    \caption[Evolución de la correlación de Spearman media por bloque temporal para las estrategias acumulativa y no acumulativa.]{Evolución de la correlación de Spearman media por bloque temporal para las estrategias acumulativa y no acumulativa, excluyendo SVR por no completar la evaluación acumulativa.}
+    \includegraphics[width=\textwidth]{figuras/surrogates_offline/evolucion_spearman_por_bloque_por_algoritmo.png}
+    \caption[Evolución de la correlación de Spearman media por bloque temporal para las estrategias acumulativa y no acumulativa.]{Evolución de la correlación de Spearman media por bloque temporal para las estrategias acumulativa y no acumulativa, desglosada por algoritmo (AGE, DE, SHADE).}
     \label{fig:evolucion_spearman_bloques_offline}
 \end{figure}
 
@@ -277,10 +284,32 @@ Tras justificar la estrategia no acumulativa como protocolo de evaluación ideal
 La Figura~\ref{fig:evolucion_spearman_modelos_no_acumulativo} muestra cómo cambia la capacidad de ordenación de cada modelo conforme avanza la trayectoria. El primer punto corresponde al entrenamiento con el bloque inicial 0--20\% y la validación sobre el bloque 20--40\%, por lo que representa la primera situación en la que podría utilizarse un subrogado tras una fase inicial de muestreo. Los puntos posteriores permiten observar si esa capacidad de ordenación se mantiene, mejora o se degrada conforme la búsqueda avanza hacia regiones más concretas del espacio.
 
 
+% \begin{figure}[H]
+%     \centering
+%     \includegraphics[width=1.0\textwidth]{figuras/surrogates_offline/evolucion_spearman_modelos_no_acumulativo.png}
+%     \caption[Evolución de la correlación de Spearman media por bloques temporales bajo la estrategia no acumulativa.]{Evolución de la correlación de Spearman media por bloques temporales bajo la estrategia no acumulativa. Cada punto se obtiene entrenando con el bloque inmediatamente anterior al bloque evaluado.}
+%     \label{fig:evolucion_spearman_modelos_no_acumulativo}
+% \end{figure}
 \begin{figure}[H]
     \centering
-    \includegraphics[width=1.0\textwidth]{figuras/surrogates_offline/evolucion_spearman_modelos_no_acumulativo.png}
-    \caption[Evolución de la correlación de Spearman media por bloques temporales bajo la estrategia no acumulativa.]{Evolución de la correlación de Spearman media por bloques temporales bajo la estrategia no acumulativa. Cada punto se obtiene entrenando con el bloque inmediatamente anterior al bloque evaluado.}
+    \begin{subfigure}[b]{0.32\textwidth}
+        \centering
+        \includegraphics[width=\textwidth]{figuras/surrogates_offline/evolucion_spearman_modelos_no_acumulativo_age.png}
+        \caption{AGE}
+    \end{subfigure}
+    \hfill
+    \begin{subfigure}[b]{0.32\textwidth}
+        \centering
+        \includegraphics[width=\textwidth]{figuras/surrogates_offline/evolucion_spearman_modelos_no_acumulativo_de.png}
+        \caption{DE}
+    \end{subfigure}
+    \hfill
+    \begin{subfigure}[b]{0.32\textwidth}
+        \centering
+        \includegraphics[width=\textwidth]{figuras/surrogates_offline/evolucion_spearman_modelos_no_acumulativo_shade.png}
+        \caption{SHADE}
+    \end{subfigure}
+    \caption[Evolución de la correlación de Spearman media por bloques temporales bajo la estrategia no acumulativa.]{Evolución de la correlación de Spearman media por bloques temporales bajo la estrategia no acumulativa, desglosada por algoritmo. Cada punto se obtiene entrenando con el bloque inmediatamente anterior al bloque evaluado.}
     \label{fig:evolucion_spearman_modelos_no_acumulativo}
 \end{figure}
 
@@ -288,13 +317,19 @@ Desde esta perspectiva temporal se observa una separación clara entre modelos. 
 
 El resto de modelos también mejora respecto al primer bloque, pero su evolución se estabiliza en niveles claramente inferiores, destacando SVR, MLP o Random Forest. Por tanto, la figura no solo permite identificar qué modelos alcanzan mejores valores finales, sino también en qué momento de la trayectoria empiezan a ser útiles como aproximadores subrogados.
 
-Para completar esta comparación y dotar de rigor cuantitativo las observaciones, la Tabla~\ref{tab:comparativa_modelos_bloques_informativos} incorpora las métricas agregadas de error y coste computacional definidas en el Capítulo~\ref{chap:metodologia_experimental}.
+Las Tablas~\ref{tab:comparativa_modelos_bloques_age}, \ref{tab:comparativa_modelos_bloques_de} y \ref{tab:comparativa_modelos_bloques_shade} trasladan esa evolución a rangos concretos por bloque y algoritmo.
 
-\input{tablas/comparativa_modelos_offline}
+% \input{tablas/comparativa_modelos_offline}
+% \input{tablas/comparativa_modelos_offline_v2.tex}
+\input{tablas/comparativa_modelos_bloques_age.tex}
+\input{tablas/comparativa_modelos_bloques_de.tex}
+\input{tablas/comparativa_modelos_bloques_shade.tex}
 
-Al considerar estas métricas adicionales, la comparación entre RSM y RBF queda más equilibrada, aunque siguen siendo las alternativas más competitivas del conjunto de modelos evaluados. RSM mantiene una mayor capacidad de ordenación en la mayoría de bloques y presenta un tiempo de predicción muy reducido, pero su error normalizado es considerablemente más elevado. RBF, por su parte, obtiene un error menor y un tiempo de entrenamiento bajo, aunque su coste de predicción es superior. Por tanto, ninguno de los dos modelos domina al otro en todas las métricas, lo que justifica mantener ambos como candidatos para las siguientes fases experimentales.
+% Al considerar estas métricas adicionales, la comparación entre RSM y RBF queda más equilibrada, aunque siguen siendo las alternativas más competitivas del conjunto de modelos evaluados. RSM mantiene una mayor capacidad de ordenación en la mayoría de bloques y presenta un tiempo de predicción muy reducido, pero su error normalizado es considerablemente más elevado. RBF, por su parte, obtiene un error menor y un tiempo de entrenamiento bajo, aunque su coste de predicción es superior. Por tanto, ninguno de los dos modelos domina al otro en todas las métricas, lo que justifica mantener ambos como candidatos para las siguientes fases experimentales.
 
-La viabilidad del resto de regresores se ve limitada por no satisfacer simultáneamente los criterios descritos en el capítulo anterior. Modelos como SVR ($1.38$~s), MLP ($1.56$~s) y Random Forest ($1.84$~s) mejoran conforme avanza la búsqueda, pero no alcanzan los valores de Spearman de RSM y RBF y requieren tiempos de entrenamiento muy altos. En cambio, LASSO y los modelos de \textit{boosting} presentan costes más contenidos, pero su capacidad para preservar el orden relativo entre soluciones resulta insuficiente.
+% La viabilidad del resto de regresores se ve limitada por no satisfacer simultáneamente los criterios descritos en el capítulo anterior. Modelos como SVR ($1.38$~s), MLP ($1.56$~s) y Random Forest ($1.84$~s) mejoran conforme avanza la búsqueda, pero no alcanzan los valores de Spearman de RSM y RBF y requieren tiempos de entrenamiento muy altos. En cambio, LASSO y los modelos de \textit{boosting} presentan costes más contenidos, pero su capacidad para preservar el orden relativo entre soluciones resulta insuficiente.
+
+En los tres algoritmos, RBF encabeza la clasificación de forma consistente y consolida su ventaja en los bloques finales, confirmando la tendencia que la figura ya anticipaba visualmente. El resto de modelos queda descartado por no cumplir simultáneamente los criterios de fidelidad ordinal y coste computacional: Random Forest, MLP y SVR mejoran conforme avanza la búsqueda pero presentan tiempos de entrenamiento demasiado elevados para la integración \textit{online}, mientras que LASSO y los modelos de \textit{boosting} resultan más eficientes pero no alcanzan una capacidad de ordenación suficiente. RSM muestra un comportamiento dependiente del algoritmo: es competitivo para AGE durante toda la evaluación, pero su rango empeora progresivamente en DE y SHADE, lo que evidencia que su ventaja en fases tempranas no se sostiene a largo plazo y que el análisis agregado habría ocultado esta diferencia.
 
 En consecuencia, tras validar empíricamente la ventaja de la estrategia no
 acumulativa, la integración \textit{online} se planteará siguiendo una lógica de \textbf{ventana deslizante}, utilizando la información más reciente de la trayectoria para entrenar el subrogado. Los valores obtenidos en el bloque 20--40\% muestran que el tramo inicial de calentamiento \(0\)--\(20\%\) ya permite construir un primer modelo con cierta capacidad de ordenación, especialmente en el caso de \textbf{RSM}. Sin embargo, la comparación conjunta de Spearman, error normalizado y coste computacional no permite descartar aún a \textbf{RBF}, que muestra un comportamiento más equilibrado en varias de las métricas agregadas.

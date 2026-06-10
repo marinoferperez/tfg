@@ -37,7 +37,6 @@ from surrogate_models.benchmark_utils.benchmark_paths import (
     resolver_inputs_benchmark,
     resolver_rutas_salida_benchmark,
 )
-from surrogate_models.feature_builders import construir_features
 from surrogate_models.metrics import calcular_errores_por_muestra, calcular_metricas
 from surrogate_models.select_model import select_model
 
@@ -138,7 +137,6 @@ def ejecutar_benchmark_temporal(
     funcion,
     algoritmo,
     model_name,
-    feature_mode,
     model_kwargs,
     constructor_casos,
     protocol,
@@ -168,7 +166,7 @@ def ejecutar_benchmark_temporal(
             "fraccion_retenida": float(convergencia_fraccion),
         }
 
-        x = construir_features(dataset, feature_mode)
+        x = np.asarray(dataset["x"], dtype=float)
         y = np.asarray(dataset["fitness"], dtype=float).ravel()
         eval_id = np.asarray(dataset["eval_id"], dtype=np.int64)
         casos = constructor_casos(
@@ -265,7 +263,7 @@ def ejecutar_benchmark_temporal(
             "selected_seeds": [int(inferir_seed(path)) for path in dataset_paths],
             "n_datasets_entrada": int(len(dataset_paths)),
             "model": model_name,
-            "feature_mode": feature_mode,
+            "feature_mode": "x",
             "model_params": model_kwargs,
             "split_strategy": split_strategy,
             "future_validation": str(future_validation),
@@ -345,7 +343,6 @@ def main_temporal(
             funcion=normalizar_funcion(args_algoritmo.funcion),
             algoritmo=args_algoritmo.algoritmo,
             model_name=args_algoritmo.model,
-            feature_mode="x",
             model_kwargs=cargar_model_kwargs(args_algoritmo.model_params_json),
             constructor_casos=constructor_casos,
             protocol=protocol,

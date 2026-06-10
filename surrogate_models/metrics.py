@@ -3,6 +3,14 @@ from scipy.stats import rankdata, pearsonr
 from sklearn.metrics import mean_absolute_error, mean_squared_error
 
 def calcular_errores_por_muestra(y_true, y_pred):
+    """
+    Calcula el error absoluto y porcentual por muestra.
+
+    y_true: vector con los valores reales de fitness.
+    y_pred: vector con los valores predichos.
+
+    Retorna el error absoluto y porcentual por muestra.
+    """
     y_true = np.asarray(y_true, dtype=float)
     y_pred = np.asarray(y_pred, dtype=float)
 
@@ -13,6 +21,15 @@ def calcular_errores_por_muestra(y_true, y_pred):
     return error_abs, error_pct
 
 def calcular_metricas(y_true, y_pred):
+    """
+    Calcula las métricas de evaluación del modelo.
+
+    y_true: vector con los valores reales de fitness.
+    y_pred: vector con los valores predichos.
+
+    Retorna un diccionario con las métricas calculadas: RMSE, NRMSE, Spearman, 
+    MAE, NMAE, error absoluto maximo y error porcentual maximo.
+    """
     error_abs, error_pct = calcular_errores_por_muestra(y_true, y_pred)
     ranks_true = rankdata(y_true, method="ordinal")
     ranks_pred = rankdata(y_pred, method="ordinal")
