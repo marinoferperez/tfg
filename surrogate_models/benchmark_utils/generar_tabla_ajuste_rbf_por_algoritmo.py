@@ -133,13 +133,16 @@ def load_data(base_dir: Path) -> dict[str, dict[tuple, dict]]:
 
 
 def aggregate(data: dict[str, dict[tuple, dict]]) -> dict[str, list[dict]]:
-    """Promedia métricas por (algorithm, params_key) y ordena por rango medio asc."""
+    """Promedia métricas por (algorithm, params_key) y ordena por rango medio asc.
+    Solo incluye configuraciones con kernel=multiquadric."""
     result: dict[str, list[dict]] = {}
     for algo, configs in data.items():
         rows = []
         for key, entry in configs.items():
             n = len(entry["ranks"])
             if n == 0 or entry["params"] is None:
+                continue
+            if entry["params"].get("kernel") != "multiquadric":
                 continue
             rows.append(
                 {
@@ -277,7 +280,7 @@ def render_table(rows: list[dict], top_n: int, algo_label: str) -> str:
             f"según rango medio sobre Spearman interno.]"
             f"{{Cinco mejores configuraciones de RBF para {algo_label}. "
             f"El rango medio se calcula por combinación función$\\times$bloque$\\times$semilla "
-            f"sobre las 36 configuraciones candidatas ({kernel_note}).}}"
+            f"sobre las 18 configuraciones candidatas (kernel \\textit{{multiquadric}}, $\\text{{degree}}=-1$).}}"
         ),
         f"    \\label{{tab:ajuste_interno_rbf_{algo_lower}}}",
         r"\end{table}",
