@@ -1,3 +1,0 @@
-estrategia,n_metricas,n_metricas_esperadas,cobertura_pct,train_time_s_mean,train_time_s_max
-acumulativo,24,84,28.571428571428573,9.155626319591725,118.58275757600809
-no_acumulativo,84,84,100.0,0.4878263275035934,1.7333544721899956

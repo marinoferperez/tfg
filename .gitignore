@@ -277,3 +277,7 @@ informes/
 
 # Excel de trabajo (los .csv y .tex en /memoria/tablas/ son suficientes)
 *.xlsx
+
+# Memoria — solo conservar el PDF compilado
+memoria/*
+!memoria/proyecto.pdf
