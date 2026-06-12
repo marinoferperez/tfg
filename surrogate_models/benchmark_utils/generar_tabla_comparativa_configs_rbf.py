@@ -1,6 +1,6 @@
 """
 Genera tabla LaTeX comparando la configuración homogénea (ε=1, nb=50) con la
-configuración per-algoritmo (ε=0.1, nb=25 para AGE y SHADE; idéntica para DE)
+configuración por algoritmo (ε=0.1, nb=25 para AGE y SHADE; idéntica para DE)
 mostrando Spearman medio agregado sobre las 7 funciones de cribado y victorias.
 
 Salida: memoria/tablas/cap06_ajuste_rbf/comparativa_homogenea_vs_peralgo.tex
@@ -47,7 +47,7 @@ def render() -> str:
         r"        \toprule",
         r"        \textbf{Algoritmo} "
         r"& \textbf{Homogénea} ($\varepsilon$=1, $k$=50) "
-        r"& \textbf{Per-algo} ($\varepsilon$=0.1, $k$=25) "
+        r"& \textbf{Por algo} ($\varepsilon$=0.1, $k$=25) "
         r"& \textbf{Victorias homogénea} \\",
         r"        \midrule",
     ]
