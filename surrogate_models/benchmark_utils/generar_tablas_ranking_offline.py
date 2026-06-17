@@ -16,12 +16,12 @@ from pathlib import Path
 import pandas as pd
 
 BASE_DIR = Path(
-    "results/cec/cec2017_d10_tam50/benchmarking"
-    "/benchmarking_surrogates_offline_all/future_all"
+    "results/cec/cec2017_d10_tam50_reinicio_seleccionado"
+    "/benchmarking_surrogates_offline_next/future_next"
 )
 OUT_DIR = Path("memoria/tablas")
 
-MODELOS = ["hgb", "lasso", "mlp", "random_forest", "rbf", "rsm", "xgboost"]
+MODELOS = ["hgb", "lasso", "mlp", "random_forest", "rbf", "rsm", "svr", "xgboost"]
 MODELOS_DISPLAY = {
     "hgb": "HGB",
     "lasso": "LASSO",
@@ -29,6 +29,7 @@ MODELOS_DISPLAY = {
     "random_forest": "RF",
     "rbf": "RBF",
     "rsm": "RSM",
+    "svr": "SVR",
     "xgboost": "XGBoost",
 }
 ALGORITMOS = ["age", "de", "shade"]
@@ -122,7 +123,7 @@ def generar_tabla_estrategias(df: pd.DataFrame) -> str:
     df_cmp = pd.concat(rows_cmp, ignore_index=True)
 
     # Victorias por algoritmo (sobre funciones × modelos × 3 bloques comparables)
-    victorias = df_cmp.groupby("algoritmo")["no_acum_gana"].mean() * 100
+    victorias = df_cmp.groupby("algoritmo")["no_acum_gana"].agg(["sum", "count"])
 
     # Spearman medio por algoritmo (solo bloques comparables, excluye 1-20)
     df_no_cmp = df[
@@ -142,15 +143,16 @@ def generar_tabla_estrategias(df: pd.DataFrame) -> str:
         r"\begin{tabular}{l r r r r r}",
         r"\toprule",
         (
-            r"\textbf{Algoritmo} & \textbf{Vict. no\_acum (\%)} "
-            r"& \textbf{Spearman no\_acum} & \textbf{Spearman acum} "
-            r"& \textbf{Entren. no\_acum (s)} & \textbf{Entren. acum (s)} \\"
+            r"\textbf{Algoritmo} & \textbf{Vict. no acum.} "
+            r"& \textbf{Spearman no acum.} & \textbf{Spearman acum.} "
+            r"& \textbf{Entren. no acum. (s)} & \textbf{Entren. acum. (s)} \\"
         ),
         r"\midrule",
     ]
 
     for algo in ALGORITMOS:
-        vic = victorias.get(algo, float("nan"))
+        vic_sum = int(victorias.loc[algo, "sum"]) if algo in victorias.index else 0
+        vic_total = int(victorias.loc[algo, "count"]) if algo in victorias.index else 0
         sno = sp_no.get(algo, float("nan"))
         sac = sp_ac.get(algo, float("nan"))
         tno = t_no.get(algo, float("nan"))
@@ -160,7 +162,7 @@ def generar_tabla_estrategias(df: pd.DataFrame) -> str:
         sac_fmt = r"\textbf{" + f"{sac:.4f}" + r"}" if sac >= sno else f"{sac:.4f}"
 
         lines.append(
-            f"{algo.upper()} & {vic:.1f}\\% & {sno_fmt} "
+            f"{algo.upper()} & {vic_sum}/{vic_total} & {sno_fmt} "
             f"& {sac_fmt} & {tno:.4f} & {tac:.4f} \\\\"
         )
 
@@ -181,6 +183,9 @@ def generar_tabla_modelos(df: pd.DataFrame) -> str:
     - Entren. (s) y Pred. (s): media agregada sobre algoritmos, funciones y bloques.
     """
     df_no = df[df["estrategia"] == "no_acumulativo"].copy()
+
+    # Redondeo a 4 decimales antes del ranking (criterio TACOLAB)
+    df_no["spearman"] = df_no["spearman"].round(4)
 
     # Ranking por (funcion, bloque, algoritmo): rank entre modelos
     df_no["rank"] = df_no.groupby(["funcion", "bloque", "algoritmo"])[
@@ -212,7 +217,7 @@ def generar_tabla_modelos(df: pd.DataFrame) -> str:
     best_pred = tiempos["predict_time_s"].min()
 
     def fmt_rank(val, best):
-        s = f"{val:.2f}"
+        s = f"{val:.4f}"
         return r"\textbf{" + s + r"}" if abs(val - best) < 1e-9 else s
 
     def fmt_time(val, best):
@@ -283,10 +288,11 @@ def main():
             tab_estrategias,
             caption=(
                 "Comparativa de estrategias \\textit{offline} por algoritmo. "
-                "Victorias: porcentaje de combinaciones (función~$\\times$~bloque~$\\times$~modelo) "
+                "Victorias: número de combinaciones (función~$\\times$~bloque~$\\times$~modelo) "
+                "sobre los bloques comparables posteriores al primero "
                 "en las que la estrategia no acumulativa supera a la acumulativa en Spearman."
             ),
-            label="tab:comparativa_estrategias_offline_v2",
+            label="tab:comparativa_estrategias_offline",
         ),
         encoding="utf-8",
     )

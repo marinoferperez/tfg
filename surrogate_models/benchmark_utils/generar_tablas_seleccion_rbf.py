@@ -18,11 +18,11 @@ BASE_DIR = Path(
     "results/cec/cec2017_d10_tam50_reinicio_seleccionado/"
     "benchmarking_surrogates_hyperparameter_selection/future_next/rbf/no_acumulativo"
 )
-OUT_DIR = Path("memoria/tablas")
+OUT_DIR = Path("memoria/tablas/cap06_ajuste_rbf/apendice")
 
 ALGORITHMS = ["age", "de", "shade"]
 ALGO_LABELS = {"age": "AGE", "de": "DE", "shade": "SHADE"}
-TOP_N_APENDICE = 10
+TOP_N_APENDICE = 15
 
 
 def _clean_repr(raw: str) -> str:
@@ -273,23 +273,18 @@ def tabla_seleccion_final(agg: dict[str, list[dict]]) -> str:
 # ─── Tablas apéndice: top-N por algoritmo en espacio reducido ────────────────
 
 def tabla_apendice_algo(agg: dict[str, list[dict]], algo: str, top_n: int) -> str:
-    candidates = [
-        r for r in agg[algo]
-        if r["params"].get("kernel") == "multiquadric"
-        and abs(float(r["params"].get("smoothing", 0)) - 0.001) < 1e-9
-        and int(r["params"].get("neighbors", 0)) in (25, 50, 100)
-    ]
-    top = candidates[:top_n]
+    top = agg[algo][:top_n]
     label = ALGO_LABELS[algo]
+    total = len(agg[algo])
 
     lines = [
         r"\begin{table}[H]",
         r"    \centering",
         r"    \small",
         r"    \setlength{\tabcolsep}{5pt}",
-        r"    \begin{tabular}{rrr|rr}",
+        r"    \begin{tabular}{lrrr|rr}",
         r"        \toprule",
-        r"        \textbf{$\varepsilon$} & \textbf{Vecinos} & \textbf{Smoothing} "
+        r"        \textbf{Kernel} & \textbf{$\varepsilon$} & \textbf{Vecinos} & \textbf{Smoothing} "
         r"& \textbf{Rank medio} & \textbf{Pos.} \\",
         r"        \midrule",
     ]
@@ -301,16 +296,16 @@ def tabla_apendice_algo(agg: dict[str, list[dict]], algo: str, top_n: int) -> st
         if best_rank is not None and abs(r["rank"] - best_rank) < 1e-9:
             rank_s = _bold(rank_s)
         lines.append(
-            f"        {_eps_tex(float(p['epsilon']))} & {int(p['neighbors'])} "
-            f"& {_sm_tex(float(p['smoothing']))} & {rank_s} & {r['pos']} \\\\"
+            f"        {_kernel_tex(p.get('kernel',''))} & {_eps_tex(float(p['epsilon']))} "
+            f"& {int(p['neighbors'])} & {_sm_tex(float(p['smoothing']))} "
+            f"& {rank_s} & {r['pos']} \\\\"
         )
 
     lines += [
         r"        \bottomrule",
         r"    \end{tabular}",
-        f"    \\caption{{Top-{top_n} configuraciones de RBF para {label} en el espacio reducido "
-        r"(kernel \textit{multiquadric}, vecinos $\in\{25, 50, 100\}$). "
-        r"Pos.\ indica la posición en el ranking completo de 36 configuraciones.}",
+        f"    \\caption{{Top-{top_n} configuraciones de RBF para {label}. "
+        f"Pos.\\ indica la posición en el ranking completo de {total} configuraciones.}}",
         f"    \\label{{tab:rbf_apendice_{algo}}}",
         r"\end{table}",
     ]

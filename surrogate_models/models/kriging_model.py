@@ -1,32 +1,37 @@
-import numpy as np
+from sklearn.gaussian_process import GaussianProcessRegressor
+from sklearn.gaussian_process.kernels import Matern, ConstantKernel
 
-from smt.surrogate_models import KRG
 from surrogate_models.base import BaseSurrogateModel
+
 
 class Kriging(BaseSurrogateModel):
     """
-    Kriging es un modelo de regresión no paramétrico que utiliza la correlación espacial 
-    para aproximar la función objetivo.
+    Kriging (Proceso Gaussiano) con kernel Matérn 5/2, usado como referencia
+    clásica frente a modelos de aprendizaje automático más complejos.
     """
     nombre = "kriging"
 
-    def __init__(self, corr="matern52", poly="constant"):
-        """
-        Inicializa el modelo Kriging con los parámetros por defecto.
+    def __init__(self, nu=2.5, length_scale=1.0, n_restarts=3):
+        self.nu = nu
+        self.length_scale = length_scale
+        self.n_restarts = n_restarts
+        self.model = None
 
-        corr: tipo de correlación espacial.
-        poly: tipo de polinomio.
-        """
-        self.corr = corr
-        self.poly = poly
-        self.model = KRG( corr=corr, poly=poly, theta0=[1e-2] * X.shape[1], print_global=False)
-        
     def fit(self, X, y):
-        self.model.set_training_values(X, y)
-        self.model.train()
-        
+        kernel = ConstantKernel() * Matern(nu=self.nu, length_scale=self.length_scale)
+        self.model = GaussianProcessRegressor(
+            kernel=kernel,
+            n_restarts_optimizer=self.n_restarts,
+            normalize_y=False,
+        )
+        self.model.fit(X, y)
+
     def predict(self, X):
-        return self.model.predict_values(X)
+        return self.model.predict(X)
 
     def get_params(self):
-        return {"corr": self.corr, "poly": self.poly}
+        return {
+            "nu": self.nu,
+            "length_scale": self.length_scale,
+            "n_restarts": self.n_restarts,
+        }

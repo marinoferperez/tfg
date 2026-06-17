@@ -23,8 +23,8 @@ import matplotlib.pyplot as plt
 import pandas as pd
 
 BASE_DIR = Path(
-    "results/cec/cec2017_d10_tam50/benchmarking"
-    "/benchmarking_surrogates_offline_all/future_all"
+    "results/cec/cec2017_d10_tam50_reinicio_seleccionado"
+    "/benchmarking_surrogates_offline_next/future_next"
 )
 OUT_DIR = Path("memoria/figuras/surrogates_offline")
 OUT_DIR.mkdir(parents=True, exist_ok=True)
@@ -159,6 +159,41 @@ def main() -> None:
     csv_path = OUT_DIR / "evolucion_spearman_por_bloque_por_algoritmo.csv"
     agg.to_csv(csv_path, index=False)
     print(f"Datos: {csv_path}")
+
+    # Figuras individuales por algoritmo (para subfigura en LaTeX)
+    y_all = agg["spearman"].tolist()
+    y_margin = (max(y_all) - min(y_all)) * 0.08
+    y_lim = (min(y_all) - y_margin, max(y_all) + y_margin)
+
+    for algoritmo in ALGORITMOS:
+        fig_i, ax_i = plt.subplots(figsize=(5, 3.8))
+        df_algo = agg[agg["algoritmo"] == algoritmo]
+        for estrategia in ("no_acumulativo", "acumulativo"):
+            df_est = df_algo[df_algo["estrategia"] == estrategia].sort_values("hito")
+            y = df_est["spearman"].tolist()
+            ax_i.plot(
+                x, y,
+                marker="o",
+                linewidth=2.0,
+                markersize=5.5,
+                color=COLORS[estrategia],
+                label=LABELS[estrategia],
+            )
+        ax_i.axhline(0, color="#888888", linewidth=0.8, linestyle="--", alpha=0.6)
+        ax_i.set_xlabel("Presupuesto usado para entrenamiento (%)")
+        ax_i.set_ylabel("Spearman medio")
+        ax_i.set_xticks(x)
+        ax_i.set_ylim(y_lim)
+        ax_i.grid(axis="y", alpha=0.25, linestyle="--")
+        ax_i.spines["top"].set_visible(False)
+        ax_i.spines["right"].set_visible(False)
+        ax_i.legend(frameon=True, facecolor="white", edgecolor="#dddddd", fontsize=9)
+        fig_i.tight_layout()
+        for ext in ("png", "pdf"):
+            out_i = OUT_DIR / f"evolucion_spearman_por_bloque_{algoritmo}.{ext}"
+            fig_i.savefig(out_i, dpi=300, bbox_inches="tight")
+            print(f"Generado: {out_i}")
+        plt.close(fig_i)
 
 
 if __name__ == "__main__":

@@ -3,7 +3,8 @@ Genera tablas LaTeX para justificar la selección de hiperparámetros online.
 
 Tabla 1 (capítulo): config ganadora por algoritmo — online_seleccion_final.tex
 Tabla 2 (capítulo): comparativa config propia vs homogénea — online_comparativa_homogenea_vs_peralgo.tex
-Tablas 3-5 (apéndice): top-5 configs por algoritmo — online_apendice_{algo}.tex
+Tablas 3-5 (apéndice): top-5 configs por algoritmo — online_top5_{algo}.tex
+Tablas 6-8 (apéndice): ranking completo por algoritmo — online_apendice_{algo}.tex
 """
 from __future__ import annotations
 
@@ -149,17 +150,28 @@ def tabla_comparativa(ranked: dict[str, pd.DataFrame]) -> str:
     return "\n".join(lines) + "\n"
 
 
-# ─── Tablas apéndice: top-N por algoritmo ────────────────────────────────────
+# ─── Tablas apéndice: top-N y ranking completo por algoritmo ─────────────────
 
-def tabla_apendice(ranked: pd.DataFrame, algo: str) -> str:
-    top = ranked.head(TOP_N)
+def tabla_ranking_configs(ranked: pd.DataFrame, algo: str, *, top_n: int | None) -> str:
+    top = ranked.head(top_n) if top_n is not None else ranked
     label = ALGO_LABELS[algo]
     best_rank = top.iloc[0].rank_medio
+    title = (
+        f"Top-{top_n} configuraciones"
+        if top_n is not None
+        else "Ranking completo de configuraciones"
+    )
+    label_name = (
+        f"online_top5_{algo}"
+        if top_n is not None
+        else f"online_apendice_{algo}"
+    )
+    size = r"\small" if top_n is not None else r"\scriptsize"
 
     lines = [
         r"\begin{table}[H]",
         r"    \centering",
-        r"    \small",
+        f"    {size}",
         r"    \setlength{\tabcolsep}{5pt}",
         r"    \begin{tabular}{rrr|rr}",
         r"        \toprule",
@@ -178,12 +190,20 @@ def tabla_apendice(ranked: pd.DataFrame, algo: str) -> str:
     lines += [
         r"        \bottomrule",
         r"    \end{tabular}",
-        f"    \\caption{{Top-{TOP_N} configuraciones del subrogado \\textit{{online}} para {label} "
+        f"    \\caption{{{title} del subrogado \\textit{{online}} para {label} "
         r"según rank medio sobre las 7 funciones de cribado y 10 semillas del piloto.}",
-        f"    \\label{{tab:online_apendice_{algo}}}",
+        f"    \\label{{tab:{label_name}}}",
         r"\end{table}",
     ]
     return "\n".join(lines) + "\n"
+
+
+def tabla_top5(ranked: pd.DataFrame, algo: str) -> str:
+    return tabla_ranking_configs(ranked, algo, top_n=TOP_N)
+
+
+def tabla_apendice(ranked: pd.DataFrame, algo: str) -> str:
+    return tabla_ranking_configs(ranked, algo, top_n=None)
 
 
 def main() -> None:
@@ -207,6 +227,11 @@ def main() -> None:
     p = OUT_DIR / "online_comparativa_homogenea_vs_peralgo.tex"
     p.write_text(tabla_comparativa(ranked), encoding="utf-8")
     print(f"  → {p}")
+
+    for algo in ALGORITHMS:
+        p = APENDICE_DIR / f"online_top5_{algo}.tex"
+        p.write_text(tabla_top5(ranked[algo], algo), encoding="utf-8")
+        print(f"  → {p}")
 
     for algo in ALGORITHMS:
         p = APENDICE_DIR / f"online_apendice_{algo}.tex"

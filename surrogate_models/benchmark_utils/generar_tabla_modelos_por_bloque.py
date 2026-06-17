@@ -26,7 +26,7 @@ DEFAULT_BASE_DIR = (
 )
 DEFAULT_OUT_DIR = "memoria/tablas"
 
-MODELOS = ["hgb", "lasso", "mlp", "random_forest", "rbf", "rsm", "xgboost"]
+MODELOS = ["hgb", "lasso", "mlp", "random_forest", "rbf", "rsm", "svr", "xgboost"]
 MODELOS_DISPLAY = {
     "hgb": "HGB",
     "lasso": "LASSO",
@@ -34,6 +34,7 @@ MODELOS_DISPLAY = {
     "random_forest": "RF",
     "rbf": "RBF",
     "rsm": "RSM",
+    "svr": "SVR",
     "xgboost": "XGBoost",
 }
 ALGORITMOS = ["age", "de", "shade"]
@@ -96,9 +97,12 @@ def calcular_rankings(df: pd.DataFrame, algoritmo: str) -> pd.DataFrame:
     """
     df_alg = df[df["algoritmo"] == algoritmo].copy()
 
+    # Redondeo a 4 decimales antes del ranking (criterio TACOLAB)
+    df_alg["spearman"] = df_alg["spearman"].round(4)
+
     # Rank por (funcion, bloque) entre modelos
     df_alg["rank"] = df_alg.groupby(["funcion", "bloque"])["spearman"].rank(
-        ascending=False, method="average"
+        ascending=False, method="min"
     )
 
     # Rank medio por (modelo, bloque)
@@ -126,7 +130,7 @@ def _bold(s: str) -> str:
 
 
 def _fmt_rank(val: float, best: float) -> str:
-    s = f"{val:.2f}"
+    s = f"{val:.4f}"
     return _bold(s) if abs(val - best) < 1e-9 else s
 
 

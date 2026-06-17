@@ -1505,8 +1505,6 @@ def generar_histogramas_distribucion_mejora_futura_por_fases(filas, problema, ti
                 continue
 
     n_fases = len(FASES_PREDICTOR)
-    n_cols = min(3, n_fases)
-    n_rows = int(np.ceil(n_fases / n_cols))
     rutas_generadas = []
 
     for algoritmo in orden_algoritmos:
@@ -2256,15 +2254,6 @@ def generar_histograma_fitness_por_fases(filas, titulo, outpath):
 
         n_bins = max(18, int(np.sqrt(sum(arr.size for arr in series_validas)) // 4))
         bin_edges = np.linspace(limites_x[0], limites_x[1], num=n_bins + 1)
-        fig, axes = plt.subplots(
-            n_rows,
-            n_cols,
-            figsize=(3.2 * n_cols, 2.45 * n_rows),
-            squeeze=False,
-            sharex=True,
-            sharey=True,
-        )
-        axes_flat = axes.ravel()
         color = COLORES_ALGORITMO.get(algoritmo, "#59a14f")
 
         max_conteo = 0
@@ -2276,7 +2265,7 @@ def generar_histograma_fitness_por_fases(filas, titulo, outpath):
         limite_y = (0.0, max_conteo + max(max_conteo * 0.08, 1.0))
 
         for idx_fase, (inicio, fin, etiqueta_fase) in enumerate(FASES_PREDICTOR):
-            ax = axes_flat[idx_fase]
+            fig, ax = plt.subplots(figsize=(3.45, 2.45))
             datos_fase = fitness_fases[idx_fase]
             if datos_fase.size > 0:
                 datos_vis = datos_fase[(datos_fase >= xmin) & (datos_fase <= xmax)]
@@ -2290,17 +2279,11 @@ def generar_histograma_fitness_por_fases(filas, titulo, outpath):
                 )
                 superponer_curva_histograma(ax, datos_vis, bin_edges)
                 anotar_muestras_recortadas(ax, datos_fase, xmin, xmax)
-            ax.set_title(
-                f"{etiqueta_fase} ({int(inicio * 100)}-{int(fin * 100)}%, n={datos_fase.size})",
-                fontsize=9,
+            ax.set_xlabel(
+                transformacion["ylabel"] if transformacion is not None else "Fitness",
+                fontsize=10,
             )
-            if idx_fase // n_cols == n_rows - 1:
-                ax.set_xlabel(
-                    transformacion["ylabel"] if transformacion is not None else "Fitness",
-                    fontsize=10,
-                )
-            if idx_fase % n_cols == 0:
-                ax.set_ylabel("Frecuencia", fontsize=10)
+            ax.set_ylabel("Frecuencia", fontsize=10)
             ax.grid(axis="y", alpha=0.20)
             aplicar_formato_ejes_compacto(ax, ejes="both")
             aplicar_limites_compartidos(ax, "x", limites_x)
@@ -2308,18 +2291,15 @@ def generar_histograma_fitness_por_fases(filas, titulo, outpath):
             ax.tick_params(labelsize=8)
             ax.spines["top"].set_visible(False)
             ax.spines["right"].set_visible(False)
+            fig.subplots_adjust(left=0.18, right=0.98, bottom=0.22, top=0.88)
 
-        for idx in range(n_fases, len(axes_flat)):
-            axes_flat[idx].set_visible(False)
-
-        titulo_algoritmo = f"{titulo} | {algoritmo.upper()}" if len(algoritmos) > 1 else titulo
-        fig.suptitle(titulo_algoritmo, fontsize=11)
-        fig.subplots_adjust(left=0.09, right=0.98, bottom=0.12, top=0.86, wspace=0.22, hspace=0.36)
-
-        ruta_panel = outpath.with_name(f"{outpath.stem}_{algoritmo}{outpath.suffix}")
-        fig.savefig(ruta_panel, dpi=180)
-        plt.close(fig)
-        rutas_generadas.append(ruta_panel)
+            etiqueta_archivo = etiqueta_fase.replace("%", "").replace("-", "_")
+            ruta_fase = outpath.with_name(
+                f"{outpath.stem}_{algoritmo}_bloque_{etiqueta_archivo}{outpath.suffix}"
+            )
+            fig.savefig(ruta_fase, dpi=180)
+            plt.close(fig)
+            rutas_generadas.append(ruta_fase)
 
     return [str(r) for r in rutas_generadas]
 
@@ -2348,10 +2328,10 @@ def generar_curva_convergencia(filas, titulo, outpath):
 
         x_mejor, y_mejor_runs = alinear_curvas_por_evaluaciones(curvas_mejor)
         x_promedio, y_promedio_runs = alinear_curvas_por_evaluaciones(curvas_promedio)
-        mediana_mejor = np.median(y_mejor_runs, axis=0)
+        media_mejor = np.mean(y_mejor_runs, axis=0)
         media_promedio = np.mean(y_promedio_runs, axis=0)
 
-        mediana_mejor_plot = aplicar_transformacion_convergencia(mediana_mejor, transformacion)
+        media_mejor_plot = aplicar_transformacion_convergencia(media_mejor, transformacion)
         media_promedio_plot = aplicar_transformacion_convergencia(media_promedio, transformacion)
 
         color = COLORES_ALGORITMO.get(algoritmo, "#59a14f")
@@ -2364,7 +2344,7 @@ def generar_curva_convergencia(filas, titulo, outpath):
                 "color": color,
                 "n_curvas": len(curvas_mejor),
                 "x_mejor": x_mejor,
-                "mediana_mejor_plot": mediana_mejor_plot,
+                "media_mejor_plot": media_mejor_plot,
                 "x_promedio": x_promedio,
                 "media_promedio_plot": media_promedio_plot,
             }
@@ -2384,7 +2364,7 @@ def generar_curva_convergencia(filas, titulo, outpath):
 
     limites_x = (0, max_eval)
     limites_y = calcular_limites_compartidos(
-        [serie["mediana_mejor_plot"] for serie in series_por_algoritmo]
+        [serie["media_mejor_plot"] for serie in series_por_algoritmo]
         + [serie["media_promedio_plot"] for serie in series_por_algoritmo],
         padding_ratio=0.05,
         padding_min=1e-6,
@@ -2396,11 +2376,11 @@ def generar_curva_convergencia(filas, titulo, outpath):
 
         ax.step(
             serie["x_mejor"],
-            serie["mediana_mejor_plot"],
+            serie["media_mejor_plot"],
             where="post",
             color=color,
             linewidth=1.8,
-            label=f"{serie['nombre']} mejor mediana",
+            label=f"{serie['nombre']} mejor media",
         )
         ax.step(
             serie["x_promedio"],

@@ -7,7 +7,7 @@ class RBF(BaseSurrogateModel):
 
     ## -- configuración de hiperparámetros por defecto para el analisis del comportamiento de los distintos modelos sobre las estrategias offline
     
-    # def __init__(self, neighbors=50, smoothing=1, kernel="gaussian", degree=0, epsilon=1.0):
+    # def __init__(self, neighbors=50, smoothing=1, kernel="gaussian", degree=-1, epsilon=1.0):
 
     ## -- configuración de hiperparámetros ajustada para la posterior integración online.
     
