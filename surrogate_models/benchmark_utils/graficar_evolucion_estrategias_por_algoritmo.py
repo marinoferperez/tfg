@@ -166,7 +166,7 @@ def main() -> None:
     y_lim = (min(y_all) - y_margin, max(y_all) + y_margin)
 
     for algoritmo in ALGORITMOS:
-        fig_i, ax_i = plt.subplots(figsize=(5, 3.8))
+        fig_i, ax_i = plt.subplots(figsize=(9.0, 2.8))
         df_algo = agg[agg["algoritmo"] == algoritmo]
         for estrategia in ("no_acumulativo", "acumulativo"):
             df_est = df_algo[df_algo["estrategia"] == estrategia].sort_values("hito")
