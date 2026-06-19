@@ -14,6 +14,28 @@ from src.utils.fs_utils import resolver_ruta, resolver_directorio_existente
 ALGORITMOS_MH = ("age", "de", "shade")
 
 
+def gestiona_algoritmos(valores):
+    """Normaliza --algorithm: acepta listas por espacios, comas o 'all'."""
+    tokens = []
+    for valor in valores or ["all"]:
+        for token in str(valor).split(","):
+            token = token.strip().lower()
+            if token:
+                tokens.append(token)
+    if not tokens or "all" in tokens:
+        return list(ALGORITMOS_MH)
+    permitidos = set(ALGORITMOS_MH)
+    resultado = []
+    for token in tokens:
+        if token not in permitidos:
+            raise ValueError(
+                f"Algoritmo no soportado: {token!r}. Usa age, de, shade o all."
+            )
+        if token not in resultado:
+            resultado.append(token)
+    return resultado
+
+
 # ---------------------------------------------------------------------------
 # Normalización de identificadores de función CEC
 # ---------------------------------------------------------------------------

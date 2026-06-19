@@ -19,7 +19,7 @@ ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from src.utils.experiment_paths import ALGORITMOS_MH, normalizar_funcion
+from src.utils.experiment_paths import ALGORITMOS_MH, gestiona_algoritmos, normalizar_funcion
 from src.utils.experiment_io import mostrar
 from src.utils.benchmark.batches_eval_splitter import (
     construir_casos_acumulativos,
@@ -75,18 +75,26 @@ def parse_args():
         help="Directorio raiz del experimento con los datasets por seed.",
     )
     parser.add_argument(
+        "--output-dir",
+        default=None,
+        help=(
+            "Directorio raiz donde guardar los resultados del benchmark. "
+            "Si no se indica, se genera automaticamente como results/offline_<nombre_experimento>."
+        ),
+    )
+    parser.add_argument(
         "--benchmark-subdir",
-        default="benchmarking",
+        default="offline",
         help=(
             "Subdirectorio relativo dentro del experimento donde guardar los resultados "
-            "del benchmark. Por defecto: benchmarking."
+            "del benchmark offline. Por defecto: offline."
         ),
     )
     parser.add_argument(
         "--algorithm",
-        default="all",
-        choices=[*ALGORITMOS_MH, "all"],
-        help="Metaheuristica evaluada. 'all' ejecuta AGE, DE y SHADE.",
+        nargs="+",
+        default=["all"],
+        help="Metaheuristica a ejecutar. Acepta age, de, shade, all, listas separadas por espacios o comas. Por defecto all.",
     )
     parser.add_argument(
         "--cec-funcid",
@@ -118,7 +126,7 @@ def parse_args():
         help="Numero maximo de seeds a usar. Si no se indica, se usan todas las disponibles.",
     )
     parser.add_argument(
-        "--seed-selection-seed",
+        "--selection-seed",
         type=int,
         default=42,
         help=(
@@ -136,7 +144,7 @@ def parse_args():
         ),
     )
     parser.add_argument(
-        "--model-params-json",
+        "--surrogate-params-json",
         default=None,
         help="JSON con hiperparametros del modelo subrogado.",
     )
@@ -176,7 +184,7 @@ def parse_args():
     parser.add_argument(
         "--verbose",
         action="store_true",
-        help="Si se indica, muestra el bloque de configuracion antes de ejecutar.",
+        help="Si se indica, muestra informacion de progreso por terminal. Por defecto False.",
     )
     return parser.parse_args()
 
@@ -184,6 +192,9 @@ def parse_args():
 def main():
     """Punto de entrada del benchmark offline."""
     args = parse_args()
+    if args.output_dir is None:
+        nombre_exp = Path(args.experiment_dir).resolve().name
+        args.output_dir = str(ROOT / "results" / f"offline_{nombre_exp}")
     cfg = STRATEGIES[args.strategy]
     protocol = cfg["protocol"]
     split_strategy = cfg["split_strategy"]
@@ -192,6 +203,7 @@ def main():
     mostrar(args, "Configuracion offline:", flush=True)
     mostrar(args, f"  strategy={args.strategy}", flush=True)
     mostrar(args, f"  experiment_dir={args.experiment_dir}", flush=True)
+    mostrar(args, f"  output_dir={args.output_dir}", flush=True)
     mostrar(args, f"  algorithm={args.algorithm}", flush=True)
     mostrar(args, f"  cec_funcid={args.cec_funcid}", flush=True)
     mostrar(args, f"  model={args.model}", flush=True)
@@ -200,7 +212,7 @@ def main():
     mostrar(args, f"  convergence_truncation={args.convergence_truncation}", flush=True)
     mostrar(args, f"  benchmark_subdir={args.benchmark_subdir}", flush=True)
 
-    algoritmos = ALGORITMOS_MH if args.algorithm == "all" else (args.algorithm,)
+    algoritmos = gestiona_algoritmos(args.algorithm)
     for algoritmo in algoritmos:
         args_algoritmo = argparse.Namespace(**vars(args))
         args_algoritmo.algorithm = algoritmo
@@ -220,12 +232,12 @@ def main():
             funcion=normalizar_funcion(args_algoritmo.cec_funcid),
             algoritmo=args_algoritmo.algorithm,
             model_name=args_algoritmo.model,
-            model_kwargs=cargar_model_kwargs(args_algoritmo.model_params_json),
+            model_kwargs=cargar_model_kwargs(args_algoritmo.surrogate_params_json),
             constructor_casos=constructor_casos,
             protocol=protocol,
             split_strategy=split_strategy,
             random_state=args_algoritmo.seed,
-            seed_selection_random_state=args_algoritmo.seed_selection_seed,
+            seed_selection_random_state=args_algoritmo.selection_seed,
             collect_sample_errors=(ruta_errores is not None),
             truncar_convergencia=args_algoritmo.convergence_truncation,
         )

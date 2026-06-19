@@ -36,7 +36,7 @@ def resolver_inputs_benchmark(args):
             raise ValueError(
                 f"max_seeds={args.max_seeds} excede el numero de datasets disponibles ({len(rutas)})."
             )
-        rng = np.random.default_rng(int(args.seed_selection_random_state))
+        rng = np.random.default_rng(int(args.selection_seed))
         idx = rng.choice(len(rutas), size=int(args.max_seeds), replace=False)
         rutas = ordenar_paths_por_seed(rutas[i] for i in idx)
     if not rutas:
@@ -67,8 +67,12 @@ def resolver_funcion_y_raiz_experimento(dataset_path, funcion):
 def resolver_rutas_salida_benchmark(args, dataset_paths, protocolo):
     funcion_norm = normalizar_funcion(args.cec_funcid)
     _, raiz_experimento = resolver_funcion_y_raiz_experimento(dataset_paths[0], args.cec_funcid)
+    if getattr(args, "output_dir", None):
+        raiz_salida = Path(args.output_dir).resolve()
+    else:
+        raiz_salida = raiz_experimento
     benchmark_subdir = Path(args.benchmark_subdir)
-    benchmark_dir = raiz_experimento / benchmark_subdir / protocolo / funcion_norm
+    benchmark_dir = raiz_salida / benchmark_subdir / protocolo / funcion_norm
     model_dir = benchmark_dir / args.algorithm / args.model
 
     ruta_metricas = Path(args.out).resolve() if args.out else model_dir / f"{args.model}_metricas.json"

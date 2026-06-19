@@ -16,7 +16,7 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 from src.benchmark.cec2017_problem import MAX_EVALS_POR_DIM
-from src.utils.experiment_paths import ALGORITMOS_MH
+from src.utils.experiment_paths import ALGORITMOS_MH, gestiona_algoritmos
 from src.utils.experiment_io import (
     construir_resumen,
     gestiona_funcids_cec,
@@ -76,7 +76,7 @@ def parse_args():
         "--max-evals",
         type=int,
         default=None,
-        help="Presupuesto maximo de evaluaciones. Por defecto: 10000 * dimension.",
+        help="Presupuesto maximo de evaluaciones reales. Por defecto: 10000 * dimension.",
     )
     parser.add_argument(
         "--restart",
@@ -93,11 +93,7 @@ def parse_args():
         "--elitist-restart-patience-ratio",
         type=float,
         default=None,
-        help=(
-            "Fraccion de max_evals que debe transcurrir sin mejora real del "
-            "segundo mejor fitness antes de permitir el reinicio. Debe "
-            "indicarse cuando se activa --restart."
-        ),
+        help="Fraccion de max_evals sin mejora del segundo mejor antes de permitir el reinicio. Requiere --restart.",
     )
     parser.add_argument(
         "--cec-funcid",
@@ -114,15 +110,14 @@ def parse_args():
     )
     parser.add_argument(
         "--algorithm",
-        type=str.lower,
-        default="all",
-        choices=[*ALGORITMOS_MH, "all"],
-        help="Algoritmo a ejecutar. Por defecto all.",
+        nargs="+",
+        default=["all"],
+        help="Metaheuristica a ejecutar. Acepta age, de, shade, all, listas separadas por espacios o comas. Por defecto all.",
     )
     parser.add_argument(
         "--no-metrics",
         action="store_true",
-        help="Si se indica, no registra metricas DEAP ni genera metricas_runs.",
+        help="Si se indica, no registra metricas DEAP ni datasets por run.",
     )
     parser.add_argument(
         "--save-restart-detail",
@@ -132,13 +127,16 @@ def parse_args():
     parser.add_argument(
         "--verbose",
         action="store_true",
-        help="Si se indica, muestra informacion de progreso por terminal.",
+        help="Si se indica, muestra informacion de progreso por terminal. Por defecto False.",
     )
     parser.add_argument(
         "--outdir",
         type=str,
-        default="results/resultados_benchmark_mhs",
-        help="Directorio raiz donde guardar resultados y metricas. Por defecto results/resultados_benchmark_mhs.",
+        default=None,
+        help=(
+            "Directorio raiz donde guardar resultados y metricas. "
+            "Por defecto se genera automaticamente como metaheuristics_d<dim>_tam<pop>."
+        ),
     )
     return parser.parse_args()
 
@@ -262,16 +260,15 @@ def main():
     if not args.restart and args.restart_ratio is not None:
         raise ValueError("--restart-ratio solo puede utilizarse junto con --restart.")
 
+    if args.outdir is None:
+        args.outdir = f"metaheuristics_d{args.cec_dim}_tam{int(args.pop_size)}"
     outdir_raiz = Path(args.outdir).resolve()
     nombre_experimento = outdir_raiz.name if outdir_raiz.name else "experimento"
-    outdir_cec = (ROOT / "results" / "cec" / nombre_experimento).resolve()
+    outdir_cec = (ROOT / "results" / nombre_experimento).resolve()
 
     semillas = gestiona_semillas(args)
 
-    if args.algorithm == "all":
-        algoritmos = ALGORITMOS_MH
-    else:
-        algoritmos = (args.algorithm,)
+    algoritmos = gestiona_algoritmos(args.algorithm)
 
     funcids_cec = gestiona_funcids_cec(args)
     funcids_txt = ",".join(str(int(f)) for f in funcids_cec)

@@ -30,7 +30,7 @@ from src.surrogates.preprocessing.scaling import (
     invertir_y,
 )
 from src.utils.fs_utils import resolver_archivo_existente
-from src.utils.experiment_paths import ALGORITMOS_MH, normalizar_funcion
+from src.utils.experiment_paths import ALGORITMOS_MH, gestiona_algoritmos, normalizar_funcion
 from src.utils.experiment_io import mostrar
 from src.utils.dataset_utils import cargar_dataset, inferir_seed
 from src.utils.benchmark.batches_eval_splitter import (
@@ -38,6 +38,7 @@ from src.utils.benchmark.batches_eval_splitter import (
     TOL_MEJORA_BATCH_ABS,
     TOL_MEJORA_BATCH_REL,
     VAL_RATIO_TRAIN,
+    construir_casos_acumulativos,
     construir_casos_no_acumulativos,
     truncar_por_convergencia,
 )
@@ -58,6 +59,20 @@ from src.surrogates.evaluation.metrics import (
     METRICAS_MINIMIZAR,
 )
 from src.surrogates.select_model import select_model, MODELOS
+
+
+STRATEGIES = {
+    "cumulative": {
+        "protocol": "acumulativo",
+        "split_strategy": "temporal_acumulativo_futuro_tuned",
+        "constructor_casos": construir_casos_acumulativos,
+    },
+    "non_cumulative": {
+        "protocol": "no_acumulativo",
+        "split_strategy": "temporal_no_acumulativo_futuro_tuned",
+        "constructor_casos": construir_casos_no_acumulativos,
+    },
+}
 
 
 def expandir_funciones(funcion_arg):
@@ -121,23 +136,37 @@ def build_parser():
         )
     )
     parser.add_argument(
+        "--strategy",
+        choices=list(STRATEGIES),
+        required=True,
+        help="Estrategia de evaluacion temporal: cumulative | non_cumulative.",
+    )
+    parser.add_argument(
         "--experiment-dir",
         required=True,
         help="Directorio raiz del experimento con los datasets por seed.",
     )
     parser.add_argument(
+        "--output-dir",
+        default=None,
+        help=(
+            "Directorio raiz donde guardar los resultados del ajuste. "
+            "Si no se indica, se genera automaticamente como results/tuning_<nombre_experimento>."
+        ),
+    )
+    parser.add_argument(
         "--benchmark-subdir",
-        default="resultados_benchmark_surrogates_offline_ajuste",
+        default="tuning_benchmark",
         help=(
             "Subdirectorio relativo dentro del experimento donde guardar los resultados "
-            "del benchmark con ajuste. Por defecto: resultados_benchmark_surrogates_offline_ajuste."
+            "del benchmark con ajuste. Por defecto: tuning_benchmark."
         ),
     )
     parser.add_argument(
         "--algorithm",
-        default="all",
-        choices=[*ALGORITMOS_MH, "all"],
-        help="Metaheuristica evaluada. 'all' ejecuta AGE, DE y SHADE.",
+        nargs="+",
+        default=["all"],
+        help="Metaheuristica a ejecutar. Acepta age, de, shade, all, listas separadas por espacios o comas. Por defecto all.",
     )
     parser.add_argument(
         "--cec-funcid",
@@ -168,7 +197,7 @@ def build_parser():
         help="Numero maximo de seeds a usar. Si no se indica, se usan todas las disponibles.",
     )
     parser.add_argument(
-        "--seed-selection-seed",
+        "--selection-seed",
         type=int,
         default=42,
         help=(
@@ -243,7 +272,7 @@ def build_parser():
     parser.add_argument(
         "--verbose",
         action="store_true",
-        help="Si se indica, muestra el bloque de configuracion antes de ejecutar.",
+        help="Si se indica, muestra informacion de progreso por terminal. Por defecto False.",
     )
     return parser
 
@@ -367,6 +396,9 @@ def ejecutar_benchmark_tuned(
     collect_sample_errors,
     truncar_convergencia,
     store_tuning_results,
+    constructor_casos,
+    protocol,
+    split_strategy,
 ):
     """
     Ejecuta el benchmark con ajuste de hiperparametros sobre los datasets dados.
@@ -397,7 +429,7 @@ def ejecutar_benchmark_tuned(
         x = escalar_X(np.asarray(dataset["x"], dtype=float))
         y = np.asarray(dataset["fitness"], dtype=float).ravel()
         eval_id = np.asarray(dataset["eval_id"], dtype=np.int64)
-        casos = construir_casos_no_acumulativos(dataset, random_state=random_state)
+        casos = constructor_casos(dataset, random_state=random_state)
         if not casos:
             seeds_sin_casos.append(seed_dataset)
             continue
@@ -503,8 +535,8 @@ def ejecutar_benchmark_tuned(
                 "inner_validation_ratio": float(inner_validation_ratio),
                 "param_grid": param_grid,
             },
-            "split_strategy": "temporal_no_acumulativo_futuro_tuned",
-            "protocol": "no_acumulativo",
+            "split_strategy": split_strategy,
+            "protocol": protocol,
             "n_batches": int(N_BATCHES),
             "validation_ratio": float(VAL_RATIO_TRAIN),
             "scale_features": True,
@@ -538,8 +570,16 @@ def main():
     parser = build_parser()
     args = parser.parse_args()
 
+    if args.output_dir is None:
+        nombre_exp = Path(args.experiment_dir).resolve().name
+        args.output_dir = str(ROOT / "results" / f"tuning_{nombre_exp}")
+
+    cfg = STRATEGIES[args.strategy]
+
     mostrar(args, "Configuracion offline (ajuste):", flush=True)
+    mostrar(args, f"  strategy={args.strategy}", flush=True)
     mostrar(args, f"  experiment_dir={args.experiment_dir}", flush=True)
+    mostrar(args, f"  output_dir={args.output_dir}", flush=True)
     mostrar(args, f"  algorithm={args.algorithm}", flush=True)
     mostrar(args, f"  cec_funcid={args.cec_funcid}", flush=True)
     mostrar(args, f"  model={args.model}", flush=True)
@@ -551,7 +591,7 @@ def main():
     mostrar(args, f"  benchmark_subdir={args.benchmark_subdir}", flush=True)
 
     funciones = expandir_funciones(args.cec_funcid)
-    algoritmos = ALGORITMOS_MH if args.algorithm == "all" else (args.algorithm,)
+    algoritmos = gestiona_algoritmos(args.algorithm)
     modelos = expandir_modelos(args.model)
     ejecucion_multiple = len(funciones) > 1 or len(algoritmos) > 1 or len(modelos) > 1
     salidas_explicitas = any((args.out, args.runs_out, args.runs_json_out, args.errors_out))
@@ -580,7 +620,7 @@ def main():
                     ruta_runs_csv,
                     ruta_runs_json,
                     ruta_errores,
-                ) = resolver_rutas_salida_benchmark(args_run, dataset_paths, "no_acumulativo")
+                ) = resolver_rutas_salida_benchmark(args_run, dataset_paths, cfg["protocol"])
 
                 metricas = ejecutar_benchmark_tuned(
                     dataset_paths=dataset_paths,
@@ -591,10 +631,13 @@ def main():
                     tuning_metric=args_run.tuning_metric,
                     inner_validation_ratio=args_run.inner_validation_ratio,
                     random_state=args_run.seed,
-                    seed_selection_random_state=args_run.seed_selection_seed,
+                    seed_selection_random_state=args_run.selection_seed,
                     collect_sample_errors=(ruta_errores is not None),
                     truncar_convergencia=args_run.convergence_truncation,
                     store_tuning_results=args_run.store_tuning_results,
+                    constructor_casos=cfg["constructor_casos"],
+                    protocol=cfg["protocol"],
+                    split_strategy=cfg["split_strategy"],
                 )
 
                 guardar_artefactos_modelo(

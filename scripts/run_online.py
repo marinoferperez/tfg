@@ -17,6 +17,7 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 from src.benchmark.cec2017_problem import MAX_EVALS_POR_DIM
+from src.utils.experiment_paths import gestiona_algoritmos
 from src.utils.experiment_io import (
     construir_resumen,
     gestiona_funcids_cec,
@@ -99,7 +100,7 @@ def parse_args():
         "--elitist-restart-patience-ratio",
         type=float,
         default=None,
-        help="Fraccion de max_evals sin mejora antes de permitir reinicio. Requiere --restart.",
+        help="Fraccion de max_evals sin mejora del segundo mejor antes de permitir el reinicio. Requiere --restart.",
     )
     parser.add_argument(
         "--cec-funcid",
@@ -139,13 +140,16 @@ def parse_args():
     parser.add_argument(
         "--verbose",
         action="store_true",
-        help="Si se indica, muestra informacion de progreso por terminal.",
+        help="Si se indica, muestra informacion de progreso por terminal. Por defecto False.",
     )
     parser.add_argument(
         "--outdir",
         type=str,
-        default="results/cec/cec2017_d10_tam50_online",
-        help="Directorio raiz donde guardar resultados y metricas. Por defecto results/cec/cec2017_d10_tam50_online.",
+        default=None,
+        help=(
+            "Directorio raiz donde guardar resultados y metricas. "
+            "Por defecto se genera automaticamente como online_d<dim>_tam<pop>."
+        ),
     )
     parser.add_argument(
         "--surrogate-model",
@@ -181,10 +185,10 @@ def parse_args():
     parser.add_argument(
         "--restart-cooldown-evals",
         type=int,
-        default=0,
+        default=None,
         help=(
             "Evaluaciones reales de enfriamiento tras cada reinicio. "
-            "Usa 0 para desactivarlo. Por defecto 0."
+            "Si no se indica, el enfriamiento queda desactivado (equivale a 0)."
         ),
     )
     parser.add_argument(
@@ -266,7 +270,7 @@ def validar_args(args):
     if not args.restart and args.restart_ratio is not None:
         raise ValueError("--restart-ratio solo puede utilizarse junto con --restart.")
 
-    args.algoritmos = gestiona_algoritmos_online(args.algorithm)
+    args.algoritmos = gestiona_algoritmos(args.algorithm)
 
 
 def construir_config_subrogado(args, seed):
@@ -281,7 +285,7 @@ def construir_config_subrogado(args, seed):
     return ConfiguracionSubrogadoOnline(
         modelo_nombre=surrogate_model,
         modelo_params=modelo_params,
-        cooldown_reinicio_evals=int(args.restart_cooldown_evals),
+        cooldown_reinicio_evals=int(args.restart_cooldown_evals or 0),
         warmup_ratio=float(args.warmup_ratio),
         window_ratio=float(args.window_ratio),
         probabilidad_subrogado=float(args.surrogate_prob),
@@ -337,7 +341,7 @@ def fila_run(args, algoritmo, funcid, seed, resultado, tiempo_s):
         "surrogate_prob": float(args.surrogate_prob),
         "warmup_ratio": float(args.warmup_ratio),
         "window_ratio": float(args.window_ratio),
-        "restart_cooldown_evals": int(args.restart_cooldown_evals),
+        "restart_cooldown_evals": int(args.restart_cooldown_evals or 0),
         "evals_reales": int(resumen_online.get("evals_reales", 0)),
         "candidatos_generados": int(resumen_online.get("candidatos_generados", 0)),
         "candidatos_con_subrogado": int(resumen_online.get("candidatos_con_subrogado", 0)),
@@ -379,7 +383,7 @@ def ejecutar_cec_online(args, algoritmo, semillas, outdir_metricas, funcid):
     retrain_label = f"rt{int(round(float(args.retrain_ratio) * 100)):03d}"
     prefijo_adaptacion = {"age": "ao", "de": "do", "shade": "so"}[algoritmo]
     adaptacion = (
-        f"{prefijo_adaptacion}_{prob_label}_c{int(args.restart_cooldown_evals)}_{retrain_label}"
+        f"{prefijo_adaptacion}_{prob_label}_c{int(args.restart_cooldown_evals or 0)}_{retrain_label}"
     )
 
     for run_idx, seed in enumerate(semillas, start=1):
@@ -393,7 +397,7 @@ def ejecutar_cec_online(args, algoritmo, semillas, outdir_metricas, funcid):
         metaheuristica = construir_metaheuristica_online(args, seed, algoritmo)
         run_id = (
             f"{algoritmo}_online_cec2017_f{int(funcid)}_d{int(args.cec_dim)}_s{int(seed)}"
-            f"_{prob_label}_cd{int(args.restart_cooldown_evals)}_{retrain_label}"
+            f"_{prob_label}_cd{int(args.restart_cooldown_evals or 0)}_{retrain_label}"
             f"{sufijo_reinicio}"
         )
 
@@ -474,7 +478,7 @@ def config_base(args, semillas, funcids):
         "surrogate_prob": float(args.surrogate_prob),
         "warmup_ratio": float(args.warmup_ratio),
         "window_ratio": float(args.window_ratio),
-        "restart_cooldown_evals": int(args.restart_cooldown_evals),
+        "restart_cooldown_evals": int(args.restart_cooldown_evals or 0),
         "retrain_ratio": float(args.retrain_ratio),
         "save_surrogate_decisions": bool(args.save_surrogate_decisions),
     }
@@ -488,9 +492,11 @@ def main():
     semillas = gestiona_semillas(args)
     funcids_cec = gestiona_funcids_cec(args)
 
+    if args.outdir is None:
+        args.outdir = f"metaheuristics_online_d{args.cec_dim}_tam{int(args.pop_size)}"
     outdir_raiz = Path(args.outdir).resolve()
     nombre_experimento = outdir_raiz.name if outdir_raiz.name else "online"
-    outdir_cec = (ROOT / "results" / "cec" / nombre_experimento).resolve()
+    outdir_cec = (ROOT / "results" / nombre_experimento).resolve()
 
     mostrar(args, "Configuracion online:", flush=True)
     mostrar(args, f"  algoritmos={','.join(str(a) for a in args.algoritmos)}", flush=True)
@@ -509,7 +515,7 @@ def main():
     mostrar(args, f"  surrogate_prob={float(args.surrogate_prob)}", flush=True)
     mostrar(args, f"  warmup_ratio={float(args.warmup_ratio)}", flush=True)
     mostrar(args, f"  window_ratio={float(args.window_ratio)}", flush=True)
-    mostrar(args, f"  restart_cooldown_evals={int(args.restart_cooldown_evals)}", flush=True)
+    mostrar(args, f"  restart_cooldown_evals={int(args.restart_cooldown_evals or 0)}", flush=True)
     mostrar(args, f"  retrain_ratio={float(args.retrain_ratio)}", flush=True)
     mostrar(args, f"  save_dataset={not bool(args.no_dataset)}", flush=True)
     mostrar(args, f"  save_surrogate_decisions={bool(args.save_surrogate_decisions)}", flush=True)
