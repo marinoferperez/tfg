@@ -6,6 +6,8 @@ nombre de cadena. Todos los imports son diferidos para evitar dependencias
 circulares y cargas innecesarias de librerías.
 """
 
+MODELOS = ("rbf", "svr", "mlp", "rsm", "random_forest", "hgb", "lasso", "xgboost")
+
 
 def select_model(model_name, **kwargs):
     """

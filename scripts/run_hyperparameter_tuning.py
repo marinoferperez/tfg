@@ -51,21 +51,20 @@ from src.utils.benchmark.surrogate_paths import (
     resolver_inputs_benchmark,
     resolver_rutas_salida_benchmark,
 )
-from src.surrogates.evaluation.metrics import calcular_errores_por_muestra, calcular_metricas
-from src.surrogates.select_model import select_model
-
-
-METRICAS_MAXIMIZAR = {"spearman"}
-METRICAS_MINIMIZAR = {"mae", "nmae", "rmse", "nrmse"}
-CEC2017_FUNCIONES = tuple(f"f{i}" for i in range(1, 31))
-MODELOS_AJUSTE = ("rbf", "svr", "mlp", "rsm", "random_forest", "hgb", "lasso", "xgboost")
+from src.surrogates.evaluation.metrics import (
+    calcular_errores_por_muestra,
+    calcular_metricas,
+    METRICAS_MAXIMIZAR,
+    METRICAS_MINIMIZAR,
+)
+from src.surrogates.select_model import select_model, MODELOS
 
 
 def expandir_funciones(funcion_arg):
     """Convierte el argumento --cec-funcid en una tupla de nombres de funcion normalizados."""
     txt = str(funcion_arg).strip().lower()
     if txt == "all":
-        return CEC2017_FUNCIONES
+        return tuple(f"f{i}" for i in range(1, 31))
     partes = [parte.strip() for parte in txt.split(",") if parte.strip()]
     if len(partes) > 1:
         return tuple(normalizar_funcion(parte) for parte in partes)
@@ -76,12 +75,12 @@ def expandir_modelos(model_arg):
     """Convierte el argumento --model en una tupla de nombres de modelo validados."""
     txt = str(model_arg).strip().lower()
     if txt == "all":
-        return MODELOS_AJUSTE
+        return MODELOS
     partes = [parte.strip() for parte in txt.split(",") if parte.strip()]
     modelos = partes if len(partes) > 1 else [txt]
-    invalidos = [modelo for modelo in modelos if modelo not in MODELOS_AJUSTE]
+    invalidos = [modelo for modelo in modelos if modelo not in MODELOS]
     if invalidos:
-        raise ValueError(f"Modelos no soportados para ajuste: {', '.join(invalidos)}")
+        raise ValueError(f"Modelos no soportados: {', '.join(invalidos)}")
     return tuple(modelos)
 
 
@@ -108,9 +107,9 @@ def cargar_param_grid(model_name, ruta_json):
         for neighbors, smoothing in itertools.product((50, 100), (1e-3, 1e-2)):
             grid.append({"neighbors": neighbors, "smoothing": smoothing, "kernel": "gaussian", "degree": -1, "epsilon": 1.0})
         return grid
-    if model_name in MODELOS_AJUSTE:
+    if model_name in MODELOS:
         return [{}]
-    raise ValueError(f"Modelo no soportado para ajuste: {model_name!r}.")
+    raise ValueError(f"Modelo no soportado: {model_name!r}.")
 
 
 def build_parser():

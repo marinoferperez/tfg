@@ -13,7 +13,7 @@ from src.metaheuristics.algorithms.offline.de import DifferentialEvolution
 from src.metaheuristics.metrics.elitist_restart import (
     construir_metadata_reinicios,
 )
-from src.benchmark.cec2017_problem import CEC2017Problem
+from src.benchmark.cec2017_problem import CEC2017Problem, MAX_EVALS_POR_DIM
 from src.utils.experiment_io import guardar_reinicios_elitistas_csv
 from src.metaheuristics.metrics.metrics_callback import CallbackMetricasDE
 from src.metaheuristics.metrics.surrogate_dataset import SurrogateDataset, guardar_dataset_hdf5
@@ -127,7 +127,7 @@ class DifferentialEvolutionCEC2017:
 
                 evals_objetivo = config.get("max_evals")
                 if evals_objetivo is None:
-                    evals_objetivo = int(self.de.max_evals) if self.de.max_evals is not None else int(10000 * dim)
+                    evals_objetivo = int(self.de.max_evals) if self.de.max_evals is not None else int(MAX_EVALS_POR_DIM * dim)
 
                 evals_reales = int(self.de.evals) 
                 evals_fuera_presupuesto = int(max(0, evals_reales - evals_objetivo))

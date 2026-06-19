@@ -16,6 +16,7 @@ ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
+from src.benchmark.cec2017_problem import MAX_EVALS_POR_DIM
 from src.utils.experiment_io import (
     construir_resumen,
     gestiona_funcids_cec,
@@ -109,7 +110,7 @@ def parse_args():
     parser.add_argument(
         "--cec-dim",
         type=int,
-        choices=[2, 5, 10, 30, 50],
+        choices=[2, 5, 10, 30, 50, 100],
         default=10,
         help="Dimensionalidad del problema CEC2017. Por defecto 10.",
     )
@@ -256,7 +257,7 @@ def validar_args(args):
     args.restart = bool(args.restart)
 
     if args.max_evals is None:
-        args.max_evals = 10000 * int(args.cec_dim)
+        args.max_evals = MAX_EVALS_POR_DIM * int(args.cec_dim)
     if int(args.max_evals) <= 0:
         raise ValueError("--max-evals debe ser positivo.")
 

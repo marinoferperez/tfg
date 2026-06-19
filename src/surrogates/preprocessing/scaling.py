@@ -10,9 +10,11 @@ de entrenamiento y se invierte sobre las predicciones.
 import numpy as np
 from sklearn.preprocessing import StandardScaler
 
+from src.benchmark.cec2017_problem import _LIMITE_SUP
+
 
 # Límite del dominio CEC2017: [-100, 100] → se normaliza a [-1, 1].
-DOMAIN_BOUND = 100.0
+DOMAIN_BOUND = _LIMITE_SUP
 
 # Modelos basados en árboles que no requieren escalado de Y.
 MODELOS_ARBOL = {"random_forest", "hgb", "xgboost"}

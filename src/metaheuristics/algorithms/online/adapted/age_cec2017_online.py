@@ -26,7 +26,7 @@ from src.metaheuristics.surrogate.surrogate_controller import (
 from src.metaheuristics.surrogate.surrogate_stats import (
     EstadisticasSubrogado,
 )
-from src.benchmark.cec2017_problem import CEC2017Problem
+from src.benchmark.cec2017_problem import CEC2017Problem, MAX_EVALS_POR_DIM
 from src.utils.experiment_io import guardar_reinicios_elitistas_csv, guardar_decisiones_subrogado_csv
 
 
@@ -96,7 +96,7 @@ class GeneticStationaryCEC2017Online(GeneticStationaryCEC2017):
             max_evals = (
                 int(self.age.max_evals)
                 if self.age.max_evals is not None
-                else int(10000 * dim)
+                else int(MAX_EVALS_POR_DIM * dim)
             )
 
             config_subrogado = self._configurar_subrogado(max_evals=max_evals, seed=seed)

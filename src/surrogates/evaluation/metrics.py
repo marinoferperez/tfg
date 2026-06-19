@@ -10,6 +10,9 @@ import numpy as np
 from scipy.stats import rankdata, pearsonr
 from sklearn.metrics import mean_absolute_error, mean_squared_error
 
+METRICAS_MAXIMIZAR = {"spearman"}
+METRICAS_MINIMIZAR = {"mae", "nmae", "rmse", "nrmse"}
+
 def calcular_errores_por_muestra(y_true, y_pred):
     """
     Calcula el error absoluto y porcentual por muestra.

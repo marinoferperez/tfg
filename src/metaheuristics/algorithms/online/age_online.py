@@ -7,6 +7,7 @@ para mantener separada la lógica de la metaheurística de la del modelo.
 """
 
 import numpy as np
+from src.benchmark.cec2017_problem import MAX_EVALS_POR_DIM
 
 from src.metaheuristics.algorithms.offline.age import GeneticoEstacionario
 from src.metaheuristics.metrics.elitist_restart import (
@@ -66,7 +67,7 @@ class GeneticAlgorithmContinuoOnline(GeneticoEstacionario):
 
         limites = np.asarray(limites, dtype=float)
         dim = limites.shape[0]
-        max_evals = int(self.max_evals if self.max_evals is not None else 10000 * dim)
+        max_evals = int(self.max_evals if self.max_evals is not None else MAX_EVALS_POR_DIM * dim)
 
         self.eventos_reinicio = []
         if self.reinicio:

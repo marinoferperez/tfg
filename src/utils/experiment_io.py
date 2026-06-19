@@ -143,24 +143,22 @@ def gestiona_semillas(args):
 # Fusion y construccion de resumenes
 # ---------------------------------------------------------------------------
 
-COLUMNAS_RUNS_DESCARTADAS = {
-    "problema",
-    "adaptacion",
-    "qap_instancia",
-    "ruta_metricas",
-    "ruta_resumen_online",
-    "ruta_decisiones_subrogado",
-}
-
-
 def normalizar_fila_run_csv(fila):
     """
     Elimina columnas de trazabilidad que no forman parte del CSV final de runs.
     """
+    _columnas_descartadas = {
+        "problema",
+        "adaptacion",
+        "qap_instancia",
+        "ruta_metricas",
+        "ruta_resumen_online",
+        "ruta_decisiones_subrogado",
+    }
     return {
         clave: valor
         for clave, valor in dict(fila).items()
-        if clave not in COLUMNAS_RUNS_DESCARTADAS
+        if clave not in _columnas_descartadas
     }
 
 

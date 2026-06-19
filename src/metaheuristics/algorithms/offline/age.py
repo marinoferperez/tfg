@@ -7,6 +7,7 @@ segundo mejor individuo mediante ControlReinicioElitista.
 """
 
 import numpy as np
+from src.benchmark.cec2017_problem import MAX_EVALS_POR_DIM
 
 from src.metaheuristics.metrics.elitist_restart import (
     ControlReinicioElitista,
@@ -33,7 +34,7 @@ class GeneticoEstacionario:
         sigma: desviación típica de la mutación gaussiana.
         alpha: factor de expansión del intervalo en el cruce BLX.
         tam_torneo: tamaño del torneo para selección de padres.
-        max_evals: presupuesto máximo de evaluaciones. Si es None, se usa 10000 * dim.
+        max_evals: presupuesto máximo de evaluaciones. Si es None, se usa MAX_EVALS_POR_DIM * dim.
         reinicio: activa el mecanismo de reinicio elitista.
         reinicio_ratio: fracción de max_evals usada como ventana de paciencia.
         """
@@ -216,7 +217,7 @@ class GeneticoEstacionario:
         """
         limites = np.asarray(limites, dtype=float)
         dim = limites.shape[0]
-        max_evals = self.max_evals if self.max_evals is not None else 10000 * dim
+        max_evals = self.max_evals if self.max_evals is not None else MAX_EVALS_POR_DIM * dim
         self.eventos_reinicio = []
         if self.reinicio:
             self._gestor_reinicio = ControlReinicioElitista(

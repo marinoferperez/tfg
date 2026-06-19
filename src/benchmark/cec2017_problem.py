@@ -1,9 +1,11 @@
 """
 Adaptador para el benchmark CEC2017 escrito en C++.
 
-Expone una interfaz de problema reutilizable por las metaheurísticas offline y
-online: límites del dominio, evaluación de fitness y gestión del entorno de
-ejecución requerido por cec2017real.
+Interfaz del problema reutilizable por las metaheurísticas offline y
+online: 
+- límites del dominio, 
+- evaluación de fitness,
+- gestión del entorno de ejecución requerido por cec2017real.
 """
 
 import ctypes
@@ -35,6 +37,9 @@ _LIMITE_SUP = 100.0
 _PREFIJO_RESULTS = b"results_"
 # char directory[30] en cec17.c
 _CEC_DIRECTORY_BUF_SIZE = 30
+
+
+MAX_EVALS_POR_DIM = 10000
 
 
 # FUNCIONES AUXILIARES

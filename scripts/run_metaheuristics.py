@@ -15,6 +15,8 @@ ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
+from src.benchmark.cec2017_problem import MAX_EVALS_POR_DIM
+from src.utils.experiment_paths import ALGORITMOS_MH
 from src.utils.experiment_io import (
     construir_resumen,
     gestiona_funcids_cec,
@@ -26,8 +28,6 @@ from src.utils.experiment_io import (
     validar_tam_poblacion,
 )
 from src.utils.file_io import escribir_csv_dicts, escribir_json
-
-ALGORITMOS_OFFLINE = ("age", "de", "shade")
 
 
 def parse_args():
@@ -108,7 +108,7 @@ def parse_args():
     parser.add_argument(
         "--cec-dim",
         type=int,
-        choices=[2, 5, 10, 30, 50],
+        choices=[2, 5, 10, 30, 50, 100],
         default=10,
         help="Dimensionalidad del problema CEC2017. Por defecto 10.",
     )
@@ -116,7 +116,7 @@ def parse_args():
         "--algorithm",
         type=str.lower,
         default="all",
-        choices=[*ALGORITMOS_OFFLINE, "all"],
+        choices=[*ALGORITMOS_MH, "all"],
         help="Algoritmo a ejecutar. Por defecto all.",
     )
     parser.add_argument(
@@ -256,7 +256,7 @@ def main():
     args.restart_ratio = normalizar_ratio_paciencia_reinicio(args.restart_ratio)
     args.restart = bool(args.restart)
     if args.max_evals is None:
-        args.max_evals = 10000 * int(args.cec_dim)
+        args.max_evals = MAX_EVALS_POR_DIM * int(args.cec_dim)
     if args.restart and args.restart_ratio is None:
         raise ValueError("--restart requiere indicar --restart-ratio.")
     if not args.restart and args.restart_ratio is not None:
@@ -269,7 +269,7 @@ def main():
     semillas = gestiona_semillas(args)
 
     if args.algorithm == "all":
-        algoritmos = ALGORITMOS_OFFLINE
+        algoritmos = ALGORITMOS_MH
     else:
         algoritmos = (args.algorithm,)
 
