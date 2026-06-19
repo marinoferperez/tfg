@@ -156,7 +156,7 @@ def build_parser():
         help="Modelo subrogado a evaluar. Acepta nombre unico, lista CSV o 'all'.",
     )
     parser.add_argument(
-        "--random-state",
+        "--seed",
         type=int,
         default=42,
         help="Semilla para reproducibilidad del modelo. Por defecto 42.",
@@ -168,7 +168,7 @@ def build_parser():
         help="Numero maximo de seeds a usar. Si no se indica, se usan todas las disponibles.",
     )
     parser.add_argument(
-        "--seed-selection-random-state",
+        "--seed-selection-seed",
         type=int,
         default=42,
         help=(
@@ -543,7 +543,7 @@ def main():
     mostrar(args, f"  algorithm={args.algorithm}", flush=True)
     mostrar(args, f"  cec_funcid={args.cec_funcid}", flush=True)
     mostrar(args, f"  model={args.model}", flush=True)
-    mostrar(args, f"  random_state={args.random_state}", flush=True)
+    mostrar(args, f"  random_state={args.seed}", flush=True)
     mostrar(args, f"  max_seeds={args.max_seeds}", flush=True)
     mostrar(args, f"  convergence_truncation={args.convergence_truncation}", flush=True)
     mostrar(args, f"  tuning_metric={args.tuning_metric}", flush=True)
@@ -590,8 +590,8 @@ def main():
                     param_grid=param_grid,
                     tuning_metric=args_run.tuning_metric,
                     inner_validation_ratio=args_run.inner_validation_ratio,
-                    random_state=args_run.random_state,
-                    seed_selection_random_state=args_run.seed_selection_random_state,
+                    random_state=args_run.seed,
+                    seed_selection_random_state=args_run.seed_selection_seed,
                     collect_sample_errors=(ruta_errores is not None),
                     truncar_convergencia=args_run.convergence_truncation,
                     store_tuning_results=args_run.store_tuning_results,

@@ -140,6 +140,9 @@ def _asegurar_input_data(code_dir):
     target = Path.cwd() / "input_data"
     if target.exists():
         return
+    # symlink roto (apunta a ruta que ya no existe): eliminar y recrear
+    if target.is_symlink():
+        target.unlink()
 
     try:
         # la librería C busca los datos de benchmark en ./input_data

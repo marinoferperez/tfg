@@ -106,7 +106,7 @@ def parse_args():
         help="Modelo subrogado a evaluar.",
     )
     parser.add_argument(
-        "--random-state",
+        "--seed",
         type=int,
         default=42,
         help="Semilla para reproducibilidad del modelo. Por defecto 42.",
@@ -118,7 +118,7 @@ def parse_args():
         help="Numero maximo de seeds a usar. Si no se indica, se usan todas las disponibles.",
     )
     parser.add_argument(
-        "--seed-selection-random-state",
+        "--seed-selection-seed",
         type=int,
         default=42,
         help=(
@@ -195,7 +195,7 @@ def main():
     mostrar(args, f"  algorithm={args.algorithm}", flush=True)
     mostrar(args, f"  cec_funcid={args.cec_funcid}", flush=True)
     mostrar(args, f"  model={args.model}", flush=True)
-    mostrar(args, f"  random_state={args.random_state}", flush=True)
+    mostrar(args, f"  seed={args.seed}", flush=True)
     mostrar(args, f"  max_seeds={args.max_seeds}", flush=True)
     mostrar(args, f"  convergence_truncation={args.convergence_truncation}", flush=True)
     mostrar(args, f"  benchmark_subdir={args.benchmark_subdir}", flush=True)
@@ -224,8 +224,8 @@ def main():
             constructor_casos=constructor_casos,
             protocol=protocol,
             split_strategy=split_strategy,
-            random_state=args_algoritmo.random_state,
-            seed_selection_random_state=args_algoritmo.seed_selection_random_state,
+            random_state=args_algoritmo.seed,
+            seed_selection_random_state=args_algoritmo.seed_selection_seed,
             collect_sample_errors=(ruta_errores is not None),
             truncar_convergencia=args_algoritmo.convergence_truncation,
         )
