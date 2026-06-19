@@ -1,7 +1,0 @@
-{
-  "kernel": "gaussian",
-  "epsilon": 1.0,
-  "smoothing": 1.0,
-  "neighbors": 50,
-  "degree": -1
-}
