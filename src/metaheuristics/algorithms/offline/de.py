@@ -2,8 +2,7 @@
 Evolución diferencial (DE/rand/1) para optimización continua.
 
 Delega la ejecución en pyade_de, que implementa la variante DE/rand/1 con cruce
-binomial o exponencial. Soporta reinicio elitista opcional y registro de métricas
-por generación mediante el protocolo de callback de PYADE.
+binomial o exponencial. Opcionalmente activa el mecanismo de reinicio elitista por estancamiento mediante ControlReinicioElitista y registro de métricas por generación mediante el protocolo de callback de PYADE.
 """
 
 import numpy as np
@@ -19,15 +18,13 @@ try:
 except ModuleNotFoundError as exc:
     raise ModuleNotFoundError(
         "No se pudo importar 'pyade.de'. Este proyecto usa la libreria PYADE de "
-        "https://github.com/xKuZz/pyade . Si tienes instalado otro paquete llamado "
-        "'pyade', desinstalalo e instala las dependencias con: "
-        "python3 -m pip install -r requirements.txt"
+        "https://github.com/xKuZz/pyade"
     ) from exc
 
 
 class DifferentialEvolution:
     """
-    Evolución diferencial DE/rand/1/bin sobre dominio continuo.
+    Evolución diferencial DE/rand/1/bin para optimización continua.
 
     Envuelve la implementación de PYADE y añade reinicio elitista opcional,
     registro en dataset y control estricto del presupuesto de evaluaciones.
@@ -36,15 +33,15 @@ class DifferentialEvolution:
     def __init__(self, tam_poblacion=None, f=None, cr=None, metodo_cruce=None,
                  max_evals=None, reinicio=False, reinicio_ratio=0.05):
         """
-        Construye el algoritmo con los parámetros habituales de DE.
+        Constructor del algoritmo.
 
-        tam_poblacion: tamaño de la población. Si es None, PYADE usa 10 * dim.
+        tam_poblacion: número de individuos de la población. Si es None, PYADE usa 10 * dim.
         f: factor de escala del vector diferencial.
         cr: probabilidad de cruce.
         metodo_cruce: tipo de cruce ('bin' o 'exp').
         max_evals: presupuesto máximo de evaluaciones. Si es None, PYADE usa 10000 * dim.
         reinicio: activa el mecanismo de reinicio elitista.
-        reinicio_ratio: fracción de max_evals usada como ventana de paciencia.
+        reinicio_ratio: fracción de max_evals usada como ventana de estancamiento.
         """
         self.tam_poblacion = tam_poblacion
         self.f = f
@@ -54,15 +51,10 @@ class DifferentialEvolution:
         self.seed = None
         self.reinicio = bool(reinicio)
         self.reinicio_ratio = float(reinicio_ratio)
-        self.eventos_reinicio = []
-        self._gestor_reinicio = (
-            ControlReinicioElitista(
-                max_evals=max_evals,
-                ratio_paciencia=self.reinicio_ratio,
-            )
-            if self.reinicio
-            else None
-        )
+
+        # reinicio
+        self.eventos_reinicio = []      # historial de eventos de reinicio (it y motivo)
+        self._gestor_reinicio = None    # se inicializa en cada llamada a optimize
 
         self.evals = 0
         self._max_evals_reales = None
@@ -77,12 +69,21 @@ class DifferentialEvolution:
         self._callback_inicial = None
         self._params_de = None
 
+    def _crear_gestor_reinicio(self, max_evals):
+        """Crea el gestor de reinicio elitista o None si reinicio está desactivado."""
+        if self.reinicio:
+            return ControlReinicioElitista(
+                max_evals=max_evals,
+                ratio_estancamiento=self.reinicio_ratio,
+            )
+        return None
+
     def _aplicar_reinicio(self, estado, generacion):
         """
         Aplica un reinicio elitista sobre el estado interno expuesto por PYADE.
 
         estado: diccionario PYADE con claves population, fitness, bounds y func.
-        generacion: generación actual del algoritmo.
+        generacion: generación actual.
 
         Retorna True si se aplicó el reinicio.
         """
@@ -116,11 +117,13 @@ class DifferentialEvolution:
         if n_nuevos <= 0 or evals_restantes < n_nuevos:
             return False
 
+        # se preserva el mejor individuo (élite) en la primera posición
         elite_idx = seleccionar_indice_elitista(fitness)
         elite = np.asarray(poblacion[elite_idx], dtype=float).copy()
         elite_fit = float(fitness[elite_idx])
         mejor_fit = float(elite_fit)
 
+        # el resto de la población se regenera uniformemente y se evalúa
         nuevos = pyade_commons.init_population(
             int(n_nuevos),
             int(limites.shape[0]),
@@ -139,6 +142,7 @@ class DifferentialEvolution:
             evaluaciones=int(self.evals),
         )
 
+        # se registra el evento de reinicio para trazabilidad
         evento = dict(diagnostico)
         evento.update(
             {
@@ -157,7 +161,7 @@ class DifferentialEvolution:
         """
         Evalúa un individuo, registra la muestra y respeta el tope de evaluaciones.
 
-        individuo: vector de decisión a evaluar.
+        individuo: vector de decisión.
 
         Retorna el fitness real o inf si ya se agotó el presupuesto.
         """
@@ -200,14 +204,14 @@ class DifferentialEvolution:
 
         return fit
 
-    def optimize(self, limites, problem, callback_metricas=None, dataset=None):
+    def optimize(self, limites, problema, callback_metricas=None, dataset=None):
         """
         Ejecuta DE sobre el problema concreto.
 
-        limites: array (dim, 2) con [min, max] por dimensión.
-        problem: problema con método fitness.
-        callback_metricas: función opcional para registrar métricas por generación.
-        dataset: dataset opcional para almacenar evaluaciones reales.
+        limites: array (dim, 2) con [inferior, superior] por variable.
+        problema: instancia del problema con método fitness.
+        callback_metricas: opcional para registrar métricas por generación.
+        dataset: opcional para registrar evaluaciones en el dataset de entrenamiento.
 
         Retorna (mejor_solucion, mejor_fitness).
         """
@@ -215,7 +219,7 @@ class DifferentialEvolution:
         self.evals = 0
         self.eventos_reinicio = []
         self._max_evals_reales = None
-        self._problema = problem
+        self._problema = problema
         self._generacion_actual = 0
         self._dataset = dataset
 
@@ -238,13 +242,7 @@ class DifferentialEvolution:
         if int(params["max_evals"]) <= 0:
             raise ValueError("max_evals debe ser > 0")
         self._max_evals_reales = int(params["max_evals"])
-        if self.reinicio:
-            self._gestor_reinicio = ControlReinicioElitista(
-                max_evals=self._max_evals_reales,
-                ratio_paciencia=self.reinicio_ratio,
-            )
-        else:
-            self._gestor_reinicio = None
+        self._gestor_reinicio = self._crear_gestor_reinicio(self._max_evals_reales)
 
         if callback_metricas is not None:
             self._tam_poblacion_inicial = int(params["population_size"])

@@ -1,7 +1,7 @@
 """
 Controlador de la integracion online con modelos subrogados.
 
-Este modulo centraliza la logica comun a AGE, DE y SHADE:
+Logica comun a AGE, DE y SHADE:
     - calentamiento inicial;
     - ventana no acumulativa de entrenamiento;
     - probabilidad de uso del subrogado;
@@ -10,9 +10,7 @@ Este modulo centraliza la logica comun a AGE, DE y SHADE:
     - aplicacion de la politica de rechazo;
     - registro de estadisticas.
 
-Las metaheuristicas siguen siendo responsables de generar candidatos y aplicar
-su logica de reemplazo. El controlador solo decide si un candidato debe pasar a
-evaluacion real o puede rechazarse antes.
+El controlador solo decide si un candidato debe pasar a evaluacion real o puede rechazarse antes.
 """
 
 from dataclasses import dataclass, field
@@ -23,25 +21,19 @@ from src.surrogates.select_model import select_model
 from src.metaheuristics.surrogate.surrogate_policy import PoliticaSubrogado, DecisionSubrogado
 from src.metaheuristics.surrogate.surrogate_stats import EstadisticasSubrogado
 
-
 @dataclass(frozen=True)
 class ConfiguracionSubrogadoOnline:
     """
     Configuracion general del subrogado online.
 
-    warmup_ratio:
-        Porcentaje inicial del presupuesto evaluado solo con la funcion real.
-
-    window_ratio:
-        Porcentaje del presupuesto usado como ventana reciente de entrenamiento.
-
-    probabilidad_subrogado:
-        Probabilidad p de aplicar el filtro subrogado a un candidato.
-
-    modelo_nombre / modelo_params:
-        Modelo construido mediante surrogate_models.select_model.select_model.
+    warmup_ratio: porcentaje inicial del presupuesto evaluado solo con la funcion real.
+    window_ratio: porcentaje del presupuesto usado como ventana reciente de entrenamiento (mismo porcentaje que el utilizado en la evaluacion offline).
+    probabilidad_subrogado: probabilidad p de aplicar el filtro subrogado a un candidato.
+    modelo_nombre / modelo_params: modelo construido mediante select_model.
+    cooldown_reinicio_evals: número de evaluaciones reales que se esperan tras un reinicio antes de volver a usar el subrogado.
+    retrain_ratio: fraccion de la ventana de entrenamiento que debe renovarse antes de reentrenar.
     """
-    
+
     modelo_nombre: str = "rbf"
     modelo_params: dict = field(default_factory=lambda: {
         "kernel": "multiquadric",
@@ -50,27 +42,17 @@ class ConfiguracionSubrogadoOnline:
         "neighbors": 50,
         "degree": -1,
     })
-    
-    # número de evaluaciones reales que se esperan tras un reinicio antes de volver a usar el subrogado.
-    cooldown_reinicio_evals: int = 0
 
-    # porcentaje inicial del presupuesto en el que el subrogado esta apagado
+    cooldown_reinicio_evals: int = 0
     warmup_ratio: float = 0.20
-    
-    # tamaño de la ventana reciente usada para entrenar el subrogado (mismo porcentaje que el utilizado en la evaluacion offline)
     window_ratio: float = 0.20
-    
-    # probabilida de aplicar el filtro subrogado a cada candidato
-    probabilidad_subrogado: float = 0.50 
-    
-    # Fraccion de la ventana de entrenamiento que debe renovarse antes de reentrenar.
-    # Por ejemplo, con window_size=2000 y retrain_ratio=0.25, se reentrena cada 500 evaluaciones reales.
+    probabilidad_subrogado: float = 0.50
     retrain_ratio: float = 0.25
-    
+
     max_evals: int = 100000
     minimizacion: bool = True
     seed: int | None = None
-    
+
     def __post_init__(self):
         """Valida que todos los parámetros de configuración son coherentes."""
         if not 0.0 <= self.warmup_ratio <= 1.0:
@@ -85,22 +67,18 @@ class ConfiguracionSubrogadoOnline:
             raise ValueError("cooldown_reinicio_evals debe ser >= 0.")
         if not 0.0 < self.retrain_ratio <= 1.0:
             raise ValueError("retrain_ratio debe estar en (0, 1].")
-        
+
 @dataclass(frozen=True)
 class ResultadoFiltroSubrogado:
     """
     Resultado devuelto a la metaheuristica.
 
-    debe_evaluar:
-        True si el candidato debe evaluarse con la funcion objetivo real.
-
-    uso_subrogado:
-        True si la decision se ha tomado usando prediccion del modelo.
-
-    decision:
-        Decision devuelta por la politica, si se aplico subrogado.
+    debe_evaluar: True si el candidato debe evaluarse con la funcion objetivo real.
+    uso_subrogado: True si la decision se ha tomado usando prediccion del modelo.
+    decision: Decision devuelta por la politica, si se aplico subrogado.
+    motivo: cadena que identifica la causa de la decision (para estadisticas y CSV).
     """
-    
+
     debe_evaluar: bool
     uso_subrogado: bool
     decision: DecisionSubrogado | None
@@ -108,29 +86,33 @@ class ResultadoFiltroSubrogado:
 
 class ControladorSubrogadoOnline:
     """
-    Controlador comun para la hibridacion online.
+    Controlador común para la hibridacion online.
 
-    La metaheuristica debe llamar a:
-        - registrar_evaluacion_real(...) cada vez que evalua la funcion real;
+    La metaheuristica llama a:
+        - registrar_evaluacion_directa / registrar_evaluacion_tras_subrogado tras cada fitness real.
         - decidir_evaluacion(...) antes de evaluar un candidato opcionalmente filtrable.
     """
-    
+
     def __init__(self, config, estadisticas=None):
         """
         config: ConfiguracionSubrogadoOnline con todos los hiperparámetros del subrogado.
-        estadisticas: EstadisticasSubrogado opcional; si es None se crea uno nuevo.
+        estadisticas: EstadisticasSubrogado opcional. Si es None se crea uno nuevo.
         """
         self.config = config
         self.estadisticas = estadisticas if estadisticas is not None else EstadisticasSubrogado()
         self.politica = PoliticaSubrogado(minimizacion=config.minimizacion)
         self.rng = np.random.default_rng(config.seed)
 
+        # historial acumulado de vectores evaluados realmente; la ventana se extrae de los últimos window_size
         self._x_reales = []
         self._y_reales = []
+        # el modelo se inicializa a None y se entrena en la primera llamada a decidir_evaluacion con subrogado activo
         self._modelo = None
+        # número de evaluaciones reales que había cuando se entrenó el modelo por última vez
         self._modelo_entrenado_con_n = 0
+        # evaluación real en que ocurrió el último reinicio; None si nunca hubo reinicio
         self._evals_ultimo_reinicio = None
-        
+
     @property
     def evals_reales(self):
         """Número de evaluaciones reales de la función objetivo acumuladas hasta ahora."""
@@ -150,30 +132,31 @@ class ControladorSubrogadoOnline:
     def retrain_interval_efectivo(self):
         """Nuevas evaluaciones reales que deben acumularse antes de reentrenar."""
         return max(1, int(np.ceil(self.config.retrain_ratio * self.window_size)))
-    
-    def registrar_evaluacion_real(self, x, fitness) -> None:
+
+    def registrar_evaluacion_real(self, x, fitness):
         """
         Registra una evaluacion real disponible para futuros entrenamientos.
 
-        Esta funcion debe llamarse despues de cada problem.fitness(...), tanto si
-        la evaluacion fue directa como si el candidato paso el filtro subrogado.
+        x: vector de decision evaluado.
+        fitness: valor real de la funcion objetivo para x.
+
+        Se llama despues de cada problem.fitness(...), tanto si la evaluacion fue
+        directa como si el candidato paso el filtro subrogado.
         """
         self._x_reales.append(np.asarray(x, dtype=float).copy())
         self._y_reales.append(float(fitness))
         self.estadisticas.registrar_evaluacion_real()
-        
+
     def puede_usar_subrogado(self):
-        """
-        Comprueba si ya existe informacion suficiente para activar el filtro.
-        """
+        """Comprueba si ya existe informacion suficiente para activar el filtro."""
         if self.config.probabilidad_subrogado <= 0.0:
             return False
         if self.evals_reales < self.warmup_evals:
             return False
 
+        # el cooldown bloquea el subrogado un número fijo de evaluaciones tras cada reinicio
         if self._evals_ultimo_reinicio is not None and self.config.cooldown_reinicio_evals > 0:
             evals_desde_reinicio = self.evals_reales - self._evals_ultimo_reinicio
-            
             if evals_desde_reinicio < self.config.cooldown_reinicio_evals:
                 return False
 
@@ -183,8 +166,14 @@ class ControladorSubrogadoOnline:
         """
         Decide si un candidato debe evaluarse realmente.
 
+        candidato: vector de decision a filtrar.
+        fitness_ref: fitness real de referencia (padre en DE/SHADE, peor de la población en AGE).
+        generacion: generación actual, usada solo para el registro de estadísticas.
+
         La metaheuristica debe llamar a este metodo antes de gastar una
         evaluacion real en un candidato que pueda filtrarse.
+
+        Retorna un ResultadoFiltroSubrogado con la decision y su motivo.
         """
         self.estadisticas.registrar_candidato_generado()
 
@@ -196,6 +185,7 @@ class ControladorSubrogadoOnline:
                 motivo="subrogado_no_activo",
             )
 
+        # muestreo de Bernoulli: con probabilidad (1 - p) el candidato se evalúa directamente sin filtro
         if self.rng.random() >= self.config.probabilidad_subrogado:
             return ResultadoFiltroSubrogado(
                 debe_evaluar=True,
@@ -207,6 +197,7 @@ class ControladorSubrogadoOnline:
         self.estadisticas.registrar_candidato_con_subrogado()
         self._asegurar_modelo_entrenado()
 
+        # predicción puntual del fitness del candidato con el modelo actual
         inicio_pred = time.perf_counter()
         prediccion = self._modelo.predict(np.asarray(candidato, dtype=float).reshape(1, -1))
         tiempo_pred = time.perf_counter() - inicio_pred
@@ -236,9 +227,15 @@ class ControladorSubrogadoOnline:
         )
 
     def _registrar_decision_subrogado(self, decision, generacion=None):
-        """Persiste la decisión del subrogado en el historial de estadísticas."""
+        """
+        Registra la decisión del subrogado en el historial de estadísticas.
+
+        decision: DecisionSubrogado devuelta por la politica.
+        generacion: generación actual, o None si no se dispone de ella.
+        """
         pred = decision.fitness_pred
         ref = decision.fitness_ref
+        # margen positivo → el subrogado predice que el candidato es peor que la referencia
         margen = None if pred is None or ref is None else float(pred) - float(ref)
         evals_desde_reinicio = (
             None
@@ -257,14 +254,16 @@ class ControladorSubrogadoOnline:
             debe_evaluar=bool(decision.debe_evaluar),
             motivo=str(decision.motivo),
         )
-        
+
     def registrar_evaluacion_directa(self, x, fitness):
         """
-        Registra una evaluacion real que no paso por subrogado.
+        Registra una evaluacion real que no paso por el filtro subrogado.
 
-        Este metodo es util para que las metaheuristicas distingan en las
-        estadisticas entre evaluaciones directas y evaluaciones permitidas por
-        el filtro.
+        x: vector de decision evaluado.
+        fitness: valor real de la funcion objetivo para x.
+
+        Permite distinguir en estadisticas entre evaluaciones directas y las
+        permitidas por el filtro del subrogado.
         """
         self._x_reales.append(np.asarray(x, dtype=float).copy())
         self._y_reales.append(float(fitness))
@@ -273,24 +272,29 @@ class ControladorSubrogadoOnline:
     def registrar_evaluacion_tras_subrogado(self, x, fitness):
         """
         Registra una evaluacion real realizada tras pasar el filtro subrogado.
+
+        x: vector de decision evaluado.
+        fitness: valor real de la funcion objetivo para x.
         """
         self._x_reales.append(np.asarray(x, dtype=float).copy())
         self._y_reales.append(float(fitness))
         self.estadisticas.registrar_evaluacion_tras_subrogado()
-        
-    def registrar_reinicio(self) -> None:
+
+    def registrar_reinicio(self):
         """
         Registra un reinicio de la metaheuristica.
 
-        No se borra el historico. La estrategia no acumulativa se aplica
-        seleccionando siempre la ventana reciente en el entrenamiento.
+        No se borra el historico de evaluaciones. La estrategia no acumulativa se
+        aplica seleccionando siempre la ventana reciente en el entrenamiento.
+        El modelo se invalida para forzar reentrenamiento con datos post-reinicio.
         """
         self.estadisticas.registrar_reinicio()
         self.estadisticas.registrar_evento(
             "reinicio",
             evals_reales=int(self.evals_reales),
         )
-        
+
+        # el modelo queda obsoleto tras el reinicio: la población cambió completamente
         self._modelo = None
         self._modelo_entrenado_con_n = 0
         self._evals_ultimo_reinicio = int(self.evals_reales)
@@ -298,10 +302,11 @@ class ControladorSubrogadoOnline:
     def _asegurar_modelo_entrenado(self):
         """
         Entrena el modelo si no existe o si han entrado suficientes evaluaciones
-        reales desde el ultimo entrenamiento.
+        reales nuevas desde el ultimo entrenamiento.
         """
         if self._modelo is not None:
             evals_desde_entrenamiento = self.evals_reales - self._modelo_entrenado_con_n
+            # si no han llegado suficientes evaluaciones nuevas, el modelo actual sigue siendo válido
             if evals_desde_entrenamiento < self.retrain_interval_efectivo:
                 return
 
@@ -320,18 +325,15 @@ class ControladorSubrogadoOnline:
         self.estadisticas.registrar_entrenamiento(tiempo_train)
 
     def _ventana_entrenamiento(self):
-        """
-        Devuelve la ventana no acumulativa usada para entrenar el subrogado.
-        """
+        """Devuelve la ventana no acumulativa usada para entrenar el subrogado."""
+        # se toman los últimos window_size puntos; si hay menos, se usan todos
         n = min(self.window_size, self.evals_reales)
         x_train = np.asarray(self._x_reales[-n:], dtype=float)
         y_train = np.asarray(self._y_reales[-n:], dtype=float)
         return x_train, y_train
 
     def resumen(self):
-        """
-        Devuelve las estadisticas agregadas junto con la configuracion usada.
-        """
+        """Devuelve las estadisticas agregadas junto con la configuracion usada."""
         resumen = self.estadisticas.resumen()
         resumen.update(
             {

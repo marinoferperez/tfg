@@ -2,7 +2,7 @@
 Recolector de métricas por generación basado en DEAP Statistics y Logbook.
 
 Registra fitness, diversidad euclidea y tiempo por cada generación de la
-metaheurística. Al finalizar produce un CSV de historial y un JSON de resumen.
+metaheurística. Al finalizar construye un CSV de historial y un JSON de resumen.
 """
 
 from pathlib import Path
@@ -19,15 +19,9 @@ class RecolectorMetricasDEAP:
     registra la diversidad euclidea de la población cuando se proporciona.
     """
 
-    def __init__(
-        self,
-        seed=42,
-        filtrar_evals_no_crecientes=False,
-    ):
+    def __init__(self, filtrar_evals_no_crecientes=False):
         """
-        seed: semilla para el generador interno (reservada para extensiones futuras).
-        filtrar_evals_no_crecientes: si True, descarta entradas cuyo contador de
-            evaluaciones no supera la última registrada (necesario para DE/SHADE).
+        filtrar_evals_no_crecientes: si True, descarta entradas cuyo contador de evaluaciones no supera la última registrada (necesario para DE/SHADE).
         """
         # con statitics se recogen estadisticas
         self.stats = tools.Statistics(lambda x: x)
@@ -39,7 +33,7 @@ class RecolectorMetricasDEAP:
 
         # logbook actua como una lista de diccionarios
         self.logbook = tools.Logbook()
-        self._cabecera_base = [
+        self.logbook.header = [
             "evals",
             "generacion",
             "tam_poblacion",
@@ -50,22 +44,17 @@ class RecolectorMetricasDEAP:
             "max",
             "tiempo_s",
         ]
-        self.logbook.header = list(self._cabecera_base)
         self._diversidad_por_generacion = {}
-        self._rng = np.random.default_rng(seed)
         self._rangos_generacion = {}
         self._filtrar_evals_no_crecientes = bool(filtrar_evals_no_crecientes)
         self._ultima_eval_registrada = None
         
 
-    # ---------- diversidad (continuo) ----------
-
-    # _diversidad_dist_euclidea mide como de lejos estan los individuos del centro de la poblacion (centroide)
-    # si todos estan muy cerca del centroide -> baja diversidad en la pob
+    # diversidad
 
     def _diversidad_dist_euclidea(self, poblacion):
         """
-        Diversidad como distancia media euclidea de cada individuo al centroide.
+        Diversidad como distancia media euclidea de cada individuo al centroide. Mide como de lejos estan los individuos del centro de la poblacion (centroide).
 
         poblacion: array (n, dim) con los vectores de decisión de la población.
         """
@@ -77,6 +66,9 @@ class RecolectorMetricasDEAP:
         """
         Diversidad euclidea normalizada por el número de dimensiones.
 
+        diversidad: valor bruto devuelto por _diversidad_dist_euclidea.
+        dimension: número de variables del problema.
+
         Divide la diversidad bruta entre dimension para hacerla comparable entre
         distintas configuraciones del problema.
         """
@@ -85,26 +77,7 @@ class RecolectorMetricasDEAP:
             return float("nan")
         return float(diversidad) / dimension
 
-    # registrar añade una entrada de metricas al logbook
-    # tomando el vector de fitness de la poblacion actual
-    # --------------------------------------------------
-    # * fitness = array de fitness de cada individuo de la pob actual
-    # * evaluaciones = cuantas veces se ha evaluado la func objetivo hasta ese momento (evals)
-    # * generacion
-    # * tiempo_s = tiempo transcurrido hasta este momento
-
-    def registrar(
-        self,
-        generacion,
-        fitness=None,
-        evaluaciones=None,
-        tiempo_s=None,
-        tam_poblacion=None,
-        mejor_hasta_ahora=None,
-        fitness_vector=None,
-        poblacion=None,
-        sobrescribir_ultima=False,
-    ):
+    def registrar(self, generacion, fitness=None, evaluaciones=None, tiempo_s=None, tam_poblacion=None, poblacion=None, sobrescribir_ultima=False):
         """
         Registra una entrada en el logbook para la generación actual.
 
@@ -116,15 +89,6 @@ class RecolectorMetricasDEAP:
         poblacion: array (n, dim) opcional para calcular diversidad euclidea.
         sobrescribir_ultima: si True, elimina la última entrada antes de añadir ésta.
         """
-        # compatibilidad: algunas llamadas antiguas usan fitness_vector
-        if fitness is None:
-            fitness = fitness_vector
-        if fitness is None:
-            raise ValueError("Debes pasar 'fitness' o 'fitness_vector' a registrar().")
-        if evaluaciones is None:
-            raise ValueError("Debes pasar 'evaluaciones' a registrar().")
-        if tiempo_s is None:
-            raise ValueError("Debes pasar 'tiempo_s' a registrar().")
 
         fitness = np.asarray(fitness, dtype=float).reshape(-1)
 
@@ -190,11 +154,20 @@ class RecolectorMetricasDEAP:
         return dict(sorted(self._diversidad_por_generacion.items(), key=lambda kv: kv[0]))
 
     def anotar_rangos_generacion(self, rangos_generacion):
-        """Almacena los rangos de eval_id por generación para enriquecer el CSV."""
+        """
+        Almacena los rangos de eval_id por generación para el CSV.
+
+        rangos_generacion: dict {generacion: {eval_id_inicio, eval_id_fin}} devuelto por SurrogateDataset.
+        """
         self._rangos_generacion = dict(sorted(dict(rangos_generacion).items(), key=lambda kv: kv[0]))
 
     def anotar_diversidad_generacion(self, generacion, payload):
-        """Añade o sobreescribe la entrada de diversidad para una generación concreta."""
+        """
+        Añade la entrada de diversidad para una generación concreta.
+
+        generacion: índice de la generación.
+        payload: dict con claves div_dist_euclidea y/o div_dist_euclidea_normalizada.
+        """
         try:
             gen = int(generacion)
         except (TypeError, ValueError):
@@ -230,15 +203,13 @@ class RecolectorMetricasDEAP:
             "desv_std_final": float(ultimo["desv_std"]),
             "mediana_final": float(ultimo["mediana"]),
             "max_final": float(ultimo["max"]),
-            "mejor_hasta_ahora": float(ultimo["min/mejor_hasta_ahora"]),
             "tiempo_total_s": float(ultimo["tiempo_s"]),
         }
         return resumen
 
-
 def guardar_metricas_deap(recolector, ruta_base, metadata=None):
     """
-    Persiste el historial del recolector como CSV y el resumen como JSON.
+    El historial se recoge como CSV y el resumen como JSON.
 
     recolector: instancia de RecolectorMetricasDEAP con la ejecución completada.
     ruta_base: directorio de salida.

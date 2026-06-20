@@ -10,7 +10,6 @@ from pathlib import Path
 
 from src.utils.file_io import escribir_json
 from src.metaheuristics.metrics.metrics_callback import CallbackMetricasDE
-from src.metaheuristics.metrics.surrogate_dataset import SurrogateDataset, guardar_dataset_hdf5
 from src.metaheuristics.metrics.elitist_restart import (
     construir_metadata_reinicios,
 )
@@ -28,17 +27,14 @@ from src.metaheuristics.algorithms.offline.adapted.shade_cec2017 import SHADECEC
 
 
 class SHADECEC2017Online(SHADECEC2017):
-    """
-    Wrapper CEC2017 para SHADE online.
-
-    Hereda del wrapper CEC2017 original, pero sustituye el algoritmo interno por
-    SHADEOnline para poder filtrar trial vectors con el subrogado.
-    """
+    """Wrapper CEC2017 para SHADE online con filtrado subrogado."""
 
     def __init__(self, surrogate_config=None, **shade_kwargs):
         """
+        Constructor del algoritmo.
+
         surrogate_config: ConfiguracionSubrogadoOnline compartida entre runs, o None para defaults.
-        shade_kwargs: argumentos para SHADEOnline.
+        shade_kwargs: argumentos para SHADEOnline (tam_poblacion, max_evals, memory_size, …).
         """
         self.shade = SHADEOnline(**shade_kwargs)
         self.surrogate_config = surrogate_config
@@ -55,7 +51,6 @@ class SHADECEC2017Online(SHADECEC2017):
         run_id=None,
         cec_workdir=None,
         guardar_decisiones_subrogado=False,
-        guardar_dataset=True,
         guardar_reinicios_detalle=False,
     ):
         """
@@ -64,14 +59,22 @@ class SHADECEC2017Online(SHADECEC2017):
         funcid: índice de la función CEC2017, en [1, 30].
         dim: dimensionalidad del problema.
         seed: semilla del generador aleatorio.
-        registrar_metricas: si True, genera CSV/JSON de métricas y dataset.
+        lib_path: ruta opcional a la librería compilada de CEC2017.
+        algname: etiqueta para la salida de cec2017real.
+        registrar_metricas: si True, genera CSV/JSON de métricas.
         ruta_metricas: directorio raíz donde guardar los artefactos.
-        guardar_decisiones_subrogado: si True, guarda decisiones_subrogado.csv.
-        guardar_dataset: si True, incluye el SurrogateDataset offline en los artefactos.
+        run_id: nombre del subdirectorio de artefactos. Si es None, se genera automáticamente.
+        cec_workdir: directorio de trabajo para cec2017real.
+        guardar_decisiones_subrogado: si True, guarda un CSV con cada decisión del subrogado.
+        guardar_reinicios_detalle: si True, guarda un CSV con el detalle de cada reinicio elitista.
+
+        Retorna un dict con mejor_sol, mejor_fitness, mejor_error, resumen_online y, si
+        registrar_metricas=True, las rutas a los artefactos generados.
         """
         seed = int(seed)
         self.shade.seed = seed
 
+        # construcción del problema
         problema = CEC2017Problem(
             funcid=funcid,
             dim=dim,
@@ -85,22 +88,15 @@ class SHADECEC2017Online(SHADECEC2017):
         try:
             problema.prepare_run()
 
+            # registro de métricas
             recolector = None
             callback_metricas = None
-            dataset = None
 
             if registrar_metricas:
                 from src.metaheuristics.metrics.deap_metrics import RecolectorMetricasDEAP, guardar_metricas_deap
 
                 recolector = RecolectorMetricasDEAP(filtrar_evals_no_crecientes=True)
                 tiempo_inicio = time.perf_counter()
-                if guardar_dataset:
-                    dataset = SurrogateDataset(
-                        algoritmo="shade_online",
-                        problema="cec2017",
-                        seed=seed,
-                        run_info={"funcid": int(funcid), "dim": int(dim)},
-                    )
                 callback_metricas = CallbackMetricasDE(
                     recolector,
                     tiempo_inicio,
@@ -119,23 +115,23 @@ class SHADECEC2017Online(SHADECEC2017):
                 if self.shade.max_evals is not None
                 else int(MAX_EVALS_POR_DIM * dim)
             )
-
             config_subrogado = self._configurar_subrogado(
                 max_evals=max_evals,
                 seed=seed,
             )
             estadisticas_subrogado = EstadisticasSubrogado()
+            # el controlador gestiona las decisiones de filtrado y las estadísticas online
             controlador_subrogado = ControladorSubrogadoOnline(
                 config=config_subrogado,
                 estadisticas=estadisticas_subrogado,
             )
 
+            # ejecución del algoritmo
             mejor_sol, mejor_fitness = self.shade.optimize(
                 limites=problema.get_bounds(),
-                problem=problema,
+                problema=problema,
                 controlador_subrogado=controlador_subrogado,
                 callback_metricas=callback_metricas,
-                dataset=dataset,
             )
 
             mejor_error = problema.cec_error(mejor_fitness)
@@ -145,6 +141,7 @@ class SHADECEC2017Online(SHADECEC2017):
             )
             resumen_online = controlador_subrogado.resumen()
 
+            # resultado mínimo independientemente de registrar_metricas
             resultado = {
                 "mejor_sol": mejor_sol,
                 "mejor_fitness": float(mejor_fitness),
@@ -158,11 +155,13 @@ class SHADECEC2017Online(SHADECEC2017):
                 or guardar_decisiones_subrogado
                 or guardar_reinicios_detalle
             ):
+                # run_id identifica esta ejecución en el arch
                 if run_id is None:
                     run_id = f"shade_online_cec2017_f{int(funcid)}_d{int(dim)}_s{seed}"
                 ruta_base = Path(ruta_metricas) / run_id
                 ruta_base.mkdir(parents=True, exist_ok=True)
 
+            # postprocesado de métricas
             if registrar_metricas:
                 metricas_resumen = recolector.obtener_resumen_final()
                 metricas_resumen["mejor_fitness"] = float(mejor_fitness)
@@ -172,49 +171,28 @@ class SHADECEC2017Online(SHADECEC2017):
                 resultado["metricas_logbook"] = metricas_logbook
                 resultado["metricas_resumen"] = metricas_resumen
 
+                # config guarda los parámetros reales de PYADE (tam_poblacion, memory_size…)
                 config = getattr(callback_metricas, "config", None) or {}
                 evals_objetivo = config.get("max_evals")
                 if evals_objetivo is None:
                     evals_objetivo = max_evals
 
                 evals_reales = int(self.shade.evals)
+                # PYADE puede evaluar fuera de presupuesto por trabajar en bloques de generación
                 evals_fuera_presupuesto = int(
                     max(0, evals_reales - int(evals_objetivo))
                 )
                 hubo_fuera_presupuesto = bool(evals_fuera_presupuesto > 0)
 
                 if ruta_base is not None:
-                    if dataset is not None:
-                        rangos_generacion = dataset.obtener_rangos_generacion()
-                        recolector.anotar_rangos_generacion(rangos_generacion)
-
-                        diversidad_por_generacion = (
-                            recolector.obtener_diversidad_por_generacion()
-                        )
-                        if 0 not in diversidad_por_generacion:
-                            rango_gen0 = rangos_generacion.get(0)
-                            if rango_gen0 is not None:
-                                diversidad_gen0 = dataset.calcular_diversidad_rango(
-                                    rango_gen0["eval_id_inicio"],
-                                    rango_gen0["eval_id_fin"],
-                                )
-                                if diversidad_gen0 is not None:
-                                    recolector.anotar_diversidad_generacion(
-                                        0,
-                                        diversidad_gen0,
-                                    )
-
-                        dataset.anotar_diversidad_por_generacion(
-                            recolector.obtener_diversidad_por_generacion()
-                        )
-
+                    # metadata_reinicios agrega campos de reinicio al JSON
                     metadata_reinicios = construir_metadata_reinicios(
                         self.shade.eventos_reinicio,
                         self.shade.reinicio_ratio,
                         self.shade.reinicio,
                     )
 
-                    ficheros_metricas = guardar_metricas_deap(recolector, 
+                    ficheros_metricas = guardar_metricas_deap(recolector,
                         ruta_base=ruta_base,
                         metadata={
                             "algoritmo": "shade_online",
@@ -235,51 +213,45 @@ class SHADECEC2017Online(SHADECEC2017):
 
                     ruta_reinicios_csv = None
                     if guardar_reinicios_detalle:
+                        # CSV opcional con el detalle de cada evento de reinicio elitista
                         ruta_reinicios_csv = guardar_reinicios_elitistas_csv(
                             ruta_base,
                             self.shade.eventos_reinicio,
                         )
-                    ficheros_dataset = (
-                        guardar_dataset_hdf5(dataset, ruta_base)
-                        if dataset is not None
-                        else None
-                    )
 
                     resultado["ficheros_metricas"] = ficheros_metricas
-                    resultado["ficheros_dataset"] = ficheros_dataset
                     if ruta_reinicios_csv is not None:
                         resultado["ruta_reinicios_elitistas_csv"] = ruta_reinicios_csv
 
-            if (
-                guardar_reinicios_detalle
-                and ruta_metricas is not None
-                and "ruta_reinicios_elitistas_csv" not in resultado
-            ):
+            if (guardar_reinicios_detalle and ruta_metricas is not None and "ruta_reinicios_elitistas_csv" not in resultado):
                 if run_id is None:
                     run_id = f"shade_online_cec2017_f{int(funcid)}_d{int(dim)}_s{seed}"
+
                 ruta_base = Path(ruta_metricas) / run_id
                 ruta_base.mkdir(parents=True, exist_ok=True)
                 ruta_reinicios_csv = guardar_reinicios_elitistas_csv(
                     ruta_base,
                     self.shade.eventos_reinicio,
                 )
+
                 if ruta_reinicios_csv is not None:
                     resultado["ruta_reinicios_elitistas_csv"] = ruta_reinicios_csv
 
             if ruta_base is not None:
                 ruta_online_json = ruta_base / "resumen_online.json"
                 escribir_json(ruta_online_json, resumen_online)
-
                 resultado["ruta_metricas"] = str(ruta_base)
                 resultado["ruta_resumen_online"] = str(ruta_online_json)
 
                 if guardar_decisiones_subrogado:
+                    # CSV opcional con cada decisión del subrogado (aceptar/rechazar y motivo)
                     ruta_decisiones_csv = guardar_decisiones_subrogado_csv(
                         ruta_base,
                         controlador_subrogado.estadisticas.decisiones_subrogado,
                     )
                     resultado["ruta_decisiones_subrogado_csv"] = ruta_decisiones_csv
 
+            # los eventos de reinicio se devuelven siempre para facilitar el análisis
             resultado["reinicios"] = list(self.shade.eventos_reinicio)
             return resultado
 
@@ -288,7 +260,12 @@ class SHADECEC2017Online(SHADECEC2017):
 
     def _configurar_subrogado(self, max_evals, seed):
         """
-        Reconstruye la configuracion online para fijar max_evals y seed en cada run.
+        Reconstruye la configuración online para fijar max_evals y seed en cada run.
+
+        max_evals: presupuesto de evaluaciones de esta ejecución concreta.
+        seed: semilla del generador aleatorio.
+
+        Retorna una ConfiguracionSubrogadoOnline lista para usar.
         """
         if self.surrogate_config is None:
             return ConfiguracionSubrogadoOnline(

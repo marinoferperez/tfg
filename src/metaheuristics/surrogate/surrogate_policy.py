@@ -1,9 +1,7 @@
 """
 Politica de decision para el filtro subrogado online.
 
-Este modulo no entrena el modelo ni gestiona la probabilidad de uso del
-subrogado. Su unica responsabilidad es decidir si una prediccion del modelo
-justifica gastar una evaluacion real.
+Decide si una prediccion del modelo justifica gastar una evaluacion real.
 
 Para CEC2017 trabajamos en minimizacion:
     - si f_predicha(candidato) < f_real(referencia), se evalua realmente;
@@ -34,9 +32,6 @@ class DecisionSubrogado:
 class PoliticaSubrogado:
     """
     Politica de rechazo para la integracion online.
-
-    En CEC2017 se minimiza, por lo que un candidato se considera prometedor
-    si su fitness predicho es menor que el fitness real de referencia.
     """
     
     def __init__(self, minimizacion=True):
@@ -48,17 +43,15 @@ class PoliticaSubrogado:
         Decide si un candidato debe evaluarse realmente dado su fitness predicho.
 
         fitness_pred: predicción del modelo subrogado para el candidato.
-        fitness_ref: fitness real del individuo de referencia (padre en DE/SHADE,
-            peor individuo en AGE).
+        fitness_ref: fitness real del individuo de referencia (padre en DE/SHADE, peor individuo en AGE).
 
         Retorna DecisionSubrogado con debe_evaluar=True si el candidato es prometedor.
         """
         pred = self._float_valido(fitness_pred)
         ref = self._float_valido(fitness_ref)
         
-        # Ante valores invalidos, se fuerza evaluacion real. Es una decision
-        # conservadora: preferimos gastar una evaluacion antes que rechazar por
-        # un fallo numerico del subrogado.
+        # si el valor es invalido, se fuerza evaluacion real. 
+        # se prefiere gastar una evaluacion antes que rechazar por un fallo numerico del subrogado.
         if pred is None:
             return DecisionSubrogado(
                 debe_evaluar=True,
@@ -99,6 +92,8 @@ class PoliticaSubrogado:
     def _float_valido(valor):
         """
         Convierte un escalar o un array con un unico valor a float.
+
+        valor: predicción o referencia a normalizar (puede ser ndarray de shape (1,) o escalar).
 
         Devuelve None si el valor no es numerico, no es finito o contiene mas
         de un elemento.

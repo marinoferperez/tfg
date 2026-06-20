@@ -25,19 +25,7 @@ class SHADECEC2017:
         """shade_kwargs: argumentos para SHADE (tam_poblacion, max_evals, memory_size, …)."""
         self.shade = SHADE(**shade_kwargs)
 
-    def optimize(
-        self,
-        funcid,
-        dim,
-        seed=42,
-        lib_path=None,
-        algname="shade_cec",
-        registrar_metricas=False,
-        ruta_metricas=None,
-        run_id=None,
-        cec_workdir=None,
-        guardar_reinicios_detalle=False,
-    ):
+    def optimize(self, funcid, dim, seed=42, lib_path=None, algname="shade", registrar_metricas=False, ruta_metricas=None, run_id=None, cec_workdir=None, guardar_reinicios_detalle=False):
         """
         Ejecuta SHADE sobre la función CEC2017 indicada.
 
@@ -48,18 +36,18 @@ class SHADECEC2017:
         algname: etiqueta para la salida de cec2017real.
         registrar_metricas: si True, genera CSV/JSON de métricas y dataset.
         ruta_metricas: directorio raíz donde guardar los artefactos.
-        run_id: nombre del subdirectorio de artefactos.
+        run_id: nombre del subdirectorio de artefactos. Si es None, se genera automáticamente.
         cec_workdir: directorio de trabajo para cec2017real.
+        guardar_reinicios_detalle: si True, guarda un CSV con el detalle de cada reinicio elitista.
 
         Retorna un dict con mejor_sol, mejor_fitness, mejor_error y, si
         registrar_metricas=True, las rutas a los artefactos generados.
         """
+        # la semilla se fuerza a int para que numpy no rechace tipos flotantes
         seed = int(seed)
         self.shade.seed = seed
 
-        # ----------------------------
         # construcción del problema
-        # ----------------------------
         problema = CEC2017Problem(
             funcid=funcid,
             dim=dim,
@@ -68,21 +56,23 @@ class SHADECEC2017:
             seed=seed,
             workdir=cec_workdir,
         )
+        # enter_workdir cambia al directorio que necesita la librería C de CEC2017
         problema.enter_workdir()
         try:
+            # prepare_run inicializa el estado interno de cec2017real para esta función
             problema.prepare_run()
 
-            # ----------------------------
             # registro de métricas
-            # ----------------------------
             recolector = None
             callback_metricas = None
             dataset = None
 
             if registrar_metricas:
                 from src.metaheuristics.metrics.deap_metrics import RecolectorMetricasDEAP, guardar_metricas_deap
+                # el recolector acumula logbook por generación; el callback lo alimenta desde SHADE
                 recolector = RecolectorMetricasDEAP(filtrar_evals_no_crecientes=True)
                 tiempo_inicio = time.perf_counter()
+                # el dataset recoge cada evaluación para entrenar el subrogado offline
                 dataset = SurrogateDataset(
                     algoritmo="shade",
                     problema="cec2017",
@@ -98,29 +88,28 @@ class SHADECEC2017:
                     restart_manager=self.shade._aplicar_reinicio,
                 )
 
-            # ----------------------------
-            # ejecución del algoritmo SHADE
-            # ----------------------------
+            # ejecución del algoritmo
             mejor_sol, mejor_fitness = self.shade.optimize(
                 limites=problema.get_bounds(),
-                problem=problema,
+                problema=problema,
                 callback_metricas=callback_metricas,
                 dataset=dataset,
             )
 
+            # mejor_error es la distancia al óptimo conocido de CEC2017 (f - f*)
             mejor_error = problema.cec_error(mejor_fitness)
 
+            # resultado mínimo, independientemente de registrar_metricas
             resultado = {
                 "mejor_sol": mejor_sol,
                 "mejor_fitness": float(mejor_fitness),
                 "mejor_error": mejor_error,
             }
 
-            # ----------------------------
             # postprocesado de métricas
-            # ----------------------------
             if registrar_metricas:
                 metricas_resumen = recolector.obtener_resumen_final()
+                # se inyectan los valores finales para tenerlos en el JSON de resumen
                 metricas_resumen["mejor_fitness"] = float(mejor_fitness)
                 metricas_resumen["mejor_error"] = float(mejor_error)
 
@@ -128,6 +117,7 @@ class SHADECEC2017:
                 resultado["metricas_logbook"] = metricas_logbook
                 resultado["metricas_resumen"] = metricas_resumen
 
+                # config expone los parámetros reales que PYADE usó (tam_poblacion, memory_size…)
                 config = getattr(callback_metricas, "config", None) or {}
 
                 evals_objetivo = config.get("max_evals")
@@ -135,10 +125,12 @@ class SHADECEC2017:
                     evals_objetivo = int(self.shade.max_evals) if self.shade.max_evals is not None else int(MAX_EVALS_POR_DIM * dim)
 
                 evals_reales = int(self.shade.evals)
+                # PYADE puede evaluar más allá del presupuesto por trabajar en bloques de generación
                 evals_fuera_presupuesto = int(max(0, evals_reales - evals_objetivo))
                 hubo_fuera_presupuesto = bool(evals_fuera_presupuesto > 0)
 
                 if ruta_metricas is not None:
+                    # run_id identifica la ejecución en el sistema de archivos
                     if run_id is None:
                         run_id = f"shade_cec2017_f{int(funcid)}_d{int(dim)}_s{seed}"
                     ruta_base = Path(ruta_metricas) / run_id
@@ -159,12 +151,13 @@ class SHADECEC2017:
                                     recolector.anotar_diversidad_generacion(0, diversidad_gen0)
                         # anotar el dataset con la diversidad completa (gen=0 ya incluida)
                         dataset.anotar_diversidad_por_generacion(recolector.obtener_diversidad_por_generacion())
+                    # metadata_reinicios agrega campos de reinicio al JSON de configuración
                     metadata_reinicios = construir_metadata_reinicios(
                         self.shade.eventos_reinicio,
                         self.shade.reinicio_ratio,
                         self.shade.reinicio,
                     )
-                    ficheros_metricas = guardar_metricas_deap(recolector, 
+                    ficheros_metricas = guardar_metricas_deap(recolector,
                         ruta_base=ruta_base,
                         metadata={
                             "algoritmo": "shade",
@@ -183,6 +176,7 @@ class SHADECEC2017:
                     )
                     ruta_reinicios_csv = None
                     if guardar_reinicios_detalle:
+                        # CSV opcional con el detalle de cada evento de reinicio elitista
                         ruta_reinicios_csv = guardar_reinicios_elitistas_csv(
                             ruta_base,
                             self.shade.eventos_reinicio,
@@ -193,6 +187,8 @@ class SHADECEC2017:
                     resultado["ficheros_dataset"] = ficheros_dataset
                     if ruta_reinicios_csv is not None:
                         resultado["ruta_reinicios_elitistas_csv"] = ruta_reinicios_csv
+
+            # si se pidió el CSV de reinicios pero no se guardaron métricas, se hace aquí
             if (
                 guardar_reinicios_detalle
                 and ruta_metricas is not None
@@ -208,6 +204,8 @@ class SHADECEC2017:
                 )
                 if ruta_reinicios_csv is not None:
                     resultado["ruta_reinicios_elitistas_csv"] = ruta_reinicios_csv
+
+            # los eventos de reinicio se devuelven siempre para facilitar el análisis
             resultado["reinicios"] = list(self.shade.eventos_reinicio)
 
             return resultado

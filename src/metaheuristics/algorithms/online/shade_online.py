@@ -12,76 +12,84 @@ import random
 import numpy as np
 import scipy.stats
 
-from src.metaheuristics.metrics.elitist_restart import ControlReinicioElitista
 from src.metaheuristics.algorithms.offline.shade import SHADE, pyade_commons, pyade_shade
 
 class SHADEOnline(SHADE):
     """
     Variante online de SHADE.
 
-    Mantiene la estructura de PYADE:
-        - adaptacion historica de F y CR;
-        - mutacion current-to-pbest;
-        - cruce binomial;
-        - seleccion uno a uno entre padre y trial.
-
+    Mantiene la estructura de PYADE: adaptación histórica de F y CR, mutación
+    current-to-pbest, cruce binomial y selección uno a uno entre padre y trial.
     La diferencia es que cada trial puede filtrarse con el subrogado antes de
-    consumir una evaluacion real. Igual que en DE, la referencia natural es el
+    consumir una evaluación real. La referencia para el filtro es el
     fitness real del padre contra el que compite el trial.
     """
-    
-    def _evaluar_individuo_real(self, problem, individuo, eval_id, generacion, dataset, controlador, evaluacion_filtrada_por_subrogado,
-    ):
-        """
-        Evalua realmente un individuo mediante la función objetivo real y registra la muestra.
 
-        Si el candidato paso antes por el subrogado, se registra como evaluacion
-        tras filtro; si no, se registra como evaluacion directa.
+    def _evaluar_individuo_real(self, problema, candidato, eval_id, generacion, dataset, controlador, evaluacion_filtrada_por_subrogado):
         """
+        Evalúa realmente un trial mediante la función objetivo y registra la muestra.
+
+        problema: instancia del problema con método fitness.
+        candidato: vector de prueba o miembro de la población a evaluar.
+        eval_id: identificador secuencial de la evaluación.
+        generacion: generación actual.
+        dataset: opcional para registrar evaluaciones en el dataset de entrenamiento.
+        controlador: instancia de ControladorSubrogadoOnline.
+        evaluacion_filtrada_por_subrogado: True si el candidato pasó antes por el subrogado.
+
+        Retorna el fitness real o inf si ya se agotó el presupuesto.
+        """
+        # PYADE puede superar max_evals porque trabaja con max_iters = max_evals / tam_poblacion
         if self._max_evals_reales is not None and self.evals >= self._max_evals_reales:
             return float("inf")
 
-        fit = float(problem.fitness(individuo))
+        fit = float(problema.fitness(candidato))
 
         if dataset is not None:
             dataset.individuo_to_dataset(
                 eval_id=int(eval_id),
                 generacion=int(generacion),
-                x=np.asarray(individuo, dtype=float),
+                x=np.asarray(candidato, dtype=float),
                 fitness=float(fit),
             )
 
+        # el controlador distingue si la evaluación fue precedida por el subrogado
         if evaluacion_filtrada_por_subrogado:
-            controlador.registrar_evaluacion_tras_subrogado(individuo, fit)
+            controlador.registrar_evaluacion_tras_subrogado(candidato, fit)
         else:
-            controlador.registrar_evaluacion_directa(individuo, fit)
+            controlador.registrar_evaluacion_directa(candidato, fit)
 
         self.evals = controlador.evals_reales
         return fit
 
-    def _evaluar_reinicio_real(self, individuo):
+    def _evaluar_reinicio_real(self, candidato):
         """
-        Funcion real usada internamente por el reinicio elitista.
+        Función real usada internamente por el reinicio elitista.
 
-        Los individuos generados tras reinicio siempre se evaluan realmente y no
+        candidato: vector de decisión generado tras el reinicio.
+
+        Los candidatos generados tras reinicio siempre se evalúan realmente y no
         pasan por el filtro subrogado.
         """
         return self._evaluar_individuo_real(
-            problem=self._problema,
-            individuo=individuo,
+            problema=self._problema,
+            candidato=candidato,
             eval_id=self.evals + 1,
             generacion=getattr(self, "_generacion_actual", 0),
             dataset=self._dataset,
             controlador=self._controlador_subrogado,
             evaluacion_filtrada_por_subrogado=False,
         )
-        
+
     def _aplicar_reinicio(self, estado, generacion):
         """
         Aplica el reinicio original de SHADE y notifica al controlador online.
 
-        Notificar el reinicio es importante porque invalida el modelo actual y
-        activa el cooldown si esta configurado.
+        estado: diccionario PYADE con claves population, fitness, bounds, func y archive.
+        generacion: generación actual.
+
+        El controlador invalida el modelo actual y activa el cooldown si está configurado.
+        Retorna True si se aplicó el reinicio.
         """
         aplicado = super()._aplicar_reinicio(
             estado=estado,
@@ -90,16 +98,18 @@ class SHADEOnline(SHADE):
         if aplicado and self._controlador_subrogado is not None:
             self._controlador_subrogado.registrar_reinicio()
         return aplicado
-    
-    def optimize(self, limites, problem, controlador_subrogado, callback_metricas=None, dataset=None):
-        """
-        Ejecuta SHADE con filtro subrogado online.
 
-        En cada generacion se generan vectores de prueba (trials). Para cada trial:
-            1. Se compara la prediccion del subrogado contra el fitness real del padre.
-            2. Si el subrogado lo rechaza, no se evalua realmente.
-            3. Si pasa el filtro, se evalua con CEC2017.
-            4. La seleccion final siempre usa fitness real.
+    def optimize(self, limites, problema, controlador_subrogado, callback_metricas=None, dataset=None):
+        """
+        Ejecuta SHADE online con filtrado subrogado sobre el problema indicado.
+
+        limites: array (dim, 2) con [inferior, superior] por variable.
+        problema: instancia del problema con método fitness.
+        controlador_subrogado: instancia de ControladorSubrogadoOnline.
+        callback_metricas: opcional para registrar métricas por generación.
+        dataset: opcional para registrar evaluaciones en el dataset de entrenamiento.
+
+        Retorna (mejor_solucion, mejor_fitness).
         """
         if controlador_subrogado is None:
             raise ValueError("SHADE online requiere un controlador_subrogado.")
@@ -109,7 +119,7 @@ class SHADEOnline(SHADE):
 
         self.evals = 0
         self.eventos_reinicio = []
-        self._problema = problem
+        self._problema = problema
         self._dataset = dataset
         self._controlador_subrogado = controlador_subrogado
         self._generacion_actual = 0
@@ -129,6 +139,7 @@ class SHADEOnline(SHADE):
         if int(params["max_evals"]) <= 0:
             raise ValueError("max_evals debe ser > 0")
 
+        # se extraen los parámetros resueltos que usará el bucle manual
         population_size = int(params["population_size"])
         individual_size = int(params["individual_size"])
         max_evals = int(params["max_evals"])
@@ -137,30 +148,25 @@ class SHADEOnline(SHADE):
         bounds = np.asarray(params["bounds"], dtype=float)
 
         self._max_evals_reales = max_evals
-        if self.reinicio:
-            self._gestor_reinicio = ControlReinicioElitista(
-                max_evals=max_evals,
-                ratio_paciencia=self.reinicio_ratio,
-            )
-        else:
-            self._gestor_reinicio = None
+        self._gestor_reinicio = self._crear_gestor_reinicio(max_evals)
 
-        # PYADE usa ambos generadores en SHADE.
+        # PYADE usa ambos generadores en SHADE
         np.random.seed(seed)
         random.seed(seed)
 
-        # Inicializacion original de SHADE.
+        # inicialización original de SHADE: población, memorias de CR y F, archivo
         population = pyade_commons.init_population(population_size, individual_size, bounds)
         m_cr = np.ones(memory_size) * 0.5
         m_f = np.ones(memory_size) * 0.5
         archive = []
         k = 0
 
+        # evaluación inicial de la población completa sin filtro subrogado
         fitness = []
-        for individuo in population:
+        for candidato in population:
             fit = self._evaluar_individuo_real(
-                problem=problem,
-                individuo=individuo,
+                problema=problema,
+                candidato=candidato,
                 eval_id=self.evals + 1,
                 generacion=0,
                 dataset=dataset,
@@ -171,10 +177,8 @@ class SHADEOnline(SHADE):
         fitness = np.asarray(fitness, dtype=float)
 
         max_iters = max(1, max_evals // population_size)
-
-        # Como el subrogado puede rechazar trials sin consumir evaluaciones, el
-        # numero de generaciones puede ser mayor que max_iters. Este limite evita
-        # bucles muy largos si p es alta y el filtro rechaza demasiado.
+        # el subrogado puede rechazar trials sin consumir evaluaciones, por eso
+        # el número de generaciones puede superar max_iters; este límite evita bucles infinitos
         max_generaciones_online = max_iters * 10
 
         if callback_metricas is not None:
@@ -199,7 +203,7 @@ class SHADEOnline(SHADE):
             generacion += 1
             self._generacion_actual = generacion
 
-            # Adaptacion de CR y F siguiendo PYADE.
+            # adaptación de CR y F siguiendo la implementación PYADE de SHADE
             r = np.random.choice(all_indexes, population_size)
 
             cr = np.random.normal(m_cr[r], 0.1, population_size)
@@ -232,6 +236,7 @@ class SHADEOnline(SHADE):
                 cr.reshape(len(f), 1),
             )
 
+            # fitness de los trials inicializado a inf; se actualiza solo si se evalúan
             c_fitness = np.full(population_size, float("inf"), dtype=float)
 
             for idx, trial in enumerate(crossed):
@@ -244,19 +249,21 @@ class SHADEOnline(SHADE):
                     generacion=generacion,
                 )
 
+                # el subrogado puede rechazar el trial sin consumir evaluación real
                 if not decision.debe_evaluar:
                     continue
 
                 c_fitness[idx] = self._evaluar_individuo_real(
-                    problem=problem,
-                    individuo=trial,
+                    problema=problema,
+                    candidato=trial,
                     eval_id=self.evals + 1,
                     generacion=generacion,
                     dataset=dataset,
                     controlador=controlador_subrogado,
                     evaluacion_filtrada_por_subrogado=decision.uso_subrogado,
                 )
-                
+
+            # selección uno a uno: el trial reemplaza al padre solo si mejora su fitness
             population, indexes = pyade_commons.selection(
                 population,
                 crossed,
@@ -265,7 +272,7 @@ class SHADEOnline(SHADE):
                 return_indexes=True,
             )
 
-            # Adaptacion historica de SHADE siguiendo la implementacion original de PYADE.
+            # adaptación histórica de SHADE: se actualiza m_cr y m_f con los éxitos de esta generación
             archive.extend(population[indexes])
 
             if len(indexes) > 0:

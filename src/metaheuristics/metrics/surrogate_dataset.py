@@ -2,60 +2,53 @@
 Dataset acumulativo de evaluaciones reales de la función objetivo.
 
 Almacena cada evaluación (eval_id, x, fitness) junto con rangos por generación
-y métricas de diversidad. Sirve como fuente de datos para los modelos subrogados
-offline y como trazabilidad de las evaluaciones en experimentos online.
+y métricas de diversidad. Es la fuente de datos para los modelos subrogados offline.
 """
 
-import json
 import re
 from pathlib import Path
 
 import numpy as np
 import pandas as pd
 
-
 class SurrogateDataset:
     """
     Acumula las evaluaciones reales producidas durante una ejecución de la metaheurística.
 
     Cada llamada a individuo_to_dataset registra un par (x, fitness). Al finalizar
-    la ejecución, guardar_csv_json persiste el dataset en HDF5.
+    la ejecución, guardar_dataset_hdf5 almacena el dataset en HDF5.
     """
 
     def __init__(self, algoritmo, problema, seed, run_info=None):
         """
-        algoritmo: nombre de la metaheurística (age, de, shade, …).
-        problema: nombre del benchmark (cec2017).
+        algoritmo: nombre de la metaheurística.
+        problema: nombre del benchmark.
         seed: semilla de la ejecución.
         run_info: dict con metadatos adicionales del experimento (funcid, dim).
         """
         self.algoritmo = str(algoritmo)
         self.problema = str(problema)
-        algoritmo_norm = self.algoritmo.strip().lower()
-        problema_norm = self.problema.strip().lower()
         self.seed = int(seed)
         self.run_info = dict(run_info) if isinstance(run_info, dict) else {}
-
-        self._guardar_x = True
 
         self.filas = []
         self._rangos_generacion = {}
         self._diversidad_generacion = []
 
-    def individuo_to_dataset(self, eval_id, generacion=None, x=None, fitness=None, perm=None):
+    def individuo_to_dataset(self, eval_id, generacion=None, x=None, fitness=None):
         """
         Registra una evaluación real en el dataset.
 
         eval_id: identificador secuencial de la evaluación.
         generacion: generación en la que se produjo la evaluación.
-        x: vector de decisión.
-        fitness: valor de la función objetivo.
+        x: vector de decisión evaluado.
+        fitness: valor de la función objetivo para x.
         """
         fila = {
             "eval_id": int(eval_id),
             "fitness": float(fitness),
         }
-        if self._guardar_x and x is not None:
+        if x is not None:
             fila["x"] = np.asarray(x, dtype=float).tolist()
 
         self.filas.append(fila)
@@ -63,23 +56,19 @@ class SurrogateDataset:
         if generacion is not None:
             gen = int(generacion)
             rango = self._rangos_generacion.get(gen)
-            idx = len(self.filas) - 1
             payload = {
-                "row_start": idx,
-                "row_end": idx,
                 "eval_id_start": int(eval_id),
                 "eval_id_end": int(eval_id),
             }
             if rango is None:
                 self._rangos_generacion[gen] = payload
             else:
-                rango["row_end"] = idx
                 rango["eval_id_end"] = int(eval_id)
 
     def anotar_diversidad_por_generacion(self, diversidad_por_generacion):
         """
-        Asocia las métricas de diversidad calculadas por RecolectorMetricasDEAP
-        con los rangos de eval_id de cada generación del dataset.
+        Asocia las métricas de diversidad calculadas por RecolectorMetricasDEAP con
+        los rangos de eval_id de cada generación del dataset.
 
         diversidad_por_generacion: dict {generacion: {div_dist_euclidea, …}}.
         """
@@ -132,9 +121,12 @@ class SurrogateDataset:
             }
         return salida
 
-    def calcular_diversidad_rango(self, eval_id_inicio, eval_id_fin, rango_inf=-100.0, rango_sup=100.0):
+    def calcular_diversidad_rango(self, eval_id_inicio, eval_id_fin):
         """
         Calcula la diversidad euclidea media sobre las evaluaciones en [eval_id_inicio, eval_id_fin].
+
+        eval_id_inicio: primer eval_id del rango (inclusivo).
+        eval_id_fin: último eval_id del rango (inclusivo).
 
         Retorna un dict con div_dist_euclidea y div_dist_euclidea_normalizada, o None
         si no hay suficientes puntos.
@@ -176,7 +168,11 @@ class SurrogateDataset:
         }
 
     def _normaliza_fragmento(self, valor):
-        """Convierte un valor a una cadena segura para usarla en nombres de fichero."""
+        """
+        Convierte un valor a una cadena segura para usarla en nombres de fichero.
+
+        valor: cualquier valor convertible a str (algoritmo, problema, run_info, …).
+        """
         txt = str(valor).strip().lower()
         txt = re.sub(r"[^a-z0-9_-]+", "_", txt)
         txt = re.sub(r"_+", "_", txt).strip("_")
@@ -194,8 +190,8 @@ class SurrogateDataset:
             return "cec"
         return self._normaliza_fragmento(self.run_info.get("id", "run"))
 
-    def _construir_componentes(self):
-        """Construye los DataFrames de muestras, coordenadas x, diversidad y metadatos."""
+    def _construir_dataframe(self):
+        """Construye el DataFrame con eval_id, fitness y coordenadas x listo para HDF5."""
         muestras_df = pd.DataFrame(
             {
                 "eval_id": [int(f.get("eval_id", 0)) for f in self.filas],
@@ -203,37 +199,22 @@ class SurrogateDataset:
             }
         )
 
-        x_df = None
-        if self._guardar_x:
-            if self.filas:
-                x_data = np.asarray([np.asarray(f.get("x", []), dtype=float) for f in self.filas], dtype=np.float64)
-                x_df = pd.DataFrame(x_data, columns=[f"x_{i}" for i in range(x_data.shape[1])])
-            else:
-                x_df = pd.DataFrame()
+        if self.filas:
+            x_data = np.asarray([np.asarray(f.get("x", []), dtype=float) for f in self.filas], dtype=np.float64)
+            x_df = pd.DataFrame(x_data, columns=[f"x_{i}" for i in range(x_data.shape[1])])
+            return pd.concat([muestras_df, x_df], axis=1)
 
-        diversidad_df = pd.DataFrame(self._diversidad_generacion)
-        metadata_df = pd.DataFrame(
-            [
-                {
-                    "algoritmo": self.algoritmo,
-                    "problema": self.problema,
-                    "seed": int(self.seed),
-                    "run_info_json": json.dumps(self.run_info, ensure_ascii=True, sort_keys=True),
-                }
-            ]
-        )
-
-        return muestras_df, x_df, diversidad_df, metadata_df
+        return muestras_df
 
 
 def guardar_dataset_hdf5(dataset, ruta_base):
     """
-    Persiste el dataset en HDF5 dentro de ruta_base.
+    Almacena el dataset en HDF5 dentro de ruta_base.
 
     dataset: instancia de SurrogateDataset con la ejecución completada.
     ruta_base: directorio de salida.
 
-    Retorna un dict con las rutas a los artefactos generados.
+    Retorna un dict con la ruta al archivo HDF5 generado.
     """
     dir_salida = Path(ruta_base)
     dir_salida.mkdir(parents=True, exist_ok=True)
@@ -244,23 +225,15 @@ def guardar_dataset_hdf5(dataset, ruta_base):
         f"_{dataset._identificador_dataset()}"
     )
     dataset_hdf5_path = base_path.with_suffix(".h5")
-    muestras_df, x_df, _, _ = dataset._construir_componentes()
-    dataset_hdf_df = muestras_df.copy()
-    if x_df is not None and not x_df.empty:
-        dataset_hdf_df = pd.concat([dataset_hdf_df, x_df], axis=1)
+    df = dataset._construir_dataframe()
 
     try:
         with pd.HDFStore(dataset_hdf5_path, mode="w", complib="zlib", complevel=6) as store:
-            store.put("dataset", dataset_hdf_df, format="table")
+            store.put("dataset", df, format="table")
     except ImportError as exc:
         raise ImportError(
             "No se pudo escribir el dataset en HDF5 porque pandas.HDFStore "
             "requiere la dependencia 'tables' (PyTables)."
         ) from exc
 
-    return {
-        "dataset_hdf5": str(dataset_hdf5_path),
-        "dataset_csv": None,
-        "dataset_csv_gz": None,
-        "dataset_json": None,
-    }
+    return {"dataset_hdf5": str(dataset_hdf5_path)}

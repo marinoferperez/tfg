@@ -1,9 +1,8 @@
 """
 Callbacks de registro de métricas para las metaheurísticas del proyecto.
 
-Provee CallbackMetricasAGE para el genético estacionario y CallbackMetricasDE
-para DE y SHADE (que usan el protocolo de estado de PYADE). Ambos delegan el
-almacenamiento en un RecolectorMetricasDEAP.
+CallbackMetricasAGE para el genético estacionario y CallbackMetricasDE
+para DE y SHADE. Ambos delegan el almacenamiento en un RecolectorMetricasDEAP.
 """
 
 import time
@@ -21,28 +20,20 @@ class CallbackMetricasAGE:
         self.t0 = tiempo_inicio
 
     def __call__(self, generacion, fitness, evaluaciones, **kwargs):
-        """Registra las métricas de la generación actual en el recolector."""
-        self.recolector.registrar(
-            generacion = generacion,
-            fitness = fitness,
-            evaluaciones = evaluaciones,
-            tiempo_s=(time.perf_counter() - self.t0),
-            **kwargs
-        )
+        """
+        Registra las métricas de la generación actual en el recolector.
+
+        generacion: índice de la generación.
+        fitness: vector de fitness de la población.
+        evaluaciones: número de evaluaciones consumidas hasta ahora.
+        **kwargs: campos adicionales opcionales (poblacion, …) pasados al recolector.
+        """
+        self.recolector.registrar(generacion = generacion, fitness = fitness, evaluaciones = evaluaciones, tiempo_s=(time.perf_counter() - self.t0), **kwargs)
 
 class CallbackMetricasDE:
     """Callback invocado por DE y SHADE al final de cada generación."""
 
-    def __init__(
-        self,
-        recolector,
-        tiempo_inicio,
-        evals,
-        registrar_poblacion = True,
-        en_generacion = None,
-        offset_current_generation = 0,
-        restart_manager = None,
-    ):
+    def __init__(self, recolector, tiempo_inicio, evals, registrar_poblacion = True, en_generacion = None, offset_current_generation = 0, restart_manager = None):
         """
         recolector: instancia de RecolectorMetricasDEAP donde guardar las métricas.
         tiempo_inicio: marca de tiempo (perf_counter) del inicio del experimento.
@@ -62,7 +53,12 @@ class CallbackMetricasDE:
         self.restart_manager = restart_manager
 
     def __call__(self, **estado):
-        """Registra las métricas de la generación y, si procede, gestiona el reinicio."""
+        """
+        Registra las métricas de la generación y, si procede, gestiona el reinicio.
+
+        **estado: diccionario PYADE con claves population, fitness, population_size,
+            individual_size, max_evals, max_iters, f, cr, cross, seed, current_generation, …
+        """
         fitness = estado.get("fitness")
         if fitness is None:
             return
@@ -74,7 +70,7 @@ class CallbackMetricasDE:
                 """Convierte val a float escalar; si es array, devuelve la media."""
                 if val is None:
                     return None
-                # SHADE pasa f y cr como arrays por individuo; tomamos la media
+                # SHADE pasa f y cr como arrays por individuo y se toma la media
                 arr = np.asarray(val)
                 if arr.ndim > 0:
                     return float(np.mean(arr))

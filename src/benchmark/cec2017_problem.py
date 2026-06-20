@@ -3,9 +3,9 @@ Adaptador para el benchmark CEC2017 escrito en C++.
 
 Interfaz del problema reutilizable por las metaheurísticas offline y
 online: 
-- límites del dominio, 
-- evaluación de fitness,
-- gestión del entorno de ejecución requerido por cec2017real.
+    - límites del dominio, 
+    - evaluación de fitness,
+    - gestión del entorno de ejecución requerido por cec2017real.
 """
 
 import ctypes
@@ -35,8 +35,7 @@ _FUNCID_MAX = 30
 _LIMITE_INF = -100.0
 _LIMITE_SUP = 100.0
 _PREFIJO_RESULTS = b"results_"
-# char directory[30] en cec17.c
-_CEC_DIRECTORY_BUF_SIZE = 30
+_CEC_DIRECTORY_BUF_SIZE = 30 # char directory[30] en cec17.c
 
 
 MAX_EVALS_POR_DIM = 10000
@@ -51,7 +50,7 @@ def _inicializar_libreria(lib_path=None):
     lib_path: ruta explícita a la librería. Si es None, se busca en el
     directorio build del paquete probando extensiones compatibles con el SO.
 
-    Retorna (lib_path, code_dir, lib), donde code_dir es cec2017real/code.
+    Retorna (_, code_dir, lib), donde code_dir es cec2017real/code.
     """
     if lib_path is not None:
         lib_path = Path(lib_path)
@@ -94,7 +93,7 @@ def _validar_funcid(funcid):
 
 def _validar_dimension(dim):
     """
-    Comprueba que la dimensionalidad es una de las admitidas por CEC2017.
+    Comprueba que la dimensionalidad es una de las admitidas por CEC2017 oficial.
 
     dim: número de variables del problema.
     """
@@ -128,7 +127,7 @@ def _validar_algname(algname):
 
 def _asegurar_input_data(code_dir):
     """
-    Garantiza que input_data/ esté accesible desde el directorio de trabajo.
+    Garantiza que se puede acceder a input_data/ desde el directorio de trabajo.
 
     code_dir: directorio cec2017real/code que contiene los ficheros de datos
     del benchmark. Si no existe input_data en el directorio, se crea un symlink.
@@ -157,17 +156,17 @@ def _asegurar_input_data(code_dir):
 
 class CEC2017Problem:
     """
-    Problema de optimización continua definido por el benchmark CEC2017.
+    Problema de optimización continuo definido por el benchmark CEC2017.
 
-    Recoge la configuración del experimento, la evaluación de soluciones y
-    la preparación del entorno de ejecución para cec2017real.
+    Recoge las funcionalidades básicas ya implementadas en cec2017real:
+        - configuración del experimento
+        - evaluación de soluciones
+        - preparación del entorno de ejecución
     """
-
-    DIMENSIONES = _DIMENSIONES_VALIDAS
 
     def __init__(self, funcid, dim, algname="age", lib_path=None, seed=42, workdir=None):
         """
-        Construye una instancia del problema CEC2017.
+        Constructor del problema CEC2017.
 
         funcid: identificador de la función de prueba, en [1, 30].
         dim: dimensionalidad del problema.
@@ -183,9 +182,9 @@ class CEC2017Problem:
         # CEC2017 usa el dominio [-100, 100]^dim para todas las funciones
         self.bounds = np.full((self.dim, 2), [_LIMITE_INF, _LIMITE_SUP], dtype=float)
         self.seed = int(seed)
-        self.rng = np.random.default_rng(self.seed)
+        self.rng = np.random.default_rng(self.seed) # generador aleatorio
 
-        self._lib_path, self._code_dir, self._lib = _inicializar_libreria(lib_path)
+        _, self._code_dir, self._lib = _inicializar_libreria(lib_path)
 
         self._initialized = False
         self._workdir = Path(workdir).resolve() if workdir is not None else Path.cwd().resolve()
@@ -193,7 +192,7 @@ class CEC2017Problem:
 
     def prepare_run(self):
         """
-        Prepara el entorno y deja el benchmark listo para evaluar soluciones.
+        Prepara el entorno y benchmark para evaluar soluciones.
 
         Debe llamarse una vez por ejecución, después de enter_workdir() si se
         usa un directorio de trabajo distinto del directorio original.
@@ -201,15 +200,14 @@ class CEC2017Problem:
         _asegurar_input_data(self._code_dir)
 
         # cec2017real escribe resultados en results_<algname>/
-        results_dir = Path.cwd() / f"results_{self.algname}"
-        results_dir.mkdir(parents=True, exist_ok=True)
+        (Path.cwd() / f"results_{self.algname}").mkdir(parents=True, exist_ok=True)
 
         self._lib.cec17_init(self._algname_bytes, self.funcid, self.dim)
         self._initialized = True
 
     def enter_workdir(self):
         """
-        Cambia el proceso al directorio de trabajo del experimento.
+        Cambia el proceso al directorio de trabajo del experimento (cec2017real).
 
         Guarda el directorio anterior para poder restaurarlo con exit_workdir().
         """
@@ -237,15 +235,9 @@ class CEC2017Problem:
         """
         return self.bounds
 
-    def get_size(self):
-        """
-        Devuelve la dimensionalidad del problema.
-        """
-        return self.dim
-
     def fitness(self, solution):
         """
-        Evalúa el fitness de una solución con la función CEC2017 activa.
+        Evalúa el fitness de una solución.
 
         solution: vector de decisión de longitud dim. Requiere haber llamado antes a prepare_run().
         """

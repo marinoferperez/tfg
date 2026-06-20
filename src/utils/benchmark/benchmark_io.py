@@ -21,8 +21,6 @@ def resumir_runs(metricas_runs):
             "rmse",
             "nrmse",
             "spearman",
-            "max_abs_error",
-            "max_pct_error",
             "train_time_s",
             "predict_time_s",
         ):
@@ -43,8 +41,6 @@ def resumir_runs(metricas_runs):
         "rmse",
         "nrmse",
         "spearman",
-        "max_abs_error",
-        "max_pct_error",
         "train_time_s",
         "predict_time_s",
     ):
@@ -285,9 +281,5 @@ def imprimir_resumen(metricas):
     print(f"  RMSE={metricas['rmse']:.6f} +- {metricas['rmse_std']:.6f}")
     print(f"  nRMSE={metricas['nrmse']:.6f} +- {metricas['nrmse_std']:.6f}")
     print(f"  Spearman={metricas['spearman']:.6f} +- {metricas['spearman_std']:.6f}")
-    if "spearman_n_validas" in metricas and "spearman_n_nan" in metricas:
-        print(f"  spearman_n_validas={metricas['spearman_n_validas']} (NaN: {metricas['spearman_n_nan']})")
-    print(f"  max_abs_error={metricas['max_abs_error']:.6f} +- {metricas['max_abs_error_std']:.6f}")
-    print(f"  max_pct_error={metricas['max_pct_error']:.6f} +- {metricas['max_pct_error_std']:.6f}")
     print(f"  train_time_s={metricas['train_time_s']:.6f} +- {metricas['train_time_s_std']:.6f}")
     print(f"  predict_time_s={metricas['predict_time_s']:.6f} +- {metricas['predict_time_s_std']:.6f}")

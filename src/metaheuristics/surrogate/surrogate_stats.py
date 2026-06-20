@@ -1,27 +1,3 @@
-# Debe guardar los contadores online. Como registrar cada candidato puede generar ficheros muy grandes, conviene separar dos niveles:
-
-# - resumen por ejecución;
-# - trazas detalladas solo para pruebas pequeñas o depuración.
-
-# Métricas agregadas por run:
-
-# ```text
-# evals_reales
-# candidatos_generados
-# candidatos_con_subrogado
-# candidatos_evaluados_directamente
-# candidatos_rechazados
-# candidatos_aceptados_por_subrogado
-# porcentaje_rechazo
-# entrenamientos_rbf
-# tiempo_entrenamiento_total
-# tiempo_prediccion_total
-# reinicios
-# mejor_fitness
-# mejor_error
-# ```
-
-
 """
 Registro de estadisticas para la integracion online con subrogados.
 
@@ -44,8 +20,7 @@ class EstadisticasSubrogado:
     """
     Contadores agregados de una ejecucion online.
 
-    Se mantiene como dataclass mutable porque los contadores se actualizan
-    incrementalmente durante la ejecucion de la metaheuristica.
+    dataclass porque los contadores se actualizan incrementalmente durante la ejecucion de la metaheuristica.
     """
     
     evals_reales: int = 0
@@ -65,7 +40,7 @@ class EstadisticasSubrogado:
     mejor_fitness: float | None = None
     mejor_error: float | None = None
     
-    # Trazas ligeras. No se guardan todos los candidatos por defecto para evitar # ficheros enormes en experimentos completos.
+    # no se guardan todos los candidatos por defecto para evitar ficheros enormes en experimentos completos.
     eventos: list[dict] = field(default_factory=list)
     decisiones_subrogado: list[dict] = field(default_factory=list)
 
@@ -80,9 +55,6 @@ class EstadisticasSubrogado:
     def registrar_evaluacion_directa(self):
         """
         Candidato evaluado directamente sin pasar por el subrogado.
-
-        Esto ocurre durante el calentamiento inicial o cuando la probabilidad p
-        decide no aplicar el filtro.
         """
         self.candidatos_evaluados_reales += 1
         self.evals_reales += 1
@@ -95,8 +67,7 @@ class EstadisticasSubrogado:
         """
         El subrogado permite evaluar realmente el candidato.
 
-        No significa que el candidato haya sido aceptado en la poblacion.
-        Solo significa que ha pasado el filtro
+        No significa que el candidato haya sido aceptado en la poblacion, solo significa que ha pasado el filtro
         """
         self.candidatos_aceptados_por_subrogado += 1
         
@@ -109,13 +80,21 @@ class EstadisticasSubrogado:
         """Candidato rechazado por el subrogado sin consumir evaluación real."""
         self.candidatos_rechazados += 1
 
-    def registrar_entrenamiento(self, tiempo_segundos: float):
-        """Registra un entrenamiento del modelo y su duración."""
+    def registrar_entrenamiento(self, tiempo_segundos):
+        """
+        Registra un entrenamiento del modelo y su duración.
+
+        tiempo_segundos: tiempo en segundos que tardó el ajuste del modelo.
+        """
         self.entrenamientos_rbf += 1
         self.tiempo_entrenamiento_total += float(tiempo_segundos)
 
-    def registrar_prediccion(self, tiempo_segundos: float):
-        """Registra el tiempo de una predicción del modelo."""
+    def registrar_prediccion(self, tiempo_segundos):
+        """
+        Registra el tiempo de una predicción del modelo.
+
+        tiempo_segundos: tiempo en segundos que tardó la predicción puntual.
+        """
         self.tiempo_prediccion_total += float(tiempo_segundos)
 
     def registrar_reinicio(self):
@@ -123,16 +102,21 @@ class EstadisticasSubrogado:
         self.reinicios += 1
 
     def registrar_resultado_final(self, mejor_fitness, mejor_error=None):
-        """Almacena el mejor fitness y error al final de la ejecución."""
+        """
+        Almacena el mejor fitness y error al final de la ejecución.
+
+        mejor_fitness: mejor valor de la función objetivo encontrado en el run.
+        mejor_error: distancia al óptimo conocido (f - f*), o None si no se dispone de él.
+        """
         self.mejor_fitness = float(mejor_fitness)
         self.mejor_error = None if mejor_error is None else float(mejor_error)
 
     def registrar_evento(self, tipo: str, **payload):
         """
-        Registra un evento ligero para depuracion.
+        Registra un evento puntual para depuración.
 
-        En ejecuciones largas conviene usarlo solo para eventos relevantes:
-        entrenamientos, reinicios o cambios de fase.
+        tipo: etiqueta del evento (p. ej. "reinicio").
+        **payload: campos adicionales que se añaden al dict del evento (evals_reales, generacion, …).
         """
         evento = {"tipo": str(tipo)}
         evento.update(payload)
@@ -142,8 +126,11 @@ class EstadisticasSubrogado:
         """
         Registra una decision tomada con el subrogado.
 
-        Esta traza permite analizar el margen fitness_pred - fitness_ref y
-        detectar si el filtro esta rechazando candidatos por poco margen.
+        **payload: campos de la decisión: evals_reales, generacion, reinicios, evals_desde_reinicio,
+            fitness_pred, fitness_ref, margen_pred_ref, debe_evaluar, motivo.
+
+        Permite analizar fitness_pred - fitness_ref y detectar si el filtro está rechazando
+        candidatos por poco margen.
         """
         self.decisiones_subrogado.append(dict(payload))
         
