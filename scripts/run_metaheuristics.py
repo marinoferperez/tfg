@@ -23,8 +23,8 @@ from src.utils.experiment_io import (
     gestiona_semillas,
     guardar_bloque_resultados,
     mostrar,
-    normalizar_ratio_paciencia_reinicio,
-    sufijo_ratio_paciencia_reinicio,
+    normalizar_ratio_estancamiento_reinicio,
+    sufijo_ratio_estancamiento_reinicio,
     validar_tam_poblacion,
 )
 from src.utils.file_io import escribir_csv_dicts, escribir_json
@@ -85,7 +85,7 @@ def parse_args():
         help=(
             "Activa el reinicio elitista en CEC2017. El criterio actual "
             "preserva el mejor individuo y reinicia cuando el segundo mejor "
-            "fitness permanece estancado durante la paciencia configurada."
+            "fitness permanece estancado durante el estancamiento configurado."
         ),
     )
     parser.add_argument(
@@ -177,11 +177,11 @@ def ejecutar_cec(args, semillas, outdir_metricas, algoritmos, funcid):
     total_runs = len(algoritmos) * len(semillas)
     run_idx = 0
     registrar_metricas = not args.no_metrics
-    ratio_paciencia_restart = normalizar_ratio_paciencia_reinicio(args.restart_ratio)
+    ratio_estancamiento_restart = normalizar_ratio_estancamiento_reinicio(args.restart_ratio)
     restart_activo = bool(args.restart)
     sufijo_reinicio = ""
     if restart_activo:
-        sufijo_reinicio = "_reinicio" + sufijo_ratio_paciencia_reinicio(ratio_paciencia_restart)
+        sufijo_reinicio = "_reinicio" + sufijo_ratio_estancamiento_reinicio(ratio_estancamiento_restart)
 
     for algoritmo in algoritmos:
         for seed in semillas:
@@ -199,7 +199,7 @@ def ejecutar_cec(args, semillas, outdir_metricas, algoritmos, funcid):
                 kwargs["max_evals"] = int(args.max_evals)
             if restart_activo:
                 kwargs["reinicio"] = True
-                kwargs["reinicio_ratio"] = float(ratio_paciencia_restart)
+                kwargs["reinicio_ratio"] = float(ratio_estancamiento_restart)
             mtheuristica, algname = crear_metaheuristica_offline(algoritmo, kwargs)
 
             # Se mide el tiempo de pared de la ejecucion completa.
@@ -233,7 +233,7 @@ def ejecutar_cec(args, semillas, outdir_metricas, algoritmos, funcid):
                 "tiempo_s": float(dt),
                 "reinicio": bool(restart_activo),
                 "reinicio_ratio": (
-                    float(ratio_paciencia_restart) if restart_activo else ""
+                    float(ratio_estancamiento_restart) if restart_activo else ""
                 ),
                 "n_reinicios": int(len(resultado.get("reinicios", []))),
             })
@@ -251,7 +251,7 @@ def ejecutar_cec(args, semillas, outdir_metricas, algoritmos, funcid):
 def main():
     """Punto de entrada del script offline."""
     args = parse_args()
-    args.restart_ratio = normalizar_ratio_paciencia_reinicio(args.restart_ratio)
+    args.restart_ratio = normalizar_ratio_estancamiento_reinicio(args.restart_ratio)
     args.restart = bool(args.restart)
     if args.max_evals is None:
         args.max_evals = MAX_EVALS_POR_DIM * int(args.cec_dim)

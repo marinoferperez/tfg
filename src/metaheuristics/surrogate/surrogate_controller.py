@@ -133,20 +133,6 @@ class ControladorSubrogadoOnline:
         """Nuevas evaluaciones reales que deben acumularse antes de reentrenar."""
         return max(1, int(np.ceil(self.config.retrain_ratio * self.window_size)))
 
-    def registrar_evaluacion_real(self, x, fitness):
-        """
-        Registra una evaluacion real disponible para futuros entrenamientos.
-
-        x: vector de decision evaluado.
-        fitness: valor real de la funcion objetivo para x.
-
-        Se llama despues de cada problem.fitness(...), tanto si la evaluacion fue
-        directa como si el candidato paso el filtro subrogado.
-        """
-        self._x_reales.append(np.asarray(x, dtype=float).copy())
-        self._y_reales.append(float(fitness))
-        self.estadisticas.registrar_evaluacion_real()
-
     def puede_usar_subrogado(self):
         """Comprueba si ya existe informacion suficiente para activar el filtro."""
         if self.config.probabilidad_subrogado <= 0.0:
@@ -289,10 +275,6 @@ class ControladorSubrogadoOnline:
         El modelo se invalida para forzar reentrenamiento con datos post-reinicio.
         """
         self.estadisticas.registrar_reinicio()
-        self.estadisticas.registrar_evento(
-            "reinicio",
-            evals_reales=int(self.evals_reales),
-        )
 
         # el modelo queda obsoleto tras el reinicio: la población cambió completamente
         self._modelo = None

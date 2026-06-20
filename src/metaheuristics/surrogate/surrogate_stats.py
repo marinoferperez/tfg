@@ -31,7 +31,7 @@ class EstadisticasSubrogado:
     candidatos_aceptados_por_subrogado: int = 0
     candidatos_rechazados: int = 0
 
-    entrenamientos_rbf: int = 0
+    entrenamientos_modelo: int = 0
     tiempo_entrenamiento_total: float = 0.0
     tiempo_prediccion_total: float = 0.0
 
@@ -40,18 +40,12 @@ class EstadisticasSubrogado:
     mejor_fitness: float | None = None
     mejor_error: float | None = None
     
-    # no se guardan todos los candidatos por defecto para evitar ficheros enormes en experimentos completos.
-    eventos: list[dict] = field(default_factory=list)
     decisiones_subrogado: list[dict] = field(default_factory=list)
 
     def registrar_candidato_generado(self):
         """Incrementa el contador de candidatos producidos por la metaheurística."""
         self.candidatos_generados += 1
 
-    def registrar_evaluacion_real(self):
-        """Incrementa el contador de evaluaciones reales (sin distinguir el canal)."""
-        self.evals_reales += 1
-        
     def registrar_evaluacion_directa(self):
         """
         Candidato evaluado directamente sin pasar por el subrogado.
@@ -86,7 +80,7 @@ class EstadisticasSubrogado:
 
         tiempo_segundos: tiempo en segundos que tardó el ajuste del modelo.
         """
-        self.entrenamientos_rbf += 1
+        self.entrenamientos_modelo += 1
         self.tiempo_entrenamiento_total += float(tiempo_segundos)
 
     def registrar_prediccion(self, tiempo_segundos):
@@ -110,17 +104,6 @@ class EstadisticasSubrogado:
         """
         self.mejor_fitness = float(mejor_fitness)
         self.mejor_error = None if mejor_error is None else float(mejor_error)
-
-    def registrar_evento(self, tipo: str, **payload):
-        """
-        Registra un evento puntual para depuración.
-
-        tipo: etiqueta del evento (p. ej. "reinicio").
-        **payload: campos adicionales que se añaden al dict del evento (evals_reales, generacion, …).
-        """
-        evento = {"tipo": str(tipo)}
-        evento.update(payload)
-        self.eventos.append(evento)
 
     def registrar_decision_subrogado(self, **payload):
         """
@@ -158,7 +141,7 @@ class EstadisticasSubrogado:
             "candidatos_aceptados_por_subrogado": int(self.candidatos_aceptados_por_subrogado),
             "candidatos_rechazados": int(self.candidatos_rechazados),
             "porcentaje_rechazo": float(self.porcentaje_rechazo),
-            "entrenamientos_rbf": int(self.entrenamientos_rbf),
+            "entrenamientos_modelo": int(self.entrenamientos_modelo),
             "tiempo_entrenamiento_total": float(self.tiempo_entrenamiento_total),
             "tiempo_prediccion_total": float(self.tiempo_prediccion_total),
             "tiempo_online_total": float(self.tiempo_online_total),

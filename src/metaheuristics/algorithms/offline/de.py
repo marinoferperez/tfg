@@ -173,7 +173,7 @@ class DifferentialEvolution:
         self.evals += 1
 
         if self._dataset is not None:
-            self._dataset.individuo_to_dataset(
+            self._dataset.registrar_evaluacion(
                 eval_id=int(self.evals),
                 generacion=int(getattr(self, "_generacion_actual", 0)),
                 x=np.asarray(individuo, dtype=float),

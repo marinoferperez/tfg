@@ -30,9 +30,9 @@ def validar_tam_poblacion(valor):
     return valor
 
 
-def normalizar_ratio_paciencia_reinicio(valor):
+def normalizar_ratio_estancamiento_reinicio(valor):
     """
-    Valida la paciencia del reinicio elitista.
+    Valida el ratio de estancamiento del reinicio elitista.
 
     valor: fraccion de max_evals sin mejora antes de permitir un reinicio.
     """
@@ -48,11 +48,11 @@ def normalizar_ratio_paciencia_reinicio(valor):
     return valor
 
 
-def sufijo_ratio_paciencia_reinicio(valor):
+def sufijo_ratio_estancamiento_reinicio(valor):
     """
     Construye el sufijo usado en nombres de fichero cuando el reinicio esta activo.
 
-    valor: ratio de paciencia ya validado.
+    valor: ratio de estancamiento ya validado.
     """
     txt = f"{float(valor):.6f}".rstrip("0").rstrip(".").replace(".", "p")
     return f"_pat{txt}"
@@ -315,7 +315,7 @@ def guardar_reinicios_elitistas_csv(ruta_base, eventos):
     fieldnames = [
         "generacion", "evals_antes_reinicio", "evals_despues_reinicio",
         "mejor_fitness", "segundo_mejor_fitness", "evals_desde_mejora_mejor",
-        "evals_desde_mejora_segundo", "paciencia_evals", "criterio_mejor_estancado",
+        "evals_desde_mejora_segundo", "estancamiento_evals", "criterio_mejor_estancado",
         "criterio_segundo_estancado", "criterio_fitness_estancado", "criterio_reinicio",
         "reinicio", "indice_individuo_preservado", "fitness_preservado",
     ]

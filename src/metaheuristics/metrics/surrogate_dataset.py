@@ -15,7 +15,7 @@ class SurrogateDataset:
     """
     Acumula las evaluaciones reales producidas durante una ejecución de la metaheurística.
 
-    Cada llamada a individuo_to_dataset registra un par (x, fitness). Al finalizar
+    Cada llamada a registrar_evaluacion registra un par (x, fitness). Al finalizar
     la ejecución, guardar_dataset_hdf5 almacena el dataset en HDF5.
     """
 
@@ -33,9 +33,8 @@ class SurrogateDataset:
 
         self.filas = []
         self._rangos_generacion = {}
-        self._diversidad_generacion = []
 
-    def individuo_to_dataset(self, eval_id, generacion=None, x=None, fitness=None):
+    def registrar_evaluacion(self, eval_id, generacion=None, x=None, fitness=None):
         """
         Registra una evaluación real en el dataset.
 
@@ -64,49 +63,6 @@ class SurrogateDataset:
                 self._rangos_generacion[gen] = payload
             else:
                 rango["eval_id_end"] = int(eval_id)
-
-    def anotar_diversidad_por_generacion(self, diversidad_por_generacion):
-        """
-        Asocia las métricas de diversidad calculadas por RecolectorMetricasDEAP con
-        los rangos de eval_id de cada generación del dataset.
-
-        diversidad_por_generacion: dict {generacion: {div_dist_euclidea, …}}.
-        """
-        self._diversidad_generacion = []
-        if not diversidad_por_generacion:
-            return
-
-        diversidad_limpia = {}
-        for gen, payload in dict(diversidad_por_generacion).items():
-            try:
-                gen_int = int(gen)
-            except (TypeError, ValueError):
-                continue
-            if not isinstance(payload, dict):
-                continue
-
-            limpio = {}
-            if "div_dist_euclidea" in payload:
-                limpio["div_dist_euclidea"] = float(payload["div_dist_euclidea"])
-            if "div_dist_euclidea_normalizada" in payload:
-                limpio["div_dist_euclidea_normalizada"] = float(payload["div_dist_euclidea_normalizada"])
-            if limpio:
-                diversidad_limpia[gen_int] = limpio
-
-        if not diversidad_limpia:
-            return
-
-        for gen, extras in sorted(diversidad_limpia.items(), key=lambda kv: kv[0]):
-            rango = self._rangos_generacion.get(gen)
-            if rango is None:
-                continue
-            fila = {
-                "generacion": int(gen),
-                "eval_id_inicio": int(rango["eval_id_start"]),
-                "eval_id_fin": int(rango["eval_id_end"]),
-            }
-            fila.update(extras)
-            self._diversidad_generacion.append(fila)
 
     def obtener_rangos_generacion(self):
         """

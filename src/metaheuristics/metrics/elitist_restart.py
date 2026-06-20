@@ -49,17 +49,15 @@ class ControlReinicioElitista:
     El mejor individuo se conserva al reiniciar. El reinicio se activa cuando el segundo mejor fitness no mejora durante la estancamiento configurada.
     """
 
-    def __init__(self, *, max_evals=None, estancamiento_evals=None, ratio_estancamiento=0.05, tolerancia_fitness_abs=1e-6):
+    def __init__(self, *, max_evals=None, ratio_estancamiento=0.05, tolerancia_fitness_abs=1e-6):
         """
         Configura el controlador de reinicio elitista.
 
         max_evals: presupuesto total de evaluaciones.
-        estancamiento_evals: número fijo de evaluaciones sin mejora antes de reiniciar.
-        ratio_estancamiento: fracción de max_evals que sirve de estancamiento si no se fija estancamiento_evals directamente.
+        ratio_estancamiento: fracción de max_evals sin mejora del segundo mejor antes de reiniciar.
         tolerancia_fitness_abs: mejora absoluta mínima requerida para resetear el contador de estancamiento.
         """
         self.max_evals = int(max_evals) if max_evals is not None else None
-        self.estancamiento_evals = (int(estancamiento_evals) if estancamiento_evals is not None else None)
         self.ratio_estancamiento = float(ratio_estancamiento)
         self.tolerancia_fitness_abs = float(tolerancia_fitness_abs)
         self.reset(max_evals=max_evals)
@@ -79,9 +77,7 @@ class ControlReinicioElitista:
         self.ultimo_diagnostico = {}
 
     def _estancamiento_actual(self):
-        """Calcula el estancamiento en evaluaciones efectiva para la ejecución actual."""
-        if self.estancamiento_evals is not None:
-            return max(1, int(self.estancamiento_evals))
+        """Calcula la ventana de estancamiento en evaluaciones para la ejecución actual."""
         if self.max_evals is not None:
             return max(1, int(round(float(self.max_evals) * self.ratio_estancamiento)))
         return 5000

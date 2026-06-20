@@ -117,8 +117,6 @@ class GeneticStationaryCEC2017:
                         run_id = f"age_cec2017_f{int(funcid)}_d{int(dim)}_s{seed}"
                     ruta_base = Path(ruta_metricas) / run_id
                     if dataset is not None:
-                        # se cruzan los rangos de evaluación por generación entre recolector y dataset
-                        dataset.anotar_diversidad_por_generacion(recolector.obtener_diversidad_por_generacion())
                         recolector.anotar_rangos_generacion(dataset.obtener_rangos_generacion())
                     # metadata_reinicios agrega campos de reinicio al JSON de configuración
                     metadata_reinicios = construir_metadata_reinicios(

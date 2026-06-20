@@ -148,8 +148,6 @@ class DifferentialEvolutionCEC2017:
                                 )
                                 if diversidad_gen0 is not None:
                                     recolector.anotar_diversidad_generacion(0, diversidad_gen0)
-                        # anotar el dataset con la diversidad completa (gen=0 ya incluida)
-                        dataset.anotar_diversidad_por_generacion(recolector.obtener_diversidad_por_generacion())
                     # metadata_reinicios agrega campos de reinicio al JSON de configuración
                     metadata_reinicios = construir_metadata_reinicios(
                         self.de.eventos_reinicio,

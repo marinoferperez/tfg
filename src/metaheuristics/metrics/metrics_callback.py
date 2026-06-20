@@ -33,11 +33,11 @@ class CallbackMetricasAGE:
 class CallbackMetricasDE:
     """Callback invocado por DE y SHADE al final de cada generación."""
 
-    def __init__(self, recolector, tiempo_inicio, evals, registrar_poblacion = True, en_generacion = None, offset_current_generation = 0, restart_manager = None):
+    def __init__(self, recolector, tiempo_inicio, get_evals, registrar_poblacion = True, en_generacion = None, offset_current_generation = 0, restart_manager = None):
         """
         recolector: instancia de RecolectorMetricasDEAP donde guardar las métricas.
         tiempo_inicio: marca de tiempo (perf_counter) del inicio del experimento.
-        evals: callable sin argumentos que devuelve el número de evaluaciones actuales.
+        get_evals: callable sin argumentos que devuelve el número de evaluaciones actuales.
         registrar_poblacion: si True, se pasa la población completa al recolector.
         en_generacion: callable opcional invocado con el número de generación actual.
         offset_current_generation: desplazamiento aplicado a current_generation del estado.
@@ -45,7 +45,7 @@ class CallbackMetricasDE:
         """
         self.recolector = recolector
         self.t0 = tiempo_inicio
-        self.evals = evals
+        self.get_evals = get_evals
         self.config = None
         self.registrar_poblacion = bool(registrar_poblacion)
         self._en_generacion = en_generacion
@@ -100,7 +100,7 @@ class CallbackMetricasDE:
         self.recolector.registrar(
             generacion=gen,
             fitness=np.asarray(fitness, dtype=float),
-            evaluaciones=int(self.evals()),
+            evaluaciones=int(self.get_evals()),
             tiempo_s=(time.perf_counter() - self.t0),
             poblacion = (poblacion if self.registrar_poblacion else None),
         )
@@ -111,7 +111,7 @@ class CallbackMetricasDE:
                 self.recolector.registrar(
                     generacion=gen,
                     fitness=np.asarray(estado.get("fitness"), dtype=float),
-                    evaluaciones=int(self.evals()),
+                    evaluaciones=int(self.get_evals()),
                     tiempo_s=(time.perf_counter() - self.t0),
                     poblacion=(estado.get("population") if self.registrar_poblacion else None),
                     sobrescribir_ultima=True,

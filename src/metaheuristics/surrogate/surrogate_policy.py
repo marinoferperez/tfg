@@ -24,11 +24,6 @@ class DecisionSubrogado:
     fitness_ref: float | None
     motivo: str
     
-    @property
-    def rechazado(self):
-        """True si el candidato fue rechazado sin evaluar la función objetivo."""
-        return not self.debe_evaluar
-    
 class PoliticaSubrogado:
     """
     Politica de rechazo para la integracion online.

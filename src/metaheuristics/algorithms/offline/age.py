@@ -80,7 +80,7 @@ class GeneticoEstacionario:
         """
         fit = float(problema.fitness(individuo))
         if dataset is not None:
-            dataset.individuo_to_dataset(
+            dataset.registrar_evaluacion(
                 eval_id=int(eval_id),
                 generacion=int(generacion),
                 x=individuo,

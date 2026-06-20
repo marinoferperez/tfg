@@ -24,8 +24,8 @@ from src.utils.experiment_io import (
     gestiona_semillas,
     guardar_bloque_resultados,
     mostrar,
-    normalizar_ratio_paciencia_reinicio,
-    sufijo_ratio_paciencia_reinicio,
+    normalizar_ratio_estancamiento_reinicio,
+    sufijo_ratio_estancamiento_reinicio,
     validar_tam_poblacion,
 )
 from src.metaheuristics.algorithms.online.adapted.age_cec2017_online import GeneticStationaryCEC2017Online
@@ -257,7 +257,7 @@ def gestiona_algoritmos_online(valores):
 
 def validar_args(args):
     """Valida y normaliza los argumentos parseados; añade args.algoritmos."""
-    args.restart_ratio = normalizar_ratio_paciencia_reinicio(args.restart_ratio)
+    args.restart_ratio = normalizar_ratio_estancamiento_reinicio(args.restart_ratio)
     args.restart = bool(args.restart)
 
     if args.max_evals is None:
@@ -353,7 +353,7 @@ def fila_run(args, algoritmo, funcid, seed, resultado, tiempo_s):
         ),
         "candidatos_rechazados": int(resumen_online.get("candidatos_rechazados", 0)),
         "porcentaje_rechazo": float(resumen_online.get("porcentaje_rechazo", 0.0)),
-        "entrenamientos_rbf": int(resumen_online.get("entrenamientos_rbf", 0)),
+        "entrenamientos_modelo": int(resumen_online.get("entrenamientos_modelo", 0)),
         "tiempo_entrenamiento_total": float(
             resumen_online.get("tiempo_entrenamiento_total", 0.0)
         ),
@@ -372,10 +372,10 @@ def ejecutar_cec_online(args, algoritmo, semillas, outdir_metricas, funcid):
     """Ejecuta el algoritmo online sobre todas las semillas para una funcion CEC."""
     filas = []
     registrar_metricas = not args.no_metrics
-    ratio_paciencia_restart = args.restart_ratio
+    ratio_estancamiento_restart = args.restart_ratio
     restart_activo = bool(args.restart)
     sufijo_reinicio = (
-        "_reinicio" + sufijo_ratio_paciencia_reinicio(ratio_paciencia_restart)
+        "_reinicio" + sufijo_ratio_estancamiento_reinicio(ratio_estancamiento_restart)
         if restart_activo
         else ""
     )
