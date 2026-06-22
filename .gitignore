@@ -50,7 +50,11 @@ htmlcov/
 
 # resultados experimentales generados por los scripts
 results/
+results_*/
 tmp/
+
+# caché autogenerada de matplotlib
+.matplotlib_cache_fake/
 
 # datos CEC2017 
 /cec2017real/
