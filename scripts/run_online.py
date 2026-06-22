@@ -421,7 +421,6 @@ def ejecutar_cec_online(args, algoritmo, semillas, outdir_metricas, funcid):
             cec_workdir=str(outdir_metricas.resolve().parent),
             guardar_decisiones_subrogado=bool(args.save_surrogate_decisions),
             guardar_reinicios_detalle=bool(args.save_restart_detail),
-            guardar_dataset=not bool(args.no_dataset),
         )
         tiempo_s = time.perf_counter() - t0
 
@@ -545,12 +544,9 @@ def main():
             )
         filas_runs_cec.extend(filas_funcid)
 
-        config_funcid = config_base(args, semillas, [int(funcid)])
-        config_funcid["funcid"] = int(funcid)
         guardar_bloque_resultados(
             outdir_funcid,
             filas_funcid,
-            config_funcid,
             incluir_columnas_contexto=False,
         )
 

@@ -97,22 +97,9 @@ class CallbackMetricasDE:
 
         poblacion = estado.get("population")
 
-        self.recolector.registrar(
-            generacion=gen,
-            fitness=np.asarray(fitness, dtype=float),
-            evaluaciones=int(self.get_evals()),
-            tiempo_s=(time.perf_counter() - self.t0),
-            poblacion = (poblacion if self.registrar_poblacion else None),
-        )
+        self.recolector.registrar(generacion=gen, fitness=np.asarray(fitness, dtype=float), evaluaciones=int(self.get_evals()), tiempo_s=(time.perf_counter() - self.t0), poblacion=(poblacion if self.registrar_poblacion else None))
 
         if self.restart_manager is not None and estado.get("current_generation") is not None:
             aplicado = bool(self.restart_manager(estado=estado, generacion=gen))
             if aplicado:
-                self.recolector.registrar(
-                    generacion=gen,
-                    fitness=np.asarray(estado.get("fitness"), dtype=float),
-                    evaluaciones=int(self.get_evals()),
-                    tiempo_s=(time.perf_counter() - self.t0),
-                    poblacion=(estado.get("population") if self.registrar_poblacion else None),
-                    sobrescribir_ultima=True,
-                )
+                self.recolector.registrar(generacion=gen, fitness=np.asarray(estado.get("fitness"), dtype=float), evaluaciones=int(self.get_evals()), tiempo_s=(time.perf_counter() - self.t0), poblacion=(estado.get("population") if self.registrar_poblacion else None), sobrescribir_ultima=True)

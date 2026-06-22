@@ -50,7 +50,7 @@ def _inicializar_libreria(lib_path=None):
     lib_path: ruta explícita a la librería. Si es None, se busca en el
     directorio build del paquete probando extensiones compatibles con el SO.
 
-    Retorna (_, code_dir, lib), donde code_dir es cec2017real/code.
+    Retorna (lib_path_resuelto, code_dir, lib), donde code_dir es cec2017real/code.
     """
     if lib_path is not None:
         lib_path = Path(lib_path)
@@ -182,11 +182,10 @@ class CEC2017Problem:
         # CEC2017 usa el dominio [-100, 100]^dim para todas las funciones
         self.bounds = np.full((self.dim, 2), [_LIMITE_INF, _LIMITE_SUP], dtype=float)
         self.seed = int(seed)
-        self.rng = np.random.default_rng(self.seed) # generador aleatorio
 
         _, self._code_dir, self._lib = _inicializar_libreria(lib_path)
 
-        self._initialized = False
+        self._inicializado = False
         self._workdir = Path(workdir).resolve() if workdir is not None else Path.cwd().resolve()
         self._prev_cwd = None
 
@@ -203,7 +202,7 @@ class CEC2017Problem:
         (Path.cwd() / f"results_{self.algname}").mkdir(parents=True, exist_ok=True)
 
         self._lib.cec17_init(self._algname_bytes, self.funcid, self.dim)
-        self._initialized = True
+        self._inicializado = True
 
     def enter_workdir(self):
         """
@@ -241,7 +240,7 @@ class CEC2017Problem:
 
         solution: vector de decisión de longitud dim. Requiere haber llamado antes a prepare_run().
         """
-        if not self._initialized:
+        if not self._inicializado:
             raise RuntimeError("CEC2017 no inicializado. Llama a prepare_run() antes de evaluar.")
 
         x = np.ascontiguousarray(np.asarray(solution, dtype=np.float64))

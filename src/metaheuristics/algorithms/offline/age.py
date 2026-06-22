@@ -51,12 +51,13 @@ class GeneticoEstacionario:
         self._gestor_reinicio = None    # se inicializa en cada llamada a optimize
 
     def _crear_gestor_reinicio(self, max_evals):
-        """Crea el gestor de reinicio elitista o None si reinicio está desactivado."""
+        """
+        Crea el gestor de reinicio elitista o None si reinicio está desactivado.
+
+        max_evals: presupuesto máximo de evaluaciones usado para dimensionar la ventana de estancamiento.
+        """
         if self.reinicio:
-            return ControlReinicioElitista(
-                max_evals=max_evals,
-                ratio_estancamiento=self.reinicio_ratio,
-            )
+            return ControlReinicioElitista(max_evals=max_evals, ratio_estancamiento=self.reinicio_ratio)
         return None
 
     def _generar_poblacion_uniforme(self, limites, n_individuos):
@@ -80,12 +81,7 @@ class GeneticoEstacionario:
         """
         fit = float(problema.fitness(individuo))
         if dataset is not None:
-            dataset.registrar_evaluacion(
-                eval_id=int(eval_id),
-                generacion=int(generacion),
-                x=individuo,
-                fitness=fit,
-            )
+            dataset.registrar_evaluacion(eval_id=int(eval_id), x=individuo, fitness=fit)
         return fit
 
     def _aplicar_reinicio(self, poblacion, fitness, limites, problema, evals, generacion, max_evals, dataset=None):
@@ -134,19 +130,10 @@ class GeneticoEstacionario:
         for idx, individuo in enumerate(nuevos, start=1):
             nuevo_eval_id = int(evals) + idx
             nueva_poblacion[idx] = individuo
-            nuevo_fitness[idx] = self._evaluar_individuo(
-                problema,
-                individuo,
-                eval_id=nuevo_eval_id,
-                generacion=generacion,
-                dataset=dataset,
-            )
+            nuevo_fitness[idx] = self._evaluar_individuo(problema, individuo, eval_id=nuevo_eval_id, generacion=generacion, dataset=dataset)
 
         evals_despues = int(evals) + n_nuevos
-        self._gestor_reinicio.registrar_estado_post_reinicio(
-            fitness=nuevo_fitness,
-            evaluaciones=int(evals_despues),
-        )
+        self._gestor_reinicio.registrar_estado_post_reinicio(fitness=nuevo_fitness, evaluaciones=int(evals_despues))
         # se registra el evento de reinicio para trazabilidad
         evento = dict(diagnostico)
         evento.update(
@@ -229,13 +216,7 @@ class GeneticoEstacionario:
         # se evalua el fitness de cada individuo de la población inicial
         fitness_list = []
         for ind in poblacion:
-            fit = self._evaluar_individuo(
-                problema,
-                ind,
-                eval_id=len(fitness_list) + 1,
-                generacion=0,
-                dataset=dataset,
-            )
+            fit = self._evaluar_individuo(problema, ind, eval_id=len(fitness_list) + 1, generacion=0, dataset=dataset)
             fitness_list.append(fit)
 
         fitness = np.asarray(fitness_list, dtype=float)
@@ -243,12 +224,7 @@ class GeneticoEstacionario:
 
         # callback (opcional) para registrar la poblacion inicial
         if callback_metricas is not None:
-            callback_metricas(
-                generacion=0,
-                fitness=fitness.copy(),
-                evaluaciones=evals,
-                poblacion=poblacion.copy(),
-            )
+            callback_metricas(generacion=0, fitness=fitness.copy(), evaluaciones=evals, poblacion=poblacion.copy())
 
         generacion = 0
         # cada it evalua a 2 hijos
@@ -271,21 +247,9 @@ class GeneticoEstacionario:
             hijo1 = self.mutacion_gaussiana(hijo1, limites)
             hijo2 = self.mutacion_gaussiana(hijo2, limites)
 
-            fit_hijo1 = self._evaluar_individuo(
-                problema,
-                hijo1,
-                eval_id=evals + 1,
-                generacion=generacion + 1,
-                dataset=dataset,
-            )
+            fit_hijo1 = self._evaluar_individuo(problema, hijo1, eval_id=evals + 1, generacion=generacion + 1, dataset=dataset)
 
-            fit_hijo2 = self._evaluar_individuo(
-                problema,
-                hijo2,
-                eval_id=evals + 2,
-                generacion=generacion + 1,
-                dataset=dataset,
-            )
+            fit_hijo2 = self._evaluar_individuo(problema, hijo2, eval_id=evals + 2, generacion=generacion + 1, dataset=dataset)
 
             evals += 2
             generacion += 1
@@ -305,23 +269,12 @@ class GeneticoEstacionario:
                 fitness[peor_idx] = mejor_fit
 
             if callback_metricas is not None:
-                callback_metricas(
-                    generacion=generacion,
-                    fitness=fitness.copy(),   # se pasa una copia ya que en cada iteracion el fitness cambia
-                    evaluaciones=evals,
-                    poblacion=poblacion.copy(),
-                )
+                callback_metricas(generacion=generacion, fitness=fitness.copy(), evaluaciones=evals, poblacion=poblacion.copy())
 
             poblacion, fitness, evals, reiniciado = self._aplicar_reinicio(poblacion, fitness, limites, problema, evals, generacion, max_evals, dataset=dataset)
 
             if reiniciado and callback_metricas is not None:
-                callback_metricas(
-                    generacion=generacion,
-                    fitness=fitness.copy(),
-                    evaluaciones=evals,
-                    poblacion=poblacion.copy(),
-                    sobrescribir_ultima=True,
-                )
+                callback_metricas(generacion=generacion, fitness=fitness.copy(), evaluaciones=evals, poblacion=poblacion.copy(), sobrescribir_ultima=True)
 
         mejor_idx = int(np.argmin(fitness))
         return poblacion[mejor_idx].copy(), float(fitness[mejor_idx])

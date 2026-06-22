@@ -229,17 +229,7 @@ class ControladorSubrogadoOnline:
             else int(self.evals_reales - self._evals_ultimo_reinicio)
         )
 
-        self.estadisticas.registrar_decision_subrogado(
-            evals_reales=int(self.evals_reales),
-            generacion=None if generacion is None else int(generacion),
-            reinicios=int(self.estadisticas.reinicios),
-            evals_desde_reinicio=evals_desde_reinicio,
-            fitness_pred=pred,
-            fitness_ref=ref,
-            margen_pred_ref=margen,
-            debe_evaluar=bool(decision.debe_evaluar),
-            motivo=str(decision.motivo),
-        )
+        self.estadisticas.registrar_decision_subrogado(evals_reales=int(self.evals_reales), generacion=None if generacion is None else int(generacion), reinicios=int(self.estadisticas.reinicios), evals_desde_reinicio=evals_desde_reinicio, fitness_pred=pred, fitness_ref=ref, margen_pred_ref=margen, debe_evaluar=bool(decision.debe_evaluar), motivo=str(decision.motivo))
 
     def registrar_evaluacion_directa(self, x, fitness):
         """
@@ -295,10 +285,7 @@ class ControladorSubrogadoOnline:
         x_train, y_train = self._ventana_entrenamiento()
 
         inicio_train = time.perf_counter()
-        modelo = select_model(
-            self.config.modelo_nombre,
-            **dict(self.config.modelo_params),
-        )
+        modelo = select_model(self.config.modelo_nombre, **dict(self.config.modelo_params))
         modelo.fit(x_train, y_train)
         tiempo_train = time.perf_counter() - inicio_train
 

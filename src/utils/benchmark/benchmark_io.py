@@ -1,33 +1,27 @@
-"""Funciones de agregacion, guardado e impresion de metricas del benchmark offline."""
+"""Funciones de agregacion, guardado y mostrado de metricas del benchmark offline."""
 
 import csv
 from collections import defaultdict
 from copy import deepcopy
-from pathlib import Path
 
 import numpy as np
 
 from src.utils.fs_utils import asegurar_directorio_padre
 from src.utils.file_io import escribir_json
-from src.utils.benchmark.surrogate_paths import resolver_rutas_batch_modelo
+from src.utils.benchmark.surrogate_paths import rutas_bloque_modelo
 
 
 def resumir_runs(metricas_runs):
+    """
+    Agrega las metricas individuales de cada run en un resumen estadistico.
+
+    metricas_runs: lista de dicts con las metricas de cada run individual.
+    """
     metricas_resumen = {}
     if not metricas_runs:
-        for clave in (
-            "mae",
-            "nmae",
-            "rmse",
-            "nrmse",
-            "spearman",
-            "train_time_s",
-            "predict_time_s",
-        ):
+        for clave in ("mae", "nmae", "rmse", "nrmse", "spearman", "train_time_s", "predict_time_s"):
             metricas_resumen[clave] = float("nan")
             metricas_resumen[f"{clave}_std"] = float("nan")
-        metricas_resumen["spearman_n_validas"] = 0
-        metricas_resumen["spearman_n_nan"] = 0
         metricas_resumen["runs"] = []
         metricas_resumen["n_runs_evaluadas"] = 0
         metricas_resumen["n_seeds_evaluadas"] = 0
@@ -35,33 +29,14 @@ def resumir_runs(metricas_runs):
         metricas_resumen["n_test"] = 0
         return metricas_resumen
 
-    for clave in (
-        "mae",
-        "nmae",
-        "rmse",
-        "nrmse",
-        "spearman",
-        "train_time_s",
-        "predict_time_s",
-    ):
+    for clave in ("mae", "nmae", "rmse", "nrmse", "train_time_s", "predict_time_s"):
         valores = np.asarray([run[clave] for run in metricas_runs], dtype=float)
         metricas_resumen[clave] = float(np.mean(valores))
         metricas_resumen[f"{clave}_std"] = float(np.std(valores))
 
-    # Spearman puede ser NaN en semillas concretas si la correlacion por rangos
-    # no es definible. En el resumen agregamos solo sobre las semillas validas y
-    # dejamos trazabilidad del numero de runs efectivamente usados.
     valores_spearman = np.asarray([run["spearman"] for run in metricas_runs], dtype=float)
-    mascara_spearman_valida = np.isfinite(valores_spearman)
-    metricas_resumen["spearman_n_validas"] = int(np.sum(mascara_spearman_valida))
-    metricas_resumen["spearman_n_nan"] = int(np.sum(~mascara_spearman_valida))
-    if metricas_resumen["spearman_n_validas"] == 0:
-        metricas_resumen["spearman"] = float("nan")
-        metricas_resumen["spearman_std"] = float("nan")
-    else:
-        valores_spearman_validos = valores_spearman[mascara_spearman_valida]
-        metricas_resumen["spearman"] = float(np.mean(valores_spearman_validos))
-        metricas_resumen["spearman_std"] = float(np.std(valores_spearman_validos))
+    metricas_resumen["spearman"] = float(np.mean(valores_spearman))
+    metricas_resumen["spearman_std"] = float(np.std(valores_spearman))
 
     metricas_resumen["runs"] = metricas_runs
     metricas_resumen["n_runs_evaluadas"] = int(len(metricas_runs))
@@ -71,65 +46,59 @@ def resumir_runs(metricas_runs):
     return metricas_resumen
 
 
-def agrupar_runs_por_batch(runs):
+def agrupar_runs_por_bloque(runs):
+    """
+    Agrupa los runs por bloque de entrenamiento.
+
+    runs: lista de dicts de runs individuales con bloque_entrenamiento, train_pct_ini y train_pct_fin.
+    """
     agrupados = defaultdict(list)
     for run in runs:
-        key = (
-            int(run["batch_train"]),
-            int(run["train_pct_ini"]),
-            int(run["train_pct_fin"]),
-        )
-        agrupados[key].append(run)
+        clave = (int(run["bloque_entrenamiento"]), int(run["train_pct_ini"]), int(run["train_pct_fin"]))
+        agrupados[clave].append(run)
     return dict(sorted(agrupados.items(), key=lambda item: item[0][0]))
 
 
-def construir_metricas_batch(metricas, runs_batch):
-    primer_run = runs_batch[0]
-    metricas_batch = resumir_runs(runs_batch)
-    metricas_batch.update(
-        {
-            "funcion": metricas["funcion"],
-            "algoritmo": metricas["algoritmo"],
-            "datasets": deepcopy(metricas["datasets"]),
-            "n_datasets_entrada": metricas["n_datasets_entrada"],
-            "model": metricas["model"],
-            "feature_mode": metricas["feature_mode"],
-            "model_params": deepcopy(metricas["model_params"]),
-            "split_strategy": metricas["split_strategy"],
-            "protocol": metricas["protocol"],
-            "n_batches": metricas["n_batches"],
-            "validation_ratio": metricas["validation_ratio"],
-            "scale_features": metricas.get("scale_features"),
-            "scale_target": metricas.get("scale_target"),
-            "escalado": metricas["escalado"],
-            "random_state": metricas["random_state"],
-            "batch_train": int(primer_run["batch_train"]),
-            "batch_train_last": int(primer_run.get("batch_train_last", primer_run["batch_train"])),
-            "train_pct_ini": int(primer_run["train_pct_ini"]),
-            "train_pct_fin": int(primer_run["train_pct_fin"]),
-            "batch_label": primer_run.get(
-                "batch_label",
-                f"{int(primer_run['train_pct_ini'])}-{int(primer_run['train_pct_fin'])}%",
-            ),
-            "batches_train": primer_run.get("batches_train", str(primer_run["batch_train"])),
-        }
-    )
-    if "sample_errors" in metricas:
-        metricas_batch["sample_errors"] = [
-            error
-            for error in metricas["sample_errors"]
-            if int(error["batch_train"]) == int(primer_run["batch_train"])
-        ]
-    return metricas_batch
+def construir_metricas_bloque(metricas, runs_del_bloque):
+    """
+    Construye el dict de metricas para un bloque concreto a partir del resumen global.
 
-
-def construir_payload_metricas(metricas):
-    payload = dict(metricas)
-    payload.pop("sample_errors", None)
-    return payload
+    metricas: dict de metricas globales del experimento.
+    runs_del_bloque: lista de runs pertenecientes al bloque.
+    """
+    primer_run = runs_del_bloque[0]
+    metricas_bloque = resumir_runs(runs_del_bloque)
+    metricas_bloque.update({
+        "funcion": metricas["funcion"],
+        "algoritmo": metricas["algoritmo"],
+        "datasets": deepcopy(metricas["datasets"]),
+        "n_datasets_entrada": metricas["n_datasets_entrada"],
+        "model": metricas["model"],
+        "feature_mode": metricas["feature_mode"],
+        "model_params": deepcopy(metricas["model_params"]),
+        "split_strategy": metricas["split_strategy"],
+        "protocol": metricas["protocol"],
+        "n_bloques": metricas["n_bloques"],
+        "validation_ratio": metricas["validation_ratio"],
+        "scale_features": metricas.get("scale_features"),
+        "scale_target": metricas.get("scale_target"),
+        "escalado": metricas["escalado"],
+        "random_state": metricas["random_state"],
+        "bloque_entrenamiento": int(primer_run["bloque_entrenamiento"]),
+        "train_pct_ini": int(primer_run["train_pct_ini"]),
+        "train_pct_fin": int(primer_run["train_pct_fin"]),
+        "etiqueta_bloque": primer_run.get("etiqueta_bloque", f"{int(primer_run['train_pct_ini'])}-{int(primer_run['train_pct_fin'])}%"),
+        "bloques_entrenamiento": primer_run.get("bloques_entrenamiento", str(primer_run["bloque_entrenamiento"])),
+    })
+    return metricas_bloque
 
 
 def construir_payload_runs(metricas):
+    """
+    Construye el payload JSON con la lista detallada de runs.
+
+    metricas: dict de metricas del experimento.
+    """
     return {
         "funcion": metricas["funcion"],
         "algoritmo": metricas["algoritmo"],
@@ -145,22 +114,13 @@ def construir_payload_runs(metricas):
     }
 
 
-def construir_payload_errores(metricas):
-    return {
-        "funcion": metricas["funcion"],
-        "algoritmo": metricas["algoritmo"],
-        "model": metricas["model"],
-        "feature_mode": metricas["feature_mode"],
-        "split_strategy": metricas["split_strategy"],
-        "protocol": metricas.get("protocol"),
-        "validation_ratio": metricas["validation_ratio"],
-        "scale_features": metricas.get("scale_features"),
-        "scale_target": metricas.get("scale_target"),
-        "sample_errors": metricas.get("sample_errors", []),
-    }
-
-
 def guardar_runs_csv(ruta_csv, runs):
+    """
+    Escribe los runs individuales en un CSV.
+
+    ruta_csv: ruta del fichero de salida.
+    runs: lista de dicts con las metricas por run.
+    """
     ruta_csv = asegurar_directorio_padre(ruta_csv)
     if not runs:
         ruta_csv.write_text("", encoding="utf-8")
@@ -187,84 +147,52 @@ def guardar_runs_csv(ruta_csv, runs):
         writer.writerows(runs_csv)
 
 
-def guardar_errores_csv(ruta_csv, errores):
-    ruta_csv = asegurar_directorio_padre(ruta_csv)
-    fieldnames = [
-        "seed",
-        "batch_train",
-        "batch_train_last",
-        "batch_label",
-        "y_true",
-        "y_pred",
-    ]
-    with ruta_csv.open("w", encoding="utf-8", newline="") as fh:
-        writer = csv.DictWriter(fh, fieldnames=fieldnames, extrasaction="ignore")
-        writer.writeheader()
-        writer.writerows(errores)
+def guardar_artefactos_modelo(*, ruta_metricas, ruta_runs_csv, ruta_runs_json, metricas, guardar_runs=True):
+    """
+    Guarda el JSON de metricas y, opcionalmente, los CSVs y JSONs de runs.
 
-
-def guardar_artefactos_modelo(
-    *,
-    ruta_metricas,
-    ruta_runs_csv,
-    ruta_runs_json,
-    ruta_errores,
-    metricas,
-    guardar_runs=True,
-):
-    escribir_json(ruta_metricas, construir_payload_metricas(metricas))
+    ruta_metricas: ruta del JSON de metricas del modelo.
+    ruta_runs_csv: ruta del CSV de runs individuales.
+    ruta_runs_json: ruta del JSON de runs; si es None no se genera.
+    metricas: dict de metricas del experimento.
+    guardar_runs: si True, escribe tambien los ficheros de runs.
+    """
+    escribir_json(ruta_metricas, metricas)
     if guardar_runs:
         guardar_runs_csv(ruta_runs_csv, metricas["runs"])
         if ruta_runs_json is not None:
             escribir_json(ruta_runs_json, construir_payload_runs(metricas))
 
-    if ruta_errores is not None:
-        if Path(ruta_errores).suffix.lower() == ".csv":
-            guardar_errores_csv(ruta_errores, metricas["sample_errors"])
-        else:
-            escribir_json(ruta_errores, construir_payload_errores(metricas))
 
+def guardar_artefactos_bloques(*, dir_subrogado, nombre_subrogado, metricas, guardar_runs=False):
+    """
+    Guarda los artefactos de cada bloque en su propio subdirectorio.
 
-def guardar_artefactos_batches(
-    *,
-    model_dir,
-    model_name,
-    ruta_errores_base,
-    metricas,
-    guardar_runs=False,
-):
-    errores_suffix = None
-    if ruta_errores_base is not None:
-        errores_suffix = Path(ruta_errores_base).suffix.lower() or ".json"
-
-    for (_batch_train, train_pct_ini, train_pct_fin), runs_batch in agrupar_runs_por_batch(
+    dir_subrogado: directorio raiz del modelo dentro del benchmark.
+    nombre_subrogado: nombre del modelo subrogado.
+    metricas: dict de metricas globales con la lista de runs.
+    guardar_runs: si True, escribe tambien los CSVs de runs por bloque.
+    """
+    for (_bloque_entrenamiento, train_pct_ini, train_pct_fin), runs_bloque in agrupar_runs_por_bloque(
         metricas["runs"]
     ).items():
-        (
-            _batch_dir,
-            ruta_metricas,
-            ruta_runs_csv,
-            ruta_runs_json,
-            ruta_errores,
-        ) = resolver_rutas_batch_modelo(
-            model_dir,
-            model_name,
-            train_pct_ini,
-            train_pct_fin,
-            errores_suffix=errores_suffix,
-        )
-        metricas_batch = construir_metricas_batch(metricas, runs_batch)
+        _bloque_dir, ruta_metricas, ruta_runs_csv = rutas_bloque_modelo(dir_subrogado, nombre_subrogado, train_pct_ini, train_pct_fin)
+        metricas_bloque = construir_metricas_bloque(metricas, runs_bloque)
         guardar_artefactos_modelo(
             ruta_metricas=ruta_metricas,
             ruta_runs_csv=ruta_runs_csv,
             ruta_runs_json=None,
-            ruta_errores=ruta_errores,
-            metricas=metricas_batch,
+            metricas=metricas_bloque,
             guardar_runs=guardar_runs,
         )
 
 
 def imprimir_resumen(metricas):
+    """
+    Imprime por terminal un resumen de las metricas del benchmark.
+
+    metricas: dict de metricas del experimento.
+    """
     print("Resumen benchmark:")
     print(f"  funcion={metricas['funcion']}")
     print(f"  algoritmo={metricas['algoritmo']}")

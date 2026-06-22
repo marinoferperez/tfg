@@ -42,12 +42,7 @@ class GeneticAlgorithmContinuoOnline(GeneticoEstacionario):
         fit = float(problema.fitness(individuo))
 
         if dataset is not None:
-            dataset.registrar_evaluacion(
-                eval_id=int(eval_id),
-                generacion=int(generacion),
-                x=np.asarray(individuo, dtype=float),
-                fitness=float(fit),
-            )
+            dataset.registrar_evaluacion(eval_id=int(eval_id), x=np.asarray(individuo, dtype=float), fitness=float(fit))
 
         # el controlador distingue si la evaluación fue precedida por el subrogado
         if evaluacion_filtrada_por_subrogado:
@@ -85,27 +80,14 @@ class GeneticAlgorithmContinuoOnline(GeneticoEstacionario):
         fitness_list = []
         for ind in poblacion:
             eval_id = controlador_subrogado.evals_reales + 1
-            fit = self._evaluar_individuo_real(
-                problema=problema,
-                individuo=ind,
-                eval_id=eval_id,
-                generacion=0,
-                dataset=dataset,
-                controlador=controlador_subrogado,
-                evaluacion_filtrada_por_subrogado=False,
-            )
+            fit = self._evaluar_individuo_real(problema=problema, individuo=ind, eval_id=eval_id, generacion=0, dataset=dataset, controlador=controlador_subrogado, evaluacion_filtrada_por_subrogado=False)
             fitness_list.append(fit)
 
         fitness = np.asarray(fitness_list, dtype=float)
         evals = controlador_subrogado.evals_reales
 
         if callback_metricas is not None:
-            callback_metricas(
-                generacion=0,
-                fitness=fitness.copy(),
-                evaluaciones=evals,
-                poblacion=poblacion.copy(),
-            )
+            callback_metricas(generacion=0, fitness=fitness.copy(), evaluaciones=evals, poblacion=poblacion.copy())
 
         generacion = 0
 
@@ -135,26 +117,14 @@ class GeneticAlgorithmContinuoOnline(GeneticoEstacionario):
                 if evals >= max_evals:
                     break
 
-                decision = controlador_subrogado.decidir_evaluacion(
-                    candidato=hijo,
-                    fitness_ref=fitness_ref,
-                    generacion=generacion,
-                )
+                decision = controlador_subrogado.decidir_evaluacion(candidato=hijo, fitness_ref=fitness_ref, generacion=generacion)
 
                 # el subrogado puede rechazar el candidato sin consumir evaluación real
                 if not decision.debe_evaluar:
                     continue
 
                 eval_id = evals + 1
-                fit_hijo = self._evaluar_individuo_real(
-                    problema=problema,
-                    individuo=hijo,
-                    eval_id=eval_id,
-                    generacion=generacion,
-                    dataset=dataset,
-                    controlador=controlador_subrogado,
-                    evaluacion_filtrada_por_subrogado=decision.uso_subrogado,
-                )
+                fit_hijo = self._evaluar_individuo_real(problema=problema, individuo=hijo, eval_id=eval_id, generacion=generacion, dataset=dataset, controlador=controlador_subrogado, evaluacion_filtrada_por_subrogado=decision.uso_subrogado)
 
                 evals = controlador_subrogado.evals_reales
                 hijos_evaluados.append((hijo, fit_hijo))
@@ -172,33 +142,12 @@ class GeneticAlgorithmContinuoOnline(GeneticoEstacionario):
                 fitness[peor_idx] = mejor_fit
 
             if callback_metricas is not None:
-                callback_metricas(
-                    generacion=generacion,
-                    fitness=fitness.copy(),
-                    evaluaciones=evals,
-                    poblacion=poblacion.copy(),
-                )
+                callback_metricas(generacion=generacion, fitness=fitness.copy(), evaluaciones=evals, poblacion=poblacion.copy())
 
-            poblacion, fitness, evals, reiniciado = self._aplicar_reinicio_online(
-                poblacion=poblacion,
-                fitness=fitness,
-                limites=limites,
-                problema=problema,
-                evals=evals,
-                generacion=generacion,
-                max_evals=max_evals,
-                dataset=dataset,
-                controlador=controlador_subrogado,
-            )
+            poblacion, fitness, evals, reiniciado = self._aplicar_reinicio_online(poblacion=poblacion, fitness=fitness, limites=limites, problema=problema, evals=evals, generacion=generacion, max_evals=max_evals, dataset=dataset, controlador=controlador_subrogado)
 
             if reiniciado and callback_metricas is not None:
-                callback_metricas(
-                    generacion=generacion,
-                    fitness=fitness.copy(),
-                    evaluaciones=evals,
-                    poblacion=poblacion.copy(),
-                    sobrescribir_ultima=True,
-                )
+                callback_metricas(generacion=generacion, fitness=fitness.copy(), evaluaciones=evals, poblacion=poblacion.copy(), sobrescribir_ultima=True)
 
         mejor_idx = int(np.argmin(fitness))
         return poblacion[mejor_idx].copy(), float(fitness[mejor_idx])
@@ -222,11 +171,7 @@ class GeneticAlgorithmContinuoOnline(GeneticoEstacionario):
         if self._gestor_reinicio is None:
             return poblacion, fitness, evals, False
 
-        if not self._gestor_reinicio.debe_reiniciar(
-            fitness=fitness,
-            evaluaciones=int(evals),
-            generacion=generacion,
-        ):
+        if not self._gestor_reinicio.debe_reiniciar(fitness=fitness, evaluaciones=int(evals), generacion=generacion):
             return poblacion, fitness, evals, False
 
         diagnostico = self._gestor_reinicio.diagnostico_reinicio()
@@ -253,22 +198,11 @@ class GeneticAlgorithmContinuoOnline(GeneticoEstacionario):
         for idx, individuo in enumerate(nuevos, start=1):
             eval_id = controlador.evals_reales + 1
             nueva_poblacion[idx] = individuo
-            nuevo_fitness[idx] = self._evaluar_individuo_real(
-                problema=problema,
-                individuo=individuo,
-                eval_id=eval_id,
-                generacion=generacion,
-                dataset=dataset,
-                controlador=controlador,
-                evaluacion_filtrada_por_subrogado=False,
-            )
+            nuevo_fitness[idx] = self._evaluar_individuo_real(problema=problema, individuo=individuo, eval_id=eval_id, generacion=generacion, dataset=dataset, controlador=controlador, evaluacion_filtrada_por_subrogado=False)
 
         evals_despues = controlador.evals_reales
 
-        self._gestor_reinicio.registrar_estado_post_reinicio(
-            fitness=nuevo_fitness,
-            evaluaciones=int(evals_despues),
-        )
+        self._gestor_reinicio.registrar_estado_post_reinicio(fitness=nuevo_fitness, evaluaciones=int(evals_despues))
 
         # se registra el evento de reinicio para trazabilidad
         evento = dict(diagnostico)

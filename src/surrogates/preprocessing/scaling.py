@@ -13,14 +13,14 @@ from sklearn.preprocessing import StandardScaler
 from src.benchmark.cec2017_problem import _LIMITE_SUP
 
 
-# Límite del dominio CEC2017: [-100, 100] → se normaliza a [-1, 1].
+# límite del dominio CEC2017: [-100, 100] → se normaliza a [-1, 1].
 DOMAIN_BOUND = _LIMITE_SUP
 
-# Modelos basados en árboles que no requieren escalado de Y.
+# modelos basados en árboles que no requieren escalado de Y.
 MODELOS_ARBOL = {"random_forest", "hgb", "xgboost"}
 
 
-def escalar_X(X: np.ndarray) -> np.ndarray:
+def escalar_X(X):
     """
     Escala las variables de entrada al rango [-1, 1] dividiendo por DOMAIN_BOUND.
 
@@ -32,21 +32,21 @@ def escalar_X(X: np.ndarray) -> np.ndarray:
     return np.asarray(X, dtype=float) / DOMAIN_BOUND
 
 
-def construir_escalador_y(model_name: str) -> StandardScaler | None:
+def construir_escalador_y(nombre_subrogado):
     """
     Devuelve un StandardScaler si el modelo requiere escalado de Y, o None.
 
     Los modelos de árbol (random_forest, hgb, xgboost) son invariantes a escala,
     por lo que no necesitan escalado de Y.
 
-    model_name: nombre del modelo subrogado.
+    nombre_subrogado: nombre del modelo subrogado.
     """
-    if model_name in MODELOS_ARBOL:
+    if nombre_subrogado in MODELOS_ARBOL:
         return None
     return StandardScaler()
 
 
-def ajustar_y(scaler: StandardScaler | None, y_train: np.ndarray) -> np.ndarray:
+def ajustar_y(scaler, y_train):
     """
     Ajusta el escalador sobre y_train y devuelve y_train escalado.
 
@@ -56,10 +56,11 @@ def ajustar_y(scaler: StandardScaler | None, y_train: np.ndarray) -> np.ndarray:
     """
     if scaler is None:
         return y_train
+    
     return scaler.fit_transform(y_train.reshape(-1, 1)).ravel()
 
 
-def invertir_y(scaler: StandardScaler | None, y_pred: np.ndarray) -> np.ndarray:
+def invertir_y(scaler, y_pred):
     """
     Invierte el escalado de Y sobre las predicciones del modelo.
 

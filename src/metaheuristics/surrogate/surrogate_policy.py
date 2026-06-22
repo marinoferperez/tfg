@@ -9,20 +9,9 @@ Para CEC2017 trabajamos en minimizacion:
 """
 
 import numpy as np
-from dataclasses import dataclass
+from collections import namedtuple
 
-@dataclass(frozen=True)
-class DecisionSubrogado:
-    """
-    Resultado de aplicar la politica de decision del subrogado.
-
-    debe_evaluar indica si el candidato debe pasar a evaluacion real.
-    Si es False, el candidato se rechaza sin consumir evaluacion de la funcion objetivo.
-    """
-    debe_evaluar: bool
-    fitness_pred: float | None
-    fitness_ref: float | None
-    motivo: str
+DecisionSubrogado = namedtuple("DecisionSubrogado", ["debe_evaluar", "fitness_pred", "fitness_ref", "motivo"])
     
 class PoliticaSubrogado:
     """

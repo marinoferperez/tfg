@@ -52,27 +52,20 @@ class GeneticStationaryCEC2017Online(GeneticStationaryCEC2017):
         algname: etiqueta para la salida de cec2017real.
         lib_path: ruta opcional a la librería compilada de CEC2017.
         registrar_metricas: si True, genera CSV/JSON de métricas.
-        ruta_metricas: directorio raíz donde guardar los artefactos.
-        run_id: nombre del subdirectorio de artefactos. Si es None, se genera automáticamente.
+        ruta_metricas: directorio raíz donde guardar los ficheros.
+        run_id: nombre del subdirectorio de ficheros. Si es None, se genera automáticamente.
         cec_workdir: directorio de trabajo para cec2017real.
         guardar_decisiones_subrogado: si True, guarda un CSV con cada decisión del subrogado.
         guardar_reinicios_detalle: si True, guarda un CSV con el detalle de cada reinicio elitista.
 
         Retorna un dict con mejor_sol, mejor_fitness, mejor_error, resumen_online y, si
-        registrar_metricas=True, las rutas a los artefactos generados.
+        registrar_metricas=True, las rutas a los ficheros generados.
         """
         seed = int(seed)
         self.age.rng = np.random.default_rng(seed)
 
         # construcción del problema
-        problema = CEC2017Problem(
-            funcid=funcid,
-            dim=dim,
-            algname=algname,
-            lib_path=lib_path,
-            seed=seed,
-            workdir=cec_workdir,
-        )
+        problema = CEC2017Problem(funcid=funcid, dim=dim, algname=algname, lib_path=lib_path, seed=seed, workdir=cec_workdir)
 
         problema.enter_workdir()
         try:
@@ -95,28 +88,16 @@ class GeneticStationaryCEC2017Online(GeneticStationaryCEC2017):
                 else int(MAX_EVALS_POR_DIM * dim)
             )
 
-            # config_subrogado reconstruye la configuración para fijar max_evals y seed de esta ejecución
             config_subrogado = self._configurar_subrogado(max_evals=max_evals, seed=seed)
             estadisticas_subrogado = EstadisticasSubrogado()
             # el controlador gestiona las decisiones de filtrado y las estadísticas online
-            controlador_subrogado = ControladorSubrogadoOnline(
-                config=config_subrogado,
-                estadisticas=estadisticas_subrogado,
-            )
+            controlador_subrogado = ControladorSubrogadoOnline(config=config_subrogado, estadisticas=estadisticas_subrogado)
 
             # ejecución del algoritmo
-            mejor_sol, mejor_fitness = self.age.optimize(
-                limites=problema.get_bounds(),
-                problema=problema,
-                controlador_subrogado=controlador_subrogado,
-                callback_metricas=callback_metricas,
-            )
+            mejor_sol, mejor_fitness = self.age.optimize(limites=problema.get_bounds(), problema=problema, controlador_subrogado=controlador_subrogado, callback_metricas=callback_metricas)
 
             mejor_error = problema.cec_error(mejor_fitness)
-            controlador_subrogado.estadisticas.registrar_resultado_final(
-                mejor_fitness=mejor_fitness,
-                mejor_error=mejor_error,
-            )
+            controlador_subrogado.estadisticas.registrar_resultado_final(mejor_fitness=mejor_fitness, mejor_error=mejor_error)
             resumen_online = controlador_subrogado.resumen()
 
             # resultado mínimo independientemente de registrar_metricas
@@ -138,45 +119,20 @@ class GeneticStationaryCEC2017Online(GeneticStationaryCEC2017):
                 resultado["metricas_resumen"] = metricas_resumen
 
                 if ruta_metricas is not None:
-                    # run_id identifica de forma única esta ejecución en el sistema de archivos
+                    # run_id identifica esta ejecución en el arch
                     if run_id is None:
                         run_id = f"age_online_cec2017_f{int(funcid)}_d{int(dim)}_s{seed}"
                     ruta_base = Path(ruta_metricas) / run_id
 
                     # metadata_reinicios agrega campos de reinicio al JSON
-                    metadata_reinicios = construir_metadata_reinicios(
-                        self.age.eventos_reinicio,
-                        self.age.reinicio_ratio,
-                        self.age.reinicio,
-                    )
+                    metadata_reinicios = construir_metadata_reinicios(self.age.eventos_reinicio, self.age.reinicio_ratio, self.age.reinicio)
 
-                    ficheros_metricas = guardar_metricas_deap(recolector,
-                        ruta_base=ruta_base,
-                        metadata={
-                            "algoritmo": "age_online",
-                            "problema": "cec2017",
-                            "funcid": int(funcid),
-                            "dim": int(dim),
-                            "seed": int(seed),
-                            "tam_poblacion": int(self.age.tam_poblacion),
-                            "prob_cruce": float(self.age.prob_cruce),
-                            "prob_mutacion": float(self.age.prob_mutacion),
-                            "tam_torneo": int(self.age.tam_torneo),
-                            "max_evals": int(max_evals),
-                            "sigma": float(self.age.sigma),
-                            "alpha": float(self.age.alpha),
-                            **metadata_reinicios,
-                            **resumen_online,
-                        },
-                    )
+                    ficheros_metricas = guardar_metricas_deap(recolector, ruta_base=ruta_base, metadata={"algoritmo": "age_online", "problema": "cec2017", "funcid": int(funcid), "dim": int(dim), "seed": int(seed), "tam_poblacion": int(self.age.tam_poblacion), "prob_cruce": float(self.age.prob_cruce), "prob_mutacion": float(self.age.prob_mutacion), "tam_torneo": int(self.age.tam_torneo), "max_evals": int(max_evals), "sigma": float(self.age.sigma), "alpha": float(self.age.alpha), **metadata_reinicios, **resumen_online})
 
                     ruta_reinicios_csv = None
                     if guardar_reinicios_detalle:
                         # CSV opcional con el detalle de cada evento de reinicio elitista
-                        ruta_reinicios_csv = guardar_reinicios_elitistas_csv(
-                            ruta_base,
-                            self.age.eventos_reinicio,
-                        )
+                        ruta_reinicios_csv = guardar_reinicios_elitistas_csv(ruta_base, self.age.eventos_reinicio)
 
                     ruta_online_json = ruta_base / "resumen_online.json"
                     escribir_json(ruta_online_json, resumen_online)
@@ -187,18 +143,14 @@ class GeneticStationaryCEC2017Online(GeneticStationaryCEC2017):
                         resultado["ruta_reinicios_elitistas_csv"] = ruta_reinicios_csv
                     resultado["ruta_resumen_online"] = str(ruta_online_json)
 
-            if (guardar_reinicios_detalle
-                and ruta_metricas is not None
-                and "ruta_reinicios_elitistas_csv" not in resultado
-            ):
+            if (guardar_reinicios_detalle and ruta_metricas is not None and "ruta_reinicios_elitistas_csv" not in resultado):
                 if run_id is None:
                     run_id = f"age_online_cec2017_f{int(funcid)}_d{int(dim)}_s{seed}"
+                    
                 ruta_base = Path(ruta_metricas) / run_id
                 ruta_base.mkdir(parents=True, exist_ok=True)
-                ruta_reinicios_csv = guardar_reinicios_elitistas_csv(
-                    ruta_base,
-                    self.age.eventos_reinicio,
-                )
+                ruta_reinicios_csv = guardar_reinicios_elitistas_csv(ruta_base, self.age.eventos_reinicio)
+                
                 if ruta_reinicios_csv is not None:
                     resultado["ruta_reinicios_elitistas_csv"] = ruta_reinicios_csv
 
@@ -208,10 +160,7 @@ class GeneticStationaryCEC2017Online(GeneticStationaryCEC2017):
                 ruta_base = Path(ruta_metricas) / run_id
                 ruta_base.mkdir(parents=True, exist_ok=True)
                 # CSV opcional con cada decisión del subrogado (aceptar/rechazar y motivo)
-                ruta_decisiones_csv = guardar_decisiones_subrogado_csv(
-                    ruta_base,
-                    controlador_subrogado.estadisticas.decisiones_subrogado,
-                )
+                ruta_decisiones_csv = guardar_decisiones_subrogado_csv(ruta_base, controlador_subrogado.estadisticas.decisiones_subrogado)
                 ruta_online_json = ruta_base / "resumen_online.json"
                 escribir_json(ruta_online_json, resumen_online)
                 resultado["ruta_metricas"] = str(ruta_base)
@@ -235,20 +184,6 @@ class GeneticStationaryCEC2017Online(GeneticStationaryCEC2017):
         Retorna una ConfiguracionSubrogadoOnline lista para usar.
         """
         if self.surrogate_config is None:
-            return ConfiguracionSubrogadoOnline(
-                max_evals=int(max_evals),
-                seed=int(seed),
-            )
+            return ConfiguracionSubrogadoOnline(max_evals=int(max_evals), seed=int(seed))
 
-        return ConfiguracionSubrogadoOnline(
-            modelo_nombre=self.surrogate_config.modelo_nombre,
-            modelo_params=dict(self.surrogate_config.modelo_params),
-            cooldown_reinicio_evals=self.surrogate_config.cooldown_reinicio_evals,
-            warmup_ratio=self.surrogate_config.warmup_ratio,
-            window_ratio=self.surrogate_config.window_ratio,
-            probabilidad_subrogado=self.surrogate_config.probabilidad_subrogado,
-            max_evals=int(max_evals),
-            minimizacion=self.surrogate_config.minimizacion,
-            seed=int(seed),
-            retrain_ratio=self.surrogate_config.retrain_ratio,
-        )
+        return ConfiguracionSubrogadoOnline(modelo_nombre=self.surrogate_config.modelo_nombre, modelo_params=dict(self.surrogate_config.modelo_params), cooldown_reinicio_evals=self.surrogate_config.cooldown_reinicio_evals, warmup_ratio=self.surrogate_config.warmup_ratio, window_ratio=self.surrogate_config.window_ratio, probabilidad_subrogado=self.surrogate_config.probabilidad_subrogado, max_evals=int(max_evals), minimizacion=self.surrogate_config.minimizacion, seed=int(seed), retrain_ratio=self.surrogate_config.retrain_ratio)

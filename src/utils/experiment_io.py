@@ -3,25 +3,22 @@ Utilidades de entrada/salida compartidas entre scripts de experimentacion.
 
 Agrupa las funciones de gestion de semillas, funciones CEC, construccion de
 resumenes y escritura de resultados que son comunes a los scripts offline y
-online. De este modo, los scripts de ejecucion no necesitan importarse entre si.
+online. 
 """
 
 import numpy as np
+import pandas as pd
 from collections import defaultdict
 from pathlib import Path
 
 from src.utils.file_io import escribir_csv_dicts, leer_csv_dicts
 
 
-# ---------------------------------------------------------------------------
-# Normalizacion y validacion de argumentos CLI
-# ---------------------------------------------------------------------------
-
 def validar_tam_poblacion(valor):
     """
-    Valida el tamano de poblacion recibido por CLI.
+    Valida el tamaño de poblacion recibido por CLI.
 
-    valor: tamano de poblacion solicitado. Debe ser un entero >= 4.
+    valor: tamaño de poblacion solicitado. Debe ser un entero >= 4.
     """
     import argparse
     valor = int(valor)
@@ -32,19 +29,20 @@ def validar_tam_poblacion(valor):
 
 def normalizar_ratio_estancamiento_reinicio(valor):
     """
-    Valida el ratio de estancamiento del reinicio elitista.
+    Verifica el ratio de estancamiento del reinicio elitista.
 
     valor: fraccion de max_evals sin mejora antes de permitir un reinicio.
     """
     if valor is None:
         return None
+    
     valor = float(valor)
+    
     if not np.isfinite(valor):
         raise ValueError("--reinicio-ratio debe ser finito.")
     if valor <= 0.0 or valor >= 1.0:
-        raise ValueError(
-            "--reinicio-ratio debe estar en el intervalo abierto (0, 1)."
-        )
+        raise ValueError("--reinicio-ratio debe estar en el intervalo abierto (0, 1).")
+    
     return valor
 
 
@@ -56,11 +54,6 @@ def sufijo_ratio_estancamiento_reinicio(valor):
     """
     txt = f"{float(valor):.6f}".rstrip("0").rstrip(".").replace(".", "p")
     return f"_pat{txt}"
-
-
-# ---------------------------------------------------------------------------
-# Gestion de argumentos de experimento
-# ---------------------------------------------------------------------------
 
 def gestiona_funcids_cec(args):
     """
@@ -85,6 +78,7 @@ def gestiona_funcids_cec(args):
 
     vistos = set()
     funcids = []
+    
     for tk in tokens:
         try:
             fid = int(tk)
@@ -92,19 +86,20 @@ def gestiona_funcids_cec(args):
             raise ValueError(
                 f"Valor de --cec-funcid invalido: '{tk}'. Usa enteros en [1, 30] o 'all'."
             ) from exc
+            
         if not 1 <= fid <= 30:
             raise ValueError(f"funcid={fid} fuera de rango. Debe estar en [1, 30].")
+        
         if fid not in vistos:
             vistos.add(fid)
             funcids.append(fid)
+            
     return funcids
 
 
 def gestiona_semillas(args):
     """
     Resuelve las semillas a ejecutar desde la linea de comandos.
-
-    args: namespace de argparse. --seeds tiene prioridad sobre seed-start/n-seeds.
     """
     if args.seeds is None:
         semillas = [int(args.seed_start) + i for i in range(int(args.n_seeds))]
@@ -138,30 +133,6 @@ def gestiona_semillas(args):
             semillas.append(seed)
     return semillas
 
-
-# ---------------------------------------------------------------------------
-# Fusion y construccion de resumenes
-# ---------------------------------------------------------------------------
-
-def normalizar_fila_run_csv(fila):
-    """
-    Elimina columnas de trazabilidad que no forman parte del CSV final de runs.
-    """
-    _columnas_descartadas = {
-        "problema",
-        "adaptacion",
-        "qap_instancia",
-        "ruta_metricas",
-        "ruta_resumen_online",
-        "ruta_decisiones_subrogado",
-    }
-    return {
-        clave: valor
-        for clave, valor in dict(fila).items()
-        if clave not in _columnas_descartadas
-    }
-
-
 def clave_fila_run(fila):
     """
     Construye la clave unica de una ejecucion para detectar duplicados.
@@ -172,13 +143,13 @@ def clave_fila_run(fila):
         str(fila.get("algoritmo", "")),
         str(fila.get("cec_funcid", "")),
         int(fila.get("semilla", 0)),
-        str(fila.get("reinicio", "")),
-        str(fila.get("reinicio_ratio", "")),
-        str(fila.get("modelo_subrogado", "")),
-        str(fila.get("probabilidad_subrogado", "")),
+        str(fila.get("reinicio", fila.get("restart", ""))),
+        str(fila.get("reinicio_ratio", fila.get("restart_ratio", ""))),
+        str(fila.get("surrogate_model", "")),
+        str(fila.get("surrogate_prob", "")),
         str(fila.get("warmup_ratio", "")),
         str(fila.get("window_ratio", "")),
-        str(fila.get("cooldown_reinicio_evals", "")),
+        str(fila.get("restart_cooldown_evals", "")),
         str(fila.get("retrain_ratio", "")),
         str(fila.get("retrain_interval_efectivo", "")),
     )
@@ -192,10 +163,10 @@ def fusionar_runs_existentes(path, filas_nuevas):
     filas_nuevas: ejecuciones generadas en la llamada actual.
     """
     path = Path(path)
-    existentes = [normalizar_fila_run_csv(fila) for fila in leer_csv_dicts(path)]
-    filas_nuevas = [normalizar_fila_run_csv(fila) for fila in filas_nuevas]
+    existentes = list(leer_csv_dicts(path))
+    filas_nuevas = list(filas_nuevas)
     if not existentes:
-        return list(filas_nuevas)
+        return filas_nuevas
 
     fusionadas = {clave_fila_run(fila): fila for fila in existentes}
     for fila in filas_nuevas:
@@ -222,10 +193,8 @@ def resumen_grupo(filas):
     """
     fitness = np.asarray([float(f["fitness"]) for f in filas], dtype=float)
     tiempos = np.asarray([float(f["tiempo_s"]) for f in filas], dtype=float)
-    return {
-        "n_runs": int(len(filas)),
-        "fitness_media": float(np.mean(fitness)),
-        "tiempo_media_s": float(np.mean(tiempos)),
+    
+    return {"n_runs": int(len(filas)), "fitness_media": float(np.mean(fitness)), "tiempo_media_s": float(np.mean(tiempos)),
     }
 
 
@@ -264,16 +233,16 @@ def construir_resumen(filas_runs, desglosar_contexto=False, incluir_columnas_con
             fila_resumen["cec_funcid"] = cec_funcid
         fila_resumen.update(resumen)
         filas_resumen.append(fila_resumen)
+        
     return filas_resumen
 
 
-def guardar_bloque_resultados(outdir, filas_runs, config_json, incluir_columnas_contexto=True):
+def guardar_bloque_resultados(outdir, filas_runs, incluir_columnas_contexto=True):
     """
     Guarda runs.csv de un bloque experimental.
 
     outdir: directorio del bloque, normalmente results/cec/<experimento>/fX.
     filas_runs: ejecuciones individuales del bloque.
-    config_json: configuracion asociada al bloque.
     incluir_columnas_contexto: conserva columnas vacias de contexto si procede.
     """
     filas_runs = fusionar_runs_existentes(outdir / "runs.csv", filas_runs)
@@ -283,11 +252,6 @@ def guardar_bloque_resultados(outdir, filas_runs, config_json, incluir_columnas_
     )
     escribir_csv_dicts(outdir / "runs.csv", filas_runs)
     return filas_resumen
-
-
-# ---------------------------------------------------------------------------
-# I/O de artefactos de ejecución
-# ---------------------------------------------------------------------------
 
 def guardar_reinicios_elitistas_csv(ruta_base, eventos):
     """
@@ -304,6 +268,7 @@ def guardar_reinicios_elitistas_csv(ruta_base, eventos):
 
     ruta_csv = Path(ruta_base) / "reinicios_elitistas.csv"
     eventos_normalizados = []
+    
     for evento in eventos:
         fila = dict(evento)
         if "evals_antes_reinicio" not in fila:
@@ -319,6 +284,7 @@ def guardar_reinicios_elitistas_csv(ruta_base, eventos):
         "criterio_segundo_estancado", "criterio_fitness_estancado", "criterio_reinicio",
         "reinicio", "indice_individuo_preservado", "fitness_preservado",
     ]
+    
     escribir_csv_dicts(ruta_csv, eventos_normalizados, fieldnames=fieldnames)
     return str(ruta_csv)
 
@@ -341,8 +307,37 @@ def guardar_decisiones_subrogado_csv(ruta_base, decisiones):
         "evals_reales", "generacion", "reinicios", "evals_desde_reinicio",
         "fitness_pred", "fitness_ref", "margen_pred_ref", "debe_evaluar", "motivo",
     ]
+    
     escribir_csv_dicts(ruta_csv, decisiones, fieldnames=fieldnames)
     return str(ruta_csv)
+
+
+def guardar_dataset_hdf5(dataset, ruta_base):
+    """
+    Almacena el dataset de evaluaciones en HDF5 dentro de ruta_base.
+
+    dataset: instancia de SurrogateDataset con la ejecución completada.
+    ruta_base: directorio de salida.
+
+    Retorna un dict con la ruta al archivo HDF5 generado.
+    """
+    dir_salida = Path(ruta_base)
+    dir_salida.mkdir(parents=True, exist_ok=True)
+
+    base_path = dir_salida / f"dataset_{dataset._normaliza_fragmento(dataset.algoritmo)}_{dataset._normaliza_fragmento(dataset.problema)}_{dataset._identificador_dataset()}"
+    dataset_hdf5_path = base_path.with_suffix(".h5")
+    df = dataset.construir_dataframe()
+
+    try:
+        with pd.HDFStore(dataset_hdf5_path, mode="w", complib="zlib", complevel=6) as store:
+            store.put("dataset", df, format="table")
+    except ImportError as exc:
+        raise ImportError(
+            "No se pudo escribir el dataset en HDF5 porque pandas.HDFStore "
+            "requiere la dependencia 'tables' (PyTables)."
+        ) from exc
+
+    return {"dataset_hdf5": str(dataset_hdf5_path)}
 
 
 def mostrar(args, *valores, **kwargs):

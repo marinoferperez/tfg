@@ -1,46 +1,44 @@
 """
-Fábrica de modelos subrogados.
+Selección de modelos subrogados.
 
-Punto de entrada único para instanciar cualquier modelo del proyecto dado su
-nombre de cadena. Todos los imports son diferidos para evitar dependencias
-circulares y cargas innecesarias de librerías.
+Instancia cualquier modelo del proyecto dado su
+nombre de cadena. 
 """
 
 MODELOS = ("rbf", "svr", "mlp", "rsm", "random_forest", "hgb", "lasso", "xgboost")
 
-
-def select_model(model_name, **kwargs):
+def select_model(nombre_subrogado, **kwargs):
     """
     Selecciona e instancia un modelo subrogado a partir de su nombre.
 
-    model_name: nombre identificador del modelo que se desea utilizar.
+    nombre_subrogado: nombre del modelo a instanciar; debe ser uno de los valores en MODELOS.
     kwargs: parámetros adicionales que se pasan al constructor del modelo.
 
     Retorna una instancia del modelo subrogado seleccionado.
     """
-    if model_name == "rbf":
+    if nombre_subrogado == "rbf":
         from src.surrogates.models.rbf_model import RBF
         return RBF(**kwargs)
-    elif model_name == "svr":
+    elif nombre_subrogado == "svr":
         from src.surrogates.models.svr_model import SVR
         return SVR(**kwargs)
-    elif model_name == "mlp":
+    elif nombre_subrogado == "mlp":
         from src.surrogates.models.mlp_model import MLP
         return MLP(**kwargs)
-    elif model_name == "rsm":
+    elif nombre_subrogado == "rsm":
         from src.surrogates.models.rsm_model import RSM
         return RSM(**kwargs)
-    elif model_name == "lasso":
+    elif nombre_subrogado == "lasso":
         from src.surrogates.models.lasso_model import Lasso
         return Lasso(**kwargs)
-    elif model_name == "random_forest":
+    elif nombre_subrogado == "random_forest":
         from src.surrogates.models.random_forest_model import RandomForest
         return RandomForest(**kwargs)
-    elif model_name == "hgb":
+    elif nombre_subrogado == "hgb":
         from src.surrogates.models.hgb_model import HGB
         return HGB(**kwargs)
-    elif model_name == "xgboost":
+    elif nombre_subrogado == "xgboost":
         from src.surrogates.models.xgboost_model import XGBoost
         return XGBoost(**kwargs)
 
-    raise ValueError(f"Model name {model_name} not found")
+    raise ValueError(f"Subrogado {nombre_subrogado} no encontrado")

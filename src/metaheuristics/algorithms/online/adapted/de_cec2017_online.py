@@ -42,20 +42,7 @@ class DifferentialEvolutionCEC2017Online(DifferentialEvolutionCEC2017):
         self.de = DifferentialEvolutionOnline(**de_kwargs)
         self.surrogate_config = surrogate_config
 
-    def optimize(
-        self,
-        funcid,
-        dim,
-        seed=42,
-        lib_path=None,
-        algname="de_online",
-        registrar_metricas=False,
-        ruta_metricas=None,
-        run_id=None,
-        cec_workdir=None,
-        guardar_decisiones_subrogado=False,
-        guardar_reinicios_detalle=False,
-    ):
+    def optimize(self, funcid, dim, seed=42, lib_path=None, algname="de_online", registrar_metricas=False, ruta_metricas=None, run_id=None, cec_workdir=None, guardar_decisiones_subrogado=False, guardar_reinicios_detalle=False):
         """
         Ejecuta DE online sobre la función CEC2017 indicada.
 
@@ -65,27 +52,20 @@ class DifferentialEvolutionCEC2017Online(DifferentialEvolutionCEC2017):
         lib_path: ruta opcional a la librería compilada de CEC2017.
         algname: etiqueta para la salida de cec2017real.
         registrar_metricas: si True, genera CSV/JSON de métricas.
-        ruta_metricas: directorio raíz donde guardar los artefactos.
-        run_id: nombre del subdirectorio de artefactos. Si es None, se genera automáticamente.
+        ruta_metricas: directorio raíz donde guardar los ficheros.
+        run_id: nombre del subdirectorio de ficheros. Si es None, se genera automáticamente.
         cec_workdir: directorio de trabajo para cec2017real.
         guardar_decisiones_subrogado: si True, guarda un CSV con cada decisión del subrogado.
         guardar_reinicios_detalle: si True, guarda un CSV con el detalle de cada reinicio elitista.
 
         Retorna un dict con mejor_sol, mejor_fitness, mejor_error, resumen_online y, si
-        registrar_metricas=True, las rutas a los artefactos generados.
+        registrar_metricas=True, las rutas a los ficheros generados.
         """
         seed = int(seed)
         self.de.seed = seed
 
         # construcción del problema
-        problema = CEC2017Problem(
-            funcid=funcid,
-            dim=dim,
-            algname=algname,
-            lib_path=lib_path,
-            seed=seed,
-            workdir=cec_workdir,
-        )
+        problema = CEC2017Problem(funcid=funcid, dim=dim, algname=algname, lib_path=lib_path, seed=seed, workdir=cec_workdir)
 
         problema.enter_workdir()
         try:
@@ -100,14 +80,7 @@ class DifferentialEvolutionCEC2017Online(DifferentialEvolutionCEC2017):
 
                 recolector = RecolectorMetricasDEAP(filtrar_evals_no_crecientes=True)
                 tiempo_inicio = time.perf_counter()
-                callback_metricas = CallbackMetricasDE(
-                    recolector,
-                    tiempo_inicio,
-                    lambda: self.de.evals,
-                    en_generacion=lambda g: setattr(self.de, "_generacion_actual", int(g) + 1),
-                    offset_current_generation=1,
-                    restart_manager=self.de._aplicar_reinicio,
-                )
+                callback_metricas = CallbackMetricasDE(recolector, tiempo_inicio, lambda: self.de.evals, en_generacion=lambda g: setattr(self.de, "_generacion_actual", int(g) + 1), offset_current_generation=1, restart_manager=self.de._aplicar_reinicio)
 
             max_evals = (
                 int(self.de.max_evals)
@@ -118,24 +91,13 @@ class DifferentialEvolutionCEC2017Online(DifferentialEvolutionCEC2017):
             config_subrogado = self._configurar_subrogado(max_evals=max_evals, seed=seed)
             estadisticas_subrogado = EstadisticasSubrogado()
             # el controlador gestiona las decisiones de filtrado y las estadísticas online
-            controlador_subrogado = ControladorSubrogadoOnline(
-                config=config_subrogado,
-                estadisticas=estadisticas_subrogado,
-            )
+            controlador_subrogado = ControladorSubrogadoOnline(config=config_subrogado, estadisticas=estadisticas_subrogado)
 
             # ejecución del algoritmo
-            mejor_sol, mejor_fitness = self.de.optimize(
-                limites=problema.get_bounds(),
-                problema=problema,
-                controlador_subrogado=controlador_subrogado,
-                callback_metricas=callback_metricas,
-            )
+            mejor_sol, mejor_fitness = self.de.optimize(limites=problema.get_bounds(), problema=problema, controlador_subrogado=controlador_subrogado, callback_metricas=callback_metricas)
 
             mejor_error = problema.cec_error(mejor_fitness)
-            controlador_subrogado.estadisticas.registrar_resultado_final(
-                mejor_fitness=mejor_fitness,
-                mejor_error=mejor_error,
-            )
+            controlador_subrogado.estadisticas.registrar_resultado_final(mejor_fitness=mejor_fitness, mejor_error=mejor_error)
             resumen_online = controlador_subrogado.resumen()
 
             # resultado mínimo independientemente de registrar_metricas
@@ -146,22 +108,19 @@ class DifferentialEvolutionCEC2017Online(DifferentialEvolutionCEC2017):
                 "resumen_online": resumen_online,
             }
 
-            # ruta_base se resuelve una sola vez para todos los bloques de guardado
             ruta_base = None
-            if ruta_metricas is not None and (
-                registrar_metricas
-                or guardar_decisiones_subrogado
-                or guardar_reinicios_detalle
-            ):
-                # run_id identifica de forma única esta ejecución en el sistema de archivos
+            if ruta_metricas is not None and (registrar_metricas or guardar_decisiones_subrogado or guardar_reinicios_detalle):
+                # run_id identifica esta ejecución en el arch
                 if run_id is None:
                     run_id = f"de_online_cec2017_f{int(funcid)}_d{int(dim)}_s{seed}"
+                    
                 ruta_base = Path(ruta_metricas) / run_id
                 ruta_base.mkdir(parents=True, exist_ok=True)
 
             # postprocesado de métricas
             if registrar_metricas:
                 metricas_resumen = recolector.obtener_resumen_final()
+                # se añaden los valores finales para tenerlos en el JSON de resumen
                 metricas_resumen["mejor_fitness"] = float(mejor_fitness)
                 metricas_resumen["mejor_error"] = float(mejor_error)
 
@@ -169,7 +128,7 @@ class DifferentialEvolutionCEC2017Online(DifferentialEvolutionCEC2017):
                 resultado["metricas_logbook"] = metricas_logbook
                 resultado["metricas_resumen"] = metricas_resumen
 
-                # config expone los parámetros reales que PYADE usó (tam_poblacion, f, cr…)
+                # config recoge los parámetros reales que PYADE usó (tam_poblacion, f, cr…)
                 config = getattr(callback_metricas, "config", None) or {}
                 evals_objetivo = config.get("max_evals")
                 if evals_objetivo is None:
@@ -182,61 +141,32 @@ class DifferentialEvolutionCEC2017Online(DifferentialEvolutionCEC2017):
 
                 if ruta_base is not None:
                     # metadata_reinicios agrega campos de reinicio al JSON de configuración
-                    metadata_reinicios = construir_metadata_reinicios(
-                        self.de.eventos_reinicio,
-                        self.de.reinicio_ratio,
-                        self.de.reinicio,
-                    )
-                    ficheros_metricas = guardar_metricas_deap(recolector,
-                        ruta_base=ruta_base,
-                        metadata={
-                            "algoritmo": "de_online",
-                            "problema": "cec2017",
-                            "funcid": int(funcid),
-                            "dim": int(dim),
-                            "seed": int(seed),
-                            "tam_poblacion": config.get("population_size"),
-                            "max_evals_objetivo": evals_objetivo,
-                            "f": config.get("f"),
-                            "cr": config.get("cr"),
-                            "cross": config.get("cross"),
-                            "evals_reales": evals_reales,
-                            "evals_fuera_presupuesto": evals_fuera_presupuesto,
-                            "hubo_fuera_presupuesto": hubo_fuera_presupuesto,
-                            **metadata_reinicios,
-                            **resumen_online,
-                        },
-                    )
+                    metadata_reinicios = construir_metadata_reinicios(self.de.eventos_reinicio, self.de.reinicio_ratio, self.de.reinicio)
+                    ficheros_metricas = guardar_metricas_deap(recolector, ruta_base=ruta_base, metadata={"algoritmo": "de_online", "problema": "cec2017", "funcid": int(funcid), "dim": int(dim), "seed": int(seed), "tam_poblacion": config.get("population_size"), "max_evals_objetivo": evals_objetivo, "f": config.get("f"), "cr": config.get("cr"), "cross": config.get("cross"), "evals_reales": evals_reales, "evals_fuera_presupuesto": evals_fuera_presupuesto, "hubo_fuera_presupuesto": hubo_fuera_presupuesto, **metadata_reinicios, **resumen_online})
                     ruta_reinicios_csv = None
+                    
                     if guardar_reinicios_detalle:
                         # CSV opcional con el detalle de cada evento de reinicio elitista
-                        ruta_reinicios_csv = guardar_reinicios_elitistas_csv(
-                            ruta_base,
-                            self.de.eventos_reinicio,
-                        )
+                        ruta_reinicios_csv = guardar_reinicios_elitistas_csv(ruta_base, self.de.eventos_reinicio)
+                        
                     resultado["ficheros_metricas"] = ficheros_metricas
+                    
                     if ruta_reinicios_csv is not None:
                         resultado["ruta_reinicios_elitistas_csv"] = ruta_reinicios_csv
 
-            # si se pidió el CSV de reinicios pero no se guardaron métricas, se hace aquí
-            if (
-                guardar_reinicios_detalle
-                and ruta_metricas is not None
-                and "ruta_reinicios_elitistas_csv" not in resultado
-            ):
+            if (guardar_reinicios_detalle and ruta_metricas is not None and "ruta_reinicios_elitistas_csv" not in resultado):
                 if run_id is None:
                     run_id = f"de_online_cec2017_f{int(funcid)}_d{int(dim)}_s{seed}"
+                    
                 ruta_base = Path(ruta_metricas) / run_id
                 ruta_base.mkdir(parents=True, exist_ok=True)
-                ruta_reinicios_csv = guardar_reinicios_elitistas_csv(
-                    ruta_base,
-                    self.de.eventos_reinicio,
-                )
+                ruta_reinicios_csv = guardar_reinicios_elitistas_csv(ruta_base, self.de.eventos_reinicio)
+                
                 if ruta_reinicios_csv is not None:
                     resultado["ruta_reinicios_elitistas_csv"] = ruta_reinicios_csv
 
             if ruta_base is not None:
-                # resumen_online se persiste en JSON para facilitar el análisis posterior
+                # resumen_online se mantiene en JSON para el análisis posterior
                 ruta_online_json = ruta_base / "resumen_online.json"
                 escribir_json(ruta_online_json, resumen_online)
                 resultado["ruta_metricas"] = str(ruta_base)
@@ -244,10 +174,7 @@ class DifferentialEvolutionCEC2017Online(DifferentialEvolutionCEC2017):
 
                 if guardar_decisiones_subrogado:
                     # CSV opcional con cada decisión del subrogado (aceptar/rechazar y motivo)
-                    ruta_decisiones_csv = guardar_decisiones_subrogado_csv(
-                        ruta_base,
-                        controlador_subrogado.estadisticas.decisiones_subrogado,
-                    )
+                    ruta_decisiones_csv = guardar_decisiones_subrogado_csv(ruta_base, controlador_subrogado.estadisticas.decisiones_subrogado)
                     resultado["ruta_decisiones_subrogado_csv"] = ruta_decisiones_csv
 
             # los eventos de reinicio se devuelven siempre para facilitar el análisis
@@ -267,20 +194,6 @@ class DifferentialEvolutionCEC2017Online(DifferentialEvolutionCEC2017):
         Retorna una ConfiguracionSubrogadoOnline lista para usar.
         """
         if self.surrogate_config is None:
-            return ConfiguracionSubrogadoOnline(
-                max_evals=int(max_evals),
-                seed=int(seed),
-            )
+            return ConfiguracionSubrogadoOnline(max_evals=int(max_evals), seed=int(seed))
 
-        return ConfiguracionSubrogadoOnline(
-            modelo_nombre=self.surrogate_config.modelo_nombre,
-            modelo_params=dict(self.surrogate_config.modelo_params),
-            cooldown_reinicio_evals=self.surrogate_config.cooldown_reinicio_evals,
-            warmup_ratio=self.surrogate_config.warmup_ratio,
-            window_ratio=self.surrogate_config.window_ratio,
-            probabilidad_subrogado=self.surrogate_config.probabilidad_subrogado,
-            max_evals=int(max_evals),
-            minimizacion=self.surrogate_config.minimizacion,
-            seed=int(seed),
-            retrain_ratio=self.surrogate_config.retrain_ratio,
-        )
+        return ConfiguracionSubrogadoOnline(modelo_nombre=self.surrogate_config.modelo_nombre, modelo_params=dict(self.surrogate_config.modelo_params), cooldown_reinicio_evals=self.surrogate_config.cooldown_reinicio_evals, warmup_ratio=self.surrogate_config.warmup_ratio, window_ratio=self.surrogate_config.window_ratio, probabilidad_subrogado=self.surrogate_config.probabilidad_subrogado, max_evals=int(max_evals), minimizacion=self.surrogate_config.minimizacion, seed=int(seed), retrain_ratio=self.surrogate_config.retrain_ratio)

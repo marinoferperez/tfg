@@ -295,28 +295,9 @@ def main():
         filas_funcid = ejecutar_cec(args, semillas, outdir_metricas_funcid, algoritmos, int(funcid))
         filas_runs_cec.extend(filas_funcid)
 
-        config_funcid = {
-            "seed_start": int(args.seed_start) if args.seeds is None else None,
-            "n_seeds": int(args.n_seeds) if args.seeds is None else len(semillas),
-            "seeds": [int(s) for s in semillas],
-            "pop_size": int(args.pop_size) if args.pop_size is not None else None,
-            "max_evals": int(args.max_evals) if args.max_evals is not None else None,
-            "funcid": int(funcid),
-            "cec_dim": int(args.cec_dim),
-            "algorithm": str(args.algorithm),
-            "problema": "cec2017",
-            "register_metrics": bool(not args.no_metrics),
-            "restart": bool(args.restart),
-            "restart_ratio": (
-                float(args.restart_ratio)
-                if args.restart
-                else None
-            ),
-        }
         guardar_bloque_resultados(
             outdir_funcid,
             filas_funcid,
-            config_funcid,
             incluir_columnas_contexto=False,
         )
 

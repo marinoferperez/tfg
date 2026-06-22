@@ -3,9 +3,9 @@ Ejecuta el benchmark offline de modelos subrogados sobre datasets por seed.
 
 Punto de entrada unificado para las estrategias de evaluacion temporal:
 
-  --strategy cumulative     Entrena con todos los batches acumulados hasta el
-                            batch actual y valida en el bloque siguiente.
-  --strategy non_cumulative Entrena solo con el batch actual (ventana fija) y
+  --strategy cumulative     Entrena con todos los bloques acumulados hasta el
+                            bloque actual y valida en el bloque siguiente.
+  --strategy non_cumulative Entrena solo con el bloque actual (ventana fija) y
                             valida en el bloque siguiente.
 """
 
@@ -19,21 +19,21 @@ ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from src.utils.experiment_paths import ALGORITMOS_MH, gestiona_algoritmos, normalizar_funcion
+from src.utils.experiment_paths import gestiona_algoritmos, normalizar_funcion
 from src.utils.experiment_io import mostrar
-from src.utils.benchmark.batches_eval_splitter import (
+from src.utils.benchmark.blocks_eval_splitter import (
     construir_casos_acumulativos,
     construir_casos_no_acumulativos,
 )
-from src.utils.benchmark.benchmark_offline import ejecutar_benchmark_temporal, cargar_model_kwargs
+from src.utils.benchmark.benchmark_offline import ejecutar_benchmark_temporal, cargar_hiper_subrogado
 from src.utils.benchmark.benchmark_io import (
-    guardar_artefactos_batches,
+    guardar_artefactos_bloques,
     guardar_artefactos_modelo,
     imprimir_resumen,
 )
 from src.utils.benchmark.surrogate_paths import (
-    resolver_inputs_benchmark,
-    resolver_rutas_salida_benchmark,
+    seleccionar_datasets,
+    rutas_salida_benchmark,
 )
 
 STRATEGIES = {
@@ -42,7 +42,7 @@ STRATEGIES = {
         "split_strategy": "temporal_acumulativo_futuro",
         "constructor_casos": construir_casos_acumulativos,
         "description": (
-            "Benchmark temporal acumulativo: entrena con todos los batches "
+            "Benchmark temporal acumulativo: entrena con todos los bloques "
             "anteriores al actual y valida en el bloque siguiente."
         ),
     },
@@ -51,11 +51,24 @@ STRATEGIES = {
         "split_strategy": "temporal_no_acumulativo_futuro",
         "constructor_casos": construir_casos_no_acumulativos,
         "description": (
-            "Benchmark temporal no acumulativo: entrena solo con el batch actual "
+            "Benchmark temporal no acumulativo: entrena solo con el bloque actual "
             "(ventana fija) y valida en el bloque siguiente."
         ),
     },
 }
+
+
+def expandir_funciones(funcion_arg):
+    """Convierte el argumento --cec-funcid (lista nargs="+") en una tupla de nombres normalizados."""
+    tokens = []
+    for parte in funcion_arg:
+        for tk in str(parte).split(","):
+            tk = tk.strip().lower()
+            if tk:
+                tokens.append(tk)
+    if "all" in tokens:
+        return tuple(f"f{i}" for i in range(1, 31))
+    return tuple(normalizar_funcion(tk) for tk in tokens)
 
 
 def parse_args():
@@ -98,8 +111,9 @@ def parse_args():
     )
     parser.add_argument(
         "--cec-funcid",
+        nargs="+",
         required=True,
-        help="Funcion CEC2017 a evaluar (ej. 1, f1, cec2017_f1).",
+        help="Funciones CEC2017 a evaluar. Acepta lista (1 4 10), CSV (1,4,10) o 'all'.",
     )
     parser.add_argument(
         "--inputs",
@@ -139,8 +153,8 @@ def parse_args():
         action="store_true",
         default=False,
         help=(
-            "Truncar el dataset en el ultimo batch con mejora real del running best. "
-            "Los batches posteriores a la ultima mejora se descartan antes de construir los casos."
+            "Truncar el dataset en el ultimo bloque con mejora real del running best. "
+            "Los bloques posteriores a la ultima mejora se descartan antes de construir los casos."
         ),
     )
     parser.add_argument(
@@ -169,17 +183,12 @@ def parse_args():
         help="Generar tambien *_runs.json. Por defecto solo se guarda *_runs.csv.",
     )
     parser.add_argument(
-        "--batch-runs",
+        "--bloque-runs",
         action="store_true",
         help=(
-            "Generar tambien *_runs.csv por batch. Por defecto solo se guardan "
-            "metricas por batch para poder construir resumenes."
+            "Generar tambien *_runs.csv por bloque. Por defecto solo se guardan "
+            "metricas por bloque para poder construir resumenes."
         ),
-    )
-    parser.add_argument(
-        "--errors-out",
-        default=None,
-        help="Ruta de salida para el CSV de errores por muestra. Si no se indica, no se genera.",
     )
     parser.add_argument(
         "--verbose",
@@ -212,53 +221,52 @@ def main():
     mostrar(args, f"  convergence_truncation={args.convergence_truncation}", flush=True)
     mostrar(args, f"  benchmark_subdir={args.benchmark_subdir}", flush=True)
 
+    funciones = expandir_funciones(args.cec_funcid)
     algoritmos = gestiona_algoritmos(args.algorithm)
-    for algoritmo in algoritmos:
-        args_algoritmo = argparse.Namespace(**vars(args))
-        args_algoritmo.algorithm = algoritmo
+    for funcion in funciones:
+        for algoritmo in algoritmos:
+            args_algoritmo = argparse.Namespace(**vars(args))
+            args_algoritmo.cec_funcid = funcion
+            args_algoritmo.algorithm = algoritmo
 
-        dataset_paths = resolver_inputs_benchmark(args_algoritmo)
-        (
-            _,
-            model_dir,
-            ruta_metricas,
-            ruta_runs_csv,
-            ruta_runs_json,
-            ruta_errores,
-        ) = resolver_rutas_salida_benchmark(args_algoritmo, dataset_paths, protocol)
+            dataset_paths = seleccionar_datasets(args_algoritmo)
+            (
+                _,
+                model_dir,
+                ruta_metricas,
+                ruta_runs_csv,
+                ruta_runs_json,
+            ) = rutas_salida_benchmark(args_algoritmo, dataset_paths, protocol)
 
-        metricas = ejecutar_benchmark_temporal(
-            dataset_paths=dataset_paths,
-            funcion=normalizar_funcion(args_algoritmo.cec_funcid),
-            algoritmo=args_algoritmo.algorithm,
-            model_name=args_algoritmo.model,
-            model_kwargs=cargar_model_kwargs(args_algoritmo.surrogate_params_json),
-            constructor_casos=constructor_casos,
-            protocol=protocol,
-            split_strategy=split_strategy,
-            random_state=args_algoritmo.seed,
-            seed_selection_random_state=args_algoritmo.selection_seed,
-            collect_sample_errors=(ruta_errores is not None),
-            truncar_convergencia=args_algoritmo.convergence_truncation,
-        )
+            metricas = ejecutar_benchmark_temporal(
+                dataset_paths=dataset_paths,
+                funcion=normalizar_funcion(args_algoritmo.cec_funcid),
+                algoritmo=args_algoritmo.algorithm,
+                nombre_subrogado=args_algoritmo.model,
+                hiper_subrogado=cargar_hiper_subrogado(args_algoritmo.surrogate_params_json),
+                constructor_casos=constructor_casos,
+                protocolo=protocol,
+                estrategia_split=split_strategy,
+                random_state=args_algoritmo.seed,
+                seed_selection_random_state=args_algoritmo.selection_seed,
+                truncar_convergencia=args_algoritmo.convergence_truncation,
+            )
 
-        guardar_artefactos_modelo(
-            ruta_metricas=ruta_metricas,
-            ruta_runs_csv=ruta_runs_csv,
-            ruta_runs_json=ruta_runs_json,
-            ruta_errores=ruta_errores,
-            metricas=metricas,
-            guardar_runs=True,
-        )
-        guardar_artefactos_batches(
-            model_dir=model_dir,
-            model_name=args_algoritmo.model,
-            ruta_errores_base=ruta_errores,
-            metricas=metricas,
-            guardar_runs=args_algoritmo.batch_runs,
-        )
+            guardar_artefactos_modelo(
+                ruta_metricas=ruta_metricas,
+                ruta_runs_csv=ruta_runs_csv,
+                ruta_runs_json=ruta_runs_json,
+                metricas=metricas,
+                guardar_runs=True,
+            )
+            guardar_artefactos_bloques(
+                dir_subrogado=model_dir,
+                nombre_subrogado=args_algoritmo.model,
+                metricas=metricas,
+                guardar_runs=args_algoritmo.bloque_runs,
+            )
 
-        imprimir_resumen(metricas)
+            imprimir_resumen(metricas)
 
 
 if __name__ == "__main__":

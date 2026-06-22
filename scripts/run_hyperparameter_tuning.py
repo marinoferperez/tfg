@@ -1,7 +1,7 @@
 """
 Benchmark offline de modelos subrogados con ajuste interno de hiperparametros.
 
-Implementa la estrategia temporal no acumulativa por batches del 20%: para cada
+Implementa la estrategia temporal no acumulativa por bloques del 20%: para cada
 bloque de entrenamiento se elige la mejor configuracion de hiperparametros mediante
 validacion interna y se evalua sobre el bloque siguiente. Compatible con RBF, SVR,
 MLP, RSM, Random Forest, HGB, Lasso y XGBoost.
@@ -30,30 +30,29 @@ from src.surrogates.preprocessing.scaling import (
     invertir_y,
 )
 from src.utils.fs_utils import resolver_archivo_existente
-from src.utils.experiment_paths import ALGORITMOS_MH, gestiona_algoritmos, normalizar_funcion
+from src.utils.experiment_paths import gestiona_algoritmos, normalizar_funcion
 from src.utils.experiment_io import mostrar
 from src.utils.dataset_utils import cargar_dataset, inferir_seed
-from src.utils.benchmark.batches_eval_splitter import (
-    N_BATCHES,
-    TOL_MEJORA_BATCH_ABS,
-    TOL_MEJORA_BATCH_REL,
+from src.utils.benchmark.blocks_eval_splitter import (
+    N_BLOQUES,
+    TOL_MEJORA_BLOQUE_ABS,
+    TOL_MEJORA_BLOQUE_REL,
     VAL_RATIO_TRAIN,
     construir_casos_acumulativos,
     construir_casos_no_acumulativos,
     truncar_por_convergencia,
 )
 from src.utils.benchmark.benchmark_io import (
-    guardar_artefactos_batches,
+    guardar_artefactos_bloques,
     guardar_artefactos_modelo,
     imprimir_resumen,
     resumir_runs,
 )
 from src.utils.benchmark.surrogate_paths import (
-    resolver_inputs_benchmark,
-    resolver_rutas_salida_benchmark,
+    seleccionar_datasets,
+    rutas_salida_benchmark,
 )
 from src.surrogates.evaluation.metrics import (
-    calcular_errores_por_muestra,
     calcular_metricas,
     METRICAS_MAXIMIZAR,
     METRICAS_MINIMIZAR,
@@ -76,14 +75,16 @@ STRATEGIES = {
 
 
 def expandir_funciones(funcion_arg):
-    """Convierte el argumento --cec-funcid en una tupla de nombres de funcion normalizados."""
-    txt = str(funcion_arg).strip().lower()
-    if txt == "all":
+    """Convierte el argumento --cec-funcid (lista nargs="+") en una tupla de nombres normalizados."""
+    tokens = []
+    for parte in funcion_arg:
+        for tk in str(parte).split(","):
+            tk = tk.strip().lower()
+            if tk:
+                tokens.append(tk)
+    if "all" in tokens:
         return tuple(f"f{i}" for i in range(1, 31))
-    partes = [parte.strip() for parte in txt.split(",") if parte.strip()]
-    if len(partes) > 1:
-        return tuple(normalizar_funcion(parte) for parte in partes)
-    return (normalizar_funcion(txt),)
+    return tuple(normalizar_funcion(tk) for tk in tokens)
 
 
 def expandir_modelos(model_arg):
@@ -170,8 +171,9 @@ def build_parser():
     )
     parser.add_argument(
         "--cec-funcid",
+        nargs="+",
         required=True,
-        help="Funcion CEC2017 a evaluar (ej. 1, f1, cec2017_f1) o 'all'.",
+        help="Funciones CEC2017 a evaluar. Acepta lista (1 4 10), CSV (1,4,10) o 'all'.",
     )
     parser.add_argument(
         "--inputs",
@@ -210,8 +212,8 @@ def build_parser():
         action="store_true",
         default=False,
         help=(
-            "Truncar el dataset en el ultimo batch con mejora real del running best. "
-            "Los batches posteriores a la ultima mejora se descartan antes de construir los casos."
+            "Truncar el dataset en el ultimo bloque con mejora real del running best. "
+            "Los bloques posteriores a la ultima mejora se descartan antes de construir los casos."
         ),
     )
     parser.add_argument(
@@ -257,17 +259,12 @@ def build_parser():
         help="Generar tambien *_runs.json. Por defecto solo se guarda *_runs.csv.",
     )
     parser.add_argument(
-        "--batch-runs",
+        "--bloque-runs",
         action="store_true",
         help=(
-            "Generar tambien *_runs.csv por batch. Por defecto solo se guardan "
-            "metricas por batch para poder construir resumenes."
+            "Generar tambien *_runs.csv por bloque. Por defecto solo se guardan "
+            "metricas por bloque para poder construir resumenes."
         ),
-    )
-    parser.add_argument(
-        "--errors-out",
-        default=None,
-        help="Ruta de salida para el CSV de errores por muestra. Si no se indica, no se genera.",
     )
     parser.add_argument(
         "--verbose",
@@ -296,14 +293,14 @@ def ajustar_y_predecir(model_name, params, x_train, y_train, x_val):
 
     model = select_model(model_name, **params)
     model.fit(x_train, y_train_fit)
-    train_time = time.perf_counter() - t0
+    tiempo_entrenamiento = time.perf_counter() - t0
 
     t1 = time.perf_counter()
     y_pred = model.predict(x_val)
-    predict_time = time.perf_counter() - t1
+    tiempo_prediccion = time.perf_counter() - t1
 
     y_pred = invertir_y(y_scaler, y_pred)
-    return np.asarray(y_pred, dtype=float).ravel(), float(train_time), float(predict_time)
+    return np.asarray(y_pred, dtype=float).ravel(), float(tiempo_entrenamiento), float(tiempo_prediccion)
 
 
 def es_mejor(score, best_score, metric):
@@ -345,7 +342,7 @@ def seleccionar_parametros(
     for params in param_grid:
         params = dict(params)
         try:
-            y_pred, train_time, predict_time = ajustar_y_predecir(
+            y_pred, tiempo_entrenamiento, tiempo_prediccion = ajustar_y_predecir(
                 model_name,
                 params,
                 x_inner_train,
@@ -358,8 +355,8 @@ def seleccionar_parametros(
         except Exception as exc:  # noqa: BLE001 - se registra el fallo y se prueba el siguiente candidato.
             score = float("nan")
             metricas = {}
-            train_time = float("nan")
-            predict_time = float("nan")
+            tiempo_entrenamiento = float("nan")
+            tiempo_prediccion = float("nan")
             error = f"{type(exc).__name__}: {exc}"
 
         resultados.append(
@@ -369,8 +366,8 @@ def seleccionar_parametros(
                 "metric": metric,
                 "error": error,
                 "metricas": metricas,
-                "train_time_s": train_time,
-                "predict_time_s": predict_time,
+                "train_time_s": tiempo_entrenamiento,
+                "predict_time_s": tiempo_prediccion,
             }
         )
         if es_mejor(score, best_score, metric):
@@ -393,7 +390,6 @@ def ejecutar_benchmark_tuned(
     inner_validation_ratio,
     random_state,
     seed_selection_random_state,
-    collect_sample_errors,
     truncar_convergencia,
     store_tuning_results,
     constructor_casos,
@@ -403,13 +399,12 @@ def ejecutar_benchmark_tuned(
     """
     Ejecuta el benchmark con ajuste de hiperparametros sobre los datasets dados.
 
-    Para cada seed y cada batch de entrenamiento: busca los mejores hiperparametros
+    Para cada seed y cada bloque de entrenamiento: busca los mejores hiperparametros
     por validacion interna, ajusta el modelo final y evalua sobre el bloque siguiente.
     Retorna el dict de metricas agregadas listo para guardar.
     """
     escalar_y = model_name not in MODELOS_ARBOL
     metricas_runs = []
-    sample_errors = []
     seeds_sin_casos = []
     convergencia_por_seed = {}
 
@@ -417,12 +412,12 @@ def ejecutar_benchmark_tuned(
         dataset = cargar_dataset(dataset_path)
         seed_dataset = int(inferir_seed(dataset_path))
 
-        convergencia_ultimo_batch = N_BATCHES
+        convergencia_ultimo_bloque = N_BLOQUES
         convergencia_fraccion = 1.0
         if truncar_convergencia:
-            dataset, convergencia_ultimo_batch, convergencia_fraccion = truncar_por_convergencia(dataset)
+            dataset, convergencia_ultimo_bloque, convergencia_fraccion = truncar_por_convergencia(dataset)
         convergencia_por_seed[seed_dataset] = {
-            "ultimo_batch_informativo": int(convergencia_ultimo_batch),
+            "ultimo_bloque_informativo": int(convergencia_ultimo_bloque),
             "fraccion_retenida": float(convergencia_fraccion),
         }
 
@@ -459,11 +454,11 @@ def ejecutar_benchmark_tuned(
 
             model = select_model(model_name, **best_params)
             model.fit(x_train, y_train_fit)
-            train_time = time.perf_counter() - t0
+            tiempo_entrenamiento = time.perf_counter() - t0
 
             t1 = time.perf_counter()
             y_pred = model.predict(x_val)
-            pred_time = time.perf_counter() - t1
+            tiempo_prediccion = time.perf_counter() - t1
             y_pred = invertir_y(y_scaler, y_pred)
 
             metricas_run = calcular_metricas(y_val, y_pred)
@@ -472,13 +467,12 @@ def ejecutar_benchmark_tuned(
                     "funcion": str(funcion),
                     "algoritmo": str(algoritmo),
                     "seed": int(caso["seed"]),
-                    "batch_train": int(caso["batch_train"]),
-                    "batch_train_last": int(caso.get("batch_train_last", caso["batch_train"])),
+                    "bloque_entrenamiento": int(caso["bloque_entrenamiento"]),
                     "train_pct_ini": int(caso["train_pct_ini"]),
                     "train_pct_fin": int(caso["train_pct_fin"]),
-                    "batch_label": str(caso["batch_label"]),
-                    "batches_train": ",".join(str(v) for v in caso.get("batches_train", [])),
-                    "batch_validacion": int(caso["batch_validacion"]),
+                    "etiqueta_bloque": str(caso["etiqueta_bloque"]),
+                    "bloques_entrenamiento": ",".join(str(v) for v in caso.get("bloques_entrenamiento", [])),
+                    "bloque_validacion": int(caso["bloque_validacion"]),
                     "n_train": int(caso["n_train"]),
                     "n_test": int(caso["n_val"]),
                     "train_idx_hash": str(caso["train_idx_hash"]),
@@ -487,9 +481,9 @@ def ejecutar_benchmark_tuned(
                     "eval_id_train_max": int(np.max(eval_id[train_idx])),
                     "eval_id_val_min": int(np.min(eval_id[val_idx])),
                     "eval_id_val_max": int(np.max(eval_id[val_idx])),
-                    "train_time_s": float(train_time),
-                    "predict_time_s": float(pred_time),
-                    "convergencia_ultimo_batch": int(convergencia_ultimo_batch),
+                    "train_time_s": float(tiempo_entrenamiento),
+                    "predict_time_s": float(tiempo_prediccion),
+                    "convergencia_ultimo_bloque": int(convergencia_ultimo_bloque),
                     "convergencia_fraccion": float(convergencia_fraccion),
                     "convergencia_aplicada": bool(truncar_convergencia),
                     "tuning_metric": str(tuning_metric),
@@ -502,22 +496,6 @@ def ejecutar_benchmark_tuned(
             if store_tuning_results:
                 metricas_run["tuning_resultados"] = tuning_resultados
             metricas_runs.append(metricas_run)
-
-            if collect_sample_errors:
-                error_abs, error_pct = calcular_errores_por_muestra(y_val, y_pred)
-                for i in range(len(y_val)):
-                    sample_errors.append(
-                        {
-                            "seed": int(caso["seed"]),
-                            "batch_train": int(caso["batch_train"]),
-                            "batch_train_last": int(caso.get("batch_train_last", caso["batch_train"])),
-                            "batch_label": str(caso["batch_label"]),
-                            "y_true": float(y_val[i]),
-                            "y_pred": float(y_pred[i]),
-                            "error_abs": float(error_abs[i]),
-                            "error_pct": None if np.isnan(error_pct[i]) else float(error_pct[i]),
-                        }
-                    )
 
     metricas = resumir_runs(metricas_runs)
     metricas.update(
@@ -537,7 +515,7 @@ def ejecutar_benchmark_tuned(
             },
             "split_strategy": split_strategy,
             "protocol": protocol,
-            "n_batches": int(N_BATCHES),
+            "n_bloques": int(N_BLOQUES),
             "validation_ratio": float(VAL_RATIO_TRAIN),
             "scale_features": True,
             "scale_target": bool(escalar_y),
@@ -547,21 +525,19 @@ def ejecutar_benchmark_tuned(
                 None if seed_selection_random_state is None else int(seed_selection_random_state)
             ),
             "convergencia_criterio": (
-                "mejora_practica_por_batch" if truncar_convergencia else ""
+                "mejora_practica_por_bloque" if truncar_convergencia else ""
             ),
             "convergencia_tol_abs": (
-                float(TOL_MEJORA_BATCH_ABS) if truncar_convergencia else None
+                float(TOL_MEJORA_BLOQUE_ABS) if truncar_convergencia else None
             ),
             "convergencia_tol_rel": (
-                float(TOL_MEJORA_BATCH_REL) if truncar_convergencia else None
+                float(TOL_MEJORA_BLOQUE_REL) if truncar_convergencia else None
             ),
             "seeds_sin_casos_validacion": [int(seed) for seed in seeds_sin_casos],
             "n_seeds_sin_casos_validacion": int(len(seeds_sin_casos)),
             "convergencia_por_seed": convergencia_por_seed,
         }
     )
-    if collect_sample_errors:
-        metricas["sample_errors"] = sample_errors
     return metricas
 
 
@@ -594,7 +570,7 @@ def main():
     algoritmos = gestiona_algoritmos(args.algorithm)
     modelos = expandir_modelos(args.model)
     ejecucion_multiple = len(funciones) > 1 or len(algoritmos) > 1 or len(modelos) > 1
-    salidas_explicitas = any((args.out, args.runs_out, args.runs_json_out, args.errors_out))
+    salidas_explicitas = any((args.out, args.runs_out, args.runs_json_out))
     if ejecucion_multiple and args.inputs:
         raise SystemExit("--inputs solo puede utilizarse con una unica funcion y una unica metaheuristica.")
     if ejecucion_multiple and salidas_explicitas:
@@ -612,15 +588,14 @@ def main():
                 param_grid = cargar_param_grid(args_run.model, args_run.param_grid_json)
                 if not param_grid:
                     raise SystemExit("El grid de hiperparametros esta vacio.")
-                dataset_paths = resolver_inputs_benchmark(args_run)
+                dataset_paths = seleccionar_datasets(args_run)
                 (
                     _,
                     model_dir,
                     ruta_metricas,
                     ruta_runs_csv,
                     ruta_runs_json,
-                    ruta_errores,
-                ) = resolver_rutas_salida_benchmark(args_run, dataset_paths, cfg["protocol"])
+                ) = rutas_salida_benchmark(args_run, dataset_paths, cfg["protocol"])
 
                 metricas = ejecutar_benchmark_tuned(
                     dataset_paths=dataset_paths,
@@ -632,7 +607,6 @@ def main():
                     inner_validation_ratio=args_run.inner_validation_ratio,
                     random_state=args_run.seed,
                     seed_selection_random_state=args_run.selection_seed,
-                    collect_sample_errors=(ruta_errores is not None),
                     truncar_convergencia=args_run.convergence_truncation,
                     store_tuning_results=args_run.store_tuning_results,
                     constructor_casos=cfg["constructor_casos"],
@@ -644,16 +618,14 @@ def main():
                     ruta_metricas=ruta_metricas,
                     ruta_runs_csv=ruta_runs_csv,
                     ruta_runs_json=ruta_runs_json,
-                    ruta_errores=ruta_errores,
                     metricas=metricas,
                     guardar_runs=True,
                 )
-                guardar_artefactos_batches(
-                    model_dir=model_dir,
-                    model_name=args_run.model,
-                    ruta_errores_base=ruta_errores,
+                guardar_artefactos_bloques(
+                    dir_subrogado=model_dir,
+                    nombre_subrogado=args_run.model,
                     metricas=metricas,
-                    guardar_runs=args_run.batch_runs,
+                    guardar_runs=args_run.bloque_runs,
                 )
 
                 imprimir_resumen(metricas)

@@ -215,16 +215,13 @@ def resolver_inputs_experimento(
 
     def _extend_datasets(pattern_base: str):
         """Añade a rutas los datasets que coinciden con pattern_base en base."""
-        for extension in ("npz", "h5", "hdf5"):
+        for extension in ("h5", "hdf5"):
             rutas.extend(sorted(base.glob(f"{pattern_base}.{extension}")))
 
     def _extend_datasets_base_funciones(pattern_base: str):
         """Añade a rutas los datasets que coinciden con pattern_base en base_funciones."""
-        for extension in ("npz", "h5", "hdf5"):
+        for extension in ("h5", "hdf5"):
             rutas.extend(sorted(base_funciones.glob(f"{pattern_base}.{extension}")))
-
-    if (base / "metricas_runs" / "qap").exists():
-        _extend_datasets(f"metricas_runs/qap/{algoritmo}/*/dataset_{algoritmo}_qap_*")
 
     if (base / "metricas_runs" / "cec2017").exists():
         _extend_datasets(
@@ -242,7 +239,7 @@ def resolver_inputs_experimento(
 
     if not rutas:
         raise FileNotFoundError(
-            f"No se encontraron dataset_*.npz/.h5/.hdf5 para algoritmo={algoritmo} dentro de {base}"
+            f"No se encontraron dataset_*.h5/.hdf5 para algoritmo={algoritmo} dentro de {base}"
         )
     return rutas
 

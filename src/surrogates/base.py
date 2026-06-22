@@ -12,8 +12,6 @@ class BaseSurrogateModel(ABC):
     Clase base abstracta para los modelos subrogados utilizados.
 
     Define la interfaz común que deben implementar todos los modelos.
-    Cada modelo concreto debe proporcionar métodos para entrenarse, realizar
-    predicciones y devolver sus parámetros de configuración.
     """
     nombre = "base"
     

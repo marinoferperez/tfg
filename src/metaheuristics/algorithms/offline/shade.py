@@ -34,8 +34,7 @@ class SHADE:
     control estricto del presupuesto de evaluaciones.
     """
 
-    def __init__(self, tam_poblacion=None, memory_size=None, max_evals=None,
-                 reinicio=False, reinicio_ratio=0.05):
+    def __init__(self, tam_poblacion=None, memory_size=None, max_evals=None, reinicio=False, reinicio_ratio=0.05):
         """
         Constructor del algoritmo.
 
@@ -70,12 +69,13 @@ class SHADE:
         self._params_shade = None
 
     def _crear_gestor_reinicio(self, max_evals):
-        """Crea el gestor de reinicio elitista o None si reinicio está desactivado."""
+        """
+        Crea el gestor de reinicio elitista o None si reinicio está desactivado.
+
+        max_evals: presupuesto máximo de evaluaciones usado para dimensionar la ventana de estancamiento.
+        """
         if self.reinicio:
-            return ControlReinicioElitista(
-                max_evals=max_evals,
-                ratio_estancamiento=self.reinicio_ratio,
-            )
+            return ControlReinicioElitista(max_evals=max_evals, ratio_estancamiento=self.reinicio_ratio)
         return None
 
     def _aplicar_reinicio(self, estado, generacion):
@@ -96,27 +96,27 @@ class SHADE:
         limites = estado.get("bounds")
         evaluar = estado.get("func")
         archivo = estado.get("archive")
+        
         if poblacion is None or fitness is None or limites is None or evaluar is None:
             return False
 
         poblacion = np.asarray(poblacion)
         fitness = np.asarray(fitness)
         limites = np.asarray(limites, dtype=float)
+        
         if poblacion.ndim != 2 or poblacion.shape[0] < 2:
             return False
 
-        if not self._gestor_reinicio.debe_reiniciar(
-            fitness=fitness,
-            evaluaciones=int(self.evals),
-            generacion=generacion,
-        ):
+        if not self._gestor_reinicio.debe_reiniciar(fitness=fitness, evaluaciones=int(self.evals), generacion=generacion):
             return False
+        
         diagnostico = self._gestor_reinicio.diagnostico_reinicio()
 
         # se necesita al menos un individuo nuevo y presupuesto suficiente
         n_nuevos = int(poblacion.shape[0]) - 1
         evals_antes = int(self.evals)
         evals_restantes = int(self._max_evals_reales) - evals_antes
+        
         if n_nuevos <= 0 or evals_restantes < n_nuevos:
             return False
 
@@ -127,11 +127,7 @@ class SHADE:
         mejor_fit = float(elite_fit)
 
         # el resto de la población se regenera uniformemente y se evalúa
-        nuevos = pyade_commons.init_population(
-            int(n_nuevos),
-            int(limites.shape[0]),
-            np.asarray(limites, dtype=float),
-        )
+        nuevos = pyade_commons.init_population(int(n_nuevos), int(limites.shape[0]), np.asarray(limites, dtype=float))
         self._generacion_actual = int(generacion)
         nuevos_fit = np.asarray([float(evaluar(ind)) for ind in nuevos], dtype=float)
         self._generacion_actual = int(generacion) + 1
@@ -140,12 +136,11 @@ class SHADE:
         fitness[0] = elite_fit
         poblacion[1:] = nuevos
         fitness[1:] = nuevos_fit
+        
         if isinstance(archivo, list):
             archivo.clear()
-        self._gestor_reinicio.registrar_estado_post_reinicio(
-            fitness=fitness,
-            evaluaciones=int(self.evals),
-        )
+            
+        self._gestor_reinicio.registrar_estado_post_reinicio(fitness=fitness, evaluaciones=int(self.evals))
 
         # se registra el evento de reinicio para trazabilidad
         evento = dict(diagnostico)
@@ -159,6 +154,7 @@ class SHADE:
                 "mejor_fitness": float(mejor_fit),
             }
         )
+        
         self.eventos_reinicio.append(evento)
         return True
 
@@ -178,31 +174,16 @@ class SHADE:
         self.evals += 1
 
         if self._dataset is not None:
-            self._dataset.registrar_evaluacion(
-                eval_id=int(self.evals),
-                generacion=int(getattr(self, "_generacion_actual", 0)),
-                x=np.asarray(individuo, dtype=float),
-                fitness=float(fit),
-            )
+            self._dataset.registrar_evaluacion(eval_id=int(self.evals), x=np.asarray(individuo, dtype=float), fitness=float(fit))
 
         # registrar manualmente la poblacion inicial en el logbook
         if self._buffer_fitness_inicial is not None:
             self._buffer_fitness_inicial.append(float(fit))
+            
             if len(self._buffer_fitness_inicial) >= self._tam_poblacion_inicial:
                 fitness_inicial = np.asarray(self._buffer_fitness_inicial, dtype=float)
                 parametros = self._params_shade or {}
-                self._callback_inicial(
-                    fitness=fitness_inicial,
-                    generacion=0,
-                    population=None,
-                    population_size=parametros.get("population_size"),
-                    individual_size=parametros.get("individual_size"),
-                    max_evals=parametros.get("max_evals"),
-                    memory_size=parametros.get("memory_size"),
-                    seed=parametros.get("seed"),
-                    f=None,
-                    cr=None,
-                )
+                self._callback_inicial(fitness=fitness_inicial, generacion=0, population=None, population_size=parametros.get("population_size"), individual_size=parametros.get("individual_size"), max_evals=parametros.get("max_evals"), memory_size=parametros.get("memory_size"), seed=parametros.get("seed"), f=None, cr=None)
                 # a partir de aqui las evaluaciones pertenecen a la primera generacion de PYADE
                 self._generacion_actual = 1
                 self._buffer_fitness_inicial = None
@@ -242,6 +223,7 @@ class SHADE:
 
         if int(params["max_evals"]) <= 0:
             raise ValueError("max_evals debe ser > 0")
+        
         self._max_evals_reales = int(params["max_evals"])
         self._gestor_reinicio = self._crear_gestor_reinicio(self._max_evals_reales)
 

@@ -30,7 +30,7 @@ class DifferentialEvolutionOnline(DifferentialEvolution):
         Evalúa realmente un trial y registra la muestra en dataset y controlador.
 
         problema: instancia del problema con método fitness.
-        candidato: vector de prueba o miembro de la población a evaluar.
+        candidato: vector de prueba a evaluar.
         eval_id: identificador secuencial de la evaluación.
         generacion: generación actual.
         dataset: opcional para registrar evaluaciones en el dataset de entrenamiento.
@@ -46,12 +46,7 @@ class DifferentialEvolutionOnline(DifferentialEvolution):
         fit = float(problema.fitness(candidato))
 
         if dataset is not None:
-            dataset.registrar_evaluacion(
-                eval_id=int(eval_id),
-                generacion=int(generacion),
-                x=np.asarray(candidato, dtype=float),
-                fitness=float(fit),
-            )
+            dataset.registrar_evaluacion(eval_id=int(eval_id), x=np.asarray(candidato, dtype=float), fitness=float(fit))
 
         # el controlador distingue si la evaluación fue precedida por el subrogado
         if evaluacion_filtrada_por_subrogado:
@@ -71,15 +66,7 @@ class DifferentialEvolutionOnline(DifferentialEvolution):
         Los candidatos generados tras reinicio se evalúan siempre realmente y no
         pasan por el filtro subrogado.
         """
-        return self._evaluar_individuo_real(
-            problema=self._problema,
-            candidato=candidato,
-            eval_id=self.evals + 1,
-            generacion=getattr(self, "_generacion_actual", 0),
-            dataset=self._dataset,
-            controlador=self._controlador_subrogado,
-            evaluacion_filtrada_por_subrogado=False,
-        )
+        return self._evaluar_individuo_real(problema=self._problema, candidato=candidato, eval_id=self.evals + 1, generacion=getattr(self, "_generacion_actual", 0), dataset=self._dataset, controlador=self._controlador_subrogado, evaluacion_filtrada_por_subrogado=False)
 
     def _aplicar_reinicio(self, estado, generacion):
         """
@@ -88,13 +75,10 @@ class DifferentialEvolutionOnline(DifferentialEvolution):
         estado: diccionario PYADE con claves population, fitness, bounds y func.
         generacion: generación actual.
 
-        El controlador invalida el modelo actual y activa el cooldown si está configurado.
+        El controlador invalida el modelo actual y activa el cooldown.
         Retorna True si se aplicó el reinicio.
         """
-        aplicado = super()._aplicar_reinicio(
-            estado=estado,
-            generacion=generacion,
-        )
+        aplicado = super()._aplicar_reinicio(estado=estado, generacion=generacion)
         if aplicado and self._controlador_subrogado is not None:
             self._controlador_subrogado.registrar_reinicio()
         return aplicado
@@ -143,7 +127,7 @@ class DifferentialEvolutionOnline(DifferentialEvolution):
         if int(params["max_evals"]) <= 0:
             raise ValueError("max_evals debe ser > 0")
 
-        # se extraen los parámetros resueltos que usará el bucle manual
+        # se extraen los parámetros resueltos que usará el bucle
         population_size = int(params["population_size"])
         individual_size = int(params["individual_size"])
         max_evals = int(params["max_evals"])
@@ -162,37 +146,17 @@ class DifferentialEvolutionOnline(DifferentialEvolution):
         # evaluación inicial de la población completa sin filtro subrogado
         fitness = []
         for candidato in population:
-            fit = self._evaluar_individuo_real(
-                problema=problema,
-                candidato=candidato,
-                eval_id=self.evals + 1,
-                generacion=0,
-                dataset=dataset,
-                controlador=controlador_subrogado,
-                evaluacion_filtrada_por_subrogado=False,
-            )
+            fit = self._evaluar_individuo_real(problema=problema, candidato=candidato, eval_id=self.evals + 1, generacion=0, dataset=dataset, controlador=controlador_subrogado, evaluacion_filtrada_por_subrogado=False)
             fitness.append(fit)
         fitness = np.asarray(fitness, dtype=float)
 
         max_iters = max(1, max_evals // population_size)
-        # el subrogado puede rechazar trials sin consumir evaluaciones, por eso
-        # el número de generaciones puede superar max_iters; este límite evita bucles infinitos
+        # el subrogado puede rechazar trials sin consumir evaluaciones -> número de generaciones puede superar max_iters
+        # este límite evita bucles infinitos
         max_generaciones_online = max_iters * 10
 
         if callback_metricas is not None:
-            callback_metricas(
-                generacion=0,
-                population=population,
-                fitness=fitness,
-                population_size=population_size,
-                individual_size=individual_size,
-                max_evals=max_evals,
-                max_iters=max_iters,
-                f=f,
-                cr=cr,
-                cross=cross,
-                seed=seed,
-            )
+            callback_metricas(generacion=0, population=population, fitness=fitness, population_size=population_size, individual_size=individual_size, max_evals=max_evals, max_iters=max_iters, f=f, cr=cr, cross=cross, seed=seed)
 
         generacion = 0
         while self.evals < max_evals and generacion < max_generaciones_online:
@@ -205,41 +169,23 @@ class DifferentialEvolutionOnline(DifferentialEvolution):
             else:
                 crossed = pyade_commons.exponential_crossover(population, mutated, cr)
 
-            # fitness de los trials inicializado a inf; se actualiza solo si se evalúan
+            # fitness de los trials inicializado a inf --> se actualiza solo si se evalúan
             c_fitness = np.full(population_size, float("inf"), dtype=float)
 
             for idx, trial in enumerate(crossed):
                 if self.evals >= max_evals:
                     break
 
-                decision = controlador_subrogado.decidir_evaluacion(
-                    candidato=trial,
-                    fitness_ref=float(fitness[idx]),
-                    generacion=generacion,
-                )
+                decision = controlador_subrogado.decidir_evaluacion(candidato=trial, fitness_ref=float(fitness[idx]), generacion=generacion)
 
                 # el subrogado puede rechazar el trial sin consumir evaluación real
                 if not decision.debe_evaluar:
                     continue
 
-                c_fitness[idx] = self._evaluar_individuo_real(
-                    problema=problema,
-                    candidato=trial,
-                    eval_id=self.evals + 1,
-                    generacion=generacion,
-                    dataset=dataset,
-                    controlador=controlador_subrogado,
-                    evaluacion_filtrada_por_subrogado=decision.uso_subrogado,
-                )
+                c_fitness[idx] = self._evaluar_individuo_real(problema=problema, candidato=trial, eval_id=self.evals + 1, generacion=generacion, dataset=dataset, controlador=controlador_subrogado, evaluacion_filtrada_por_subrogado=decision.uso_subrogado)
 
             # selección uno a uno: el trial reemplaza al padre solo si mejora su fitness
-            population, indexes = pyade_commons.selection(
-                population,
-                crossed,
-                fitness,
-                c_fitness,
-                return_indexes=True,
-            )
+            population, indexes = pyade_commons.selection(population, crossed, fitness, c_fitness, return_indexes=True)
             fitness[indexes] = c_fitness[indexes]
 
             estado = {
@@ -267,10 +213,7 @@ class DifferentialEvolutionOnline(DifferentialEvolution):
             if callback_metricas is not None:
                 callback_metricas(**estado)
             elif self.reinicio:
-                self._aplicar_reinicio(
-                    estado=estado,
-                    generacion=generacion,
-                )
+                self._aplicar_reinicio(estado=estado, generacion=generacion)
 
         best = int(np.argmin(fitness))
         return population[best].copy(), float(fitness[best])

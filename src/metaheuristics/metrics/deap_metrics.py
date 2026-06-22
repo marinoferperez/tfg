@@ -45,7 +45,6 @@ class RecolectorMetricasDEAP:
             "tiempo_s",
         ]
         self._diversidad_por_generacion = {}
-        self._rangos_generacion = {}
         self._filtrar_evals_no_crecientes = bool(filtrar_evals_no_crecientes)
         self._ultima_eval_registrada = None
         
@@ -118,31 +117,21 @@ class RecolectorMetricasDEAP:
 
         if poblacion is not None:
             pop = np.asarray(poblacion)
+            
             if pop.ndim == 2 and pop.shape[0] >= 2:
                 pop_f = pop.astype(float, copy=False)
                 mask = np.all(np.isfinite(pop_f), axis=1)
                 pop_f = pop_f[mask]
+                
                 if pop_f.shape[0] >= 2:
                     div = float(self._diversidad_dist_euclidea(pop_f))
                     registro_div["div_dist_euclidea"] = div
-                    registro_div["div_dist_euclidea_normalizada"] = float(
-                        self._diversidad_dist_euclidea_normalizada(div, pop_f.shape[1])
-                    )
+                    registro_div["div_dist_euclidea_normalizada"] = float(self._diversidad_dist_euclidea_normalizada(div, pop_f.shape[1]))
 
         if registro_div:
             self._diversidad_por_generacion[int(generacion)] = dict(registro_div)
 
-        self.logbook.record(
-            evals = int(evaluaciones),
-            generacion = int(generacion),
-            tam_poblacion = int(tam_poblacion),
-            **{"min/mejor_hasta_ahora": float(registro["min"])}, # minimizacion
-            promedio = float(registro["promedio"]),            # media del fitness de la pob -> mide calidad global
-            desv_std = float(registro["desv_std"]),            # dispersion del fitness -> std baja + min no mejora -> estancamiento
-            mediana = float(registro["mediana"]),              # valor tipico de la pob -> robusto a outliers   
-            max = float(registro["max"]),                      # peor fitness 
-            tiempo_s = float(tiempo_s),
-        )
+        self.logbook.record(evals=int(evaluaciones), generacion=int(generacion), tam_poblacion=int(tam_poblacion), **{"min/mejor_hasta_ahora": float(registro["min"])}, promedio=float(registro["promedio"]), desv_std=float(registro["desv_std"]), mediana=float(registro["mediana"]), max=float(registro["max"]), tiempo_s=float(tiempo_s))
         self._ultima_eval_registrada = int(evaluaciones)
 
     def obtener_logbook(self):
@@ -152,14 +141,6 @@ class RecolectorMetricasDEAP:
     def obtener_diversidad_por_generacion(self):
         """Devuelve el historial de diversidad calculado, ordenado por generación."""
         return dict(sorted(self._diversidad_por_generacion.items(), key=lambda kv: kv[0]))
-
-    def anotar_rangos_generacion(self, rangos_generacion):
-        """
-        Almacena los rangos de eval_id por generación para el CSV.
-
-        rangos_generacion: dict {generacion: {eval_id_inicio, eval_id_fin}} devuelto por SurrogateDataset.
-        """
-        self._rangos_generacion = dict(sorted(dict(rangos_generacion).items(), key=lambda kv: kv[0]))
 
     def anotar_diversidad_generacion(self, generacion, payload):
         """
@@ -207,6 +188,28 @@ class RecolectorMetricasDEAP:
         }
         return resumen
 
+def calcular_diversidad_euclidea(puntos):
+    """
+    Calcula la diversidad euclidea media de un conjunto de vectores.
+
+    puntos: lista de arrays numpy (vectores de decisión).
+
+    Retorna un dict con div_dist_euclidea y div_dist_euclidea_normalizada, o None
+    si hay menos de dos puntos.
+    """
+    if len(puntos) < 2:
+        return None
+    poblacion = np.asarray(puntos, dtype=float)
+    if poblacion.ndim != 2 or poblacion.shape[0] < 2:
+        return None
+    centroide = np.mean(poblacion, axis=0)
+    dists = np.linalg.norm(poblacion - centroide, axis=1)
+    div = float(np.mean(dists))
+    dimension = int(poblacion.shape[1])
+    div_norm = div / dimension if dimension > 0 else float("nan")
+    return {"div_dist_euclidea": div, "div_dist_euclidea_normalizada": float(div_norm)}
+
+
 def guardar_metricas_deap(recolector, ruta_base, metadata=None):
     """
     El historial se recoge como CSV y el resumen como JSON.
@@ -229,11 +232,14 @@ def guardar_metricas_deap(recolector, ruta_base, metadata=None):
     if metadata_limpia:
         algoritmo = str(metadata_limpia.get("algoritmo", "mh")).strip().lower()
         problema = str(metadata_limpia.get("problema", "problema")).strip().lower()
+        
         if problema == "cec2017":
             funcid = metadata_limpia.get("funcid")
             dim = metadata_limpia.get("dim")
+            
             if funcid is not None and dim is not None:
                 identificador = f"{algoritmo}_{problema}_f{int(funcid)}_d{int(dim)}"
+                
     if identificador is None:
         identificador = "mh_resultados"
 
@@ -241,21 +247,20 @@ def guardar_metricas_deap(recolector, ruta_base, metadata=None):
     ruta_resumen_json = base / "resumen.json"
 
     historial_enriquecido = []
+    prev_evals = 0
     for entrada in historial:
         fila = dict(entrada)
         gen = int(fila["generacion"])
-        rango = recolector._rangos_generacion.get(gen, {})
+        eval_fin = int(fila["evals"])
+        fila["eval_id_inicio"] = prev_evals + 1
+        fila["eval_id_fin"] = eval_fin
+        prev_evals = eval_fin
         div = recolector._diversidad_por_generacion.get(gen, {})
-        fila["eval_id_inicio"] = rango.get("eval_id_inicio")
-        fila["eval_id_fin"] = rango.get("eval_id_fin")
         fila["div_dist_euclidea"] = div.get("div_dist_euclidea")
         fila["div_dist_euclidea_normalizada"] = div.get("div_dist_euclidea_normalizada")
         historial_enriquecido.append(fila)
 
-    fieldnames = list(recolector.logbook.header) + [
-        "eval_id_inicio", "eval_id_fin",
-        "div_dist_euclidea", "div_dist_euclidea_normalizada",
-    ]
+    fieldnames = list(recolector.logbook.header) + ["eval_id_inicio", "eval_id_fin", "div_dist_euclidea", "div_dist_euclidea_normalizada"]
     escribir_csv_dicts(ruta_logbook_csv, historial_enriquecido, fieldnames=fieldnames)
     escribir_json(ruta_resumen_json, payload_resumen)
 
