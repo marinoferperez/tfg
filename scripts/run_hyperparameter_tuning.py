@@ -7,8 +7,6 @@ validacion interna y se evalua sobre el bloque siguiente. Compatible con RBF, SV
 MLP, RSM, Random Forest, HGB, Lasso y XGBoost.
 """
 
-from __future__ import annotations
-
 import argparse
 import itertools
 import json
@@ -25,8 +23,6 @@ if str(ROOT) not in sys.path:
 from sklearn.preprocessing import StandardScaler
 
 from src.benchmark.cec2017_problem import _LIMITE_SUP
-
-MODELOS_ARBOL = {"random_forest", "hgb", "xgboost"}
 from src.utils.fs_utils import resolver_archivo_existente
 from src.utils.experiment_paths import gestiona_algoritmos, normalizar_funcion
 from src.utils.experiment_io import mostrar
@@ -57,6 +53,7 @@ from src.surrogates.evaluation.metrics import (
 )
 from src.surrogates.select_model import select_model, MODELOS
 
+MODELOS_ARBOL = {"random_forest", "hgb", "xgboost"}
 
 STRATEGIES = {
     "cumulative": {
@@ -85,9 +82,13 @@ def expandir_funciones(funcion_arg):
     return tuple(normalizar_funcion(tk) for tk in tokens)
 
 
-def expandir_modelos(model_arg):
-    """Convierte el argumento --model en una tupla de nombres de modelo validados."""
-    txt = str(model_arg).strip().lower()
+def expandir_modelos(arg_modelo):
+    """
+    Convierte el argumento --model en una tupla de nombres de modelo validados.
+
+    arg_modelo: valor crudo del argumento --model; acepta nombre unico, CSV o 'all'.
+    """
+    txt = str(arg_modelo).strip().lower()
     if txt == "all":
         return MODELOS
     partes = [parte.strip() for parte in txt.split(",") if parte.strip()]
@@ -98,8 +99,13 @@ def expandir_modelos(model_arg):
     return tuple(modelos)
 
 
-def cargar_param_grid(model_name, ruta_json):
-    """Carga el grid de hiperparametros desde JSON o construye el grid por defecto del modelo."""
+def cargar_param_grid(nombre_modelo, ruta_json):
+    """
+    Carga el grid de hiperparametros desde JSON o construye el grid por defecto del modelo.
+
+    nombre_modelo: nombre del modelo subrogado; usado para seleccionar el grid por defecto.
+    ruta_json: ruta al fichero JSON con el grid personalizado; None usa el grid por defecto.
+    """
     if ruta_json is not None:
         ruta = resolver_archivo_existente(ruta_json, arg_name="param_grid_json")
         with ruta.open("r", encoding="utf-8") as fh:
@@ -112,22 +118,23 @@ def cargar_param_grid(model_name, ruta_json):
             return [dict(zip(keys, combo)) for combo in itertools.product(*values)]
         raise ValueError("El grid de parametros debe ser una lista de diccionarios o un diccionario de listas.")
 
-    if model_name == "rsm":
+    if nombre_modelo == "rsm":
         return [{"degree": 1}, {"degree": 2}, {"degree": 3}]
-    if model_name == "rbf":
+    if nombre_modelo == "rbf":
         grid = []
         for neighbors, smoothing in itertools.product((25, 50, 100), (1e-3, 1e-2)):
             grid.append({"neighbors": neighbors, "smoothing": smoothing, "kernel": "linear", "degree": -1})
         for neighbors, smoothing in itertools.product((50, 100), (1e-3, 1e-2)):
             grid.append({"neighbors": neighbors, "smoothing": smoothing, "kernel": "gaussian", "degree": -1, "epsilon": 1.0})
         return grid
-    if model_name in MODELOS:
+    if nombre_modelo in MODELOS:
         return [{}]
-    raise ValueError(f"Modelo no soportado: {model_name!r}.")
+    raise ValueError(f"Modelo no soportado: {nombre_modelo!r}.")
 
 
-def build_parser():
+def construir_parser():
     """Construye y retorna el parser de argumentos del benchmark con ajuste."""
+    
     parser = argparse.ArgumentParser(
         description=(
             "Benchmark temporal no acumulativo con ajuste interno de hiperparametros "
@@ -283,13 +290,21 @@ def dividir_train_validacion_interna(train_idx, ratio):
     return train_idx[:-n_val], train_idx[-n_val:]
 
 
-def ajustar_y_predecir(model_name, params, x_train, y_train, x_val):
-    """Entrena el modelo con params sobre x_train/y_train y predice sobre x_val."""
+def ajustar_y_predecir(nombre_modelo, parametros, x_train, y_train, x_val):
+    """
+    Entrena el modelo con parametros sobre x_train/y_train y predice sobre x_val.
+
+    nombre_modelo: nombre del modelo subrogado a instanciar.
+    parametros: diccionario de hiperparametros pasados al constructor del modelo.
+    x_train: matriz de entrada de entrenamiento, ya escalada.
+    y_train: vector de fitness de entrenamiento.
+    x_val: matriz de entrada de validacion, ya escalada.
+    """
     t0 = time.perf_counter()
-    y_scaler = None if model_name in MODELOS_ARBOL else StandardScaler()
+    y_scaler = None if nombre_modelo in MODELOS_ARBOL else StandardScaler()
     y_train_fit = y_train if y_scaler is None else y_scaler.fit_transform(y_train.reshape(-1, 1)).ravel()
 
-    model = select_model(model_name, **params)
+    model = select_model(nombre_modelo, **parametros)
     model.fit(x_train, y_train_fit)
     tiempo_entrenamiento = time.perf_counter() - t0
 
@@ -301,57 +316,60 @@ def ajustar_y_predecir(model_name, params, x_train, y_train, x_val):
     return np.asarray(y_pred, dtype=float).ravel(), float(tiempo_entrenamiento), float(tiempo_prediccion)
 
 
-def es_mejor(score, best_score, metric):
-    """Retorna True si score mejora best_score segun la direccion de la metrica."""
-    if not np.isfinite(score):
+def es_mejor(puntuacion, mejor_puntuacion, metrica):
+    """
+    Retorna True si puntuacion mejora mejor_puntuacion segun la direccion de la metrica.
+
+    puntuacion: valor de la metrica obtenido por el candidato actual.
+    mejor_puntuacion: mejor valor encontrado hasta ahora; None si es el primer candidato.
+    metrica: nombre de la metrica; determina si se maximiza o minimiza.
+    """
+    if not np.isfinite(puntuacion):
         return False
-    if best_score is None:
+    if mejor_puntuacion is None:
         return True
-    if metric in METRICAS_MAXIMIZAR:
-        return score > best_score
-    return score < best_score
+    if metrica in METRICAS_MAXIMIZAR:
+        return puntuacion > mejor_puntuacion
+    return puntuacion < mejor_puntuacion
 
 
-def seleccionar_parametros(
-    *,
-    model_name,
-    param_grid,
-    x,
-    y,
-    train_idx,
-    metric,
-    inner_validation_ratio,
-):
+def seleccionar_parametros(*, nombre_modelo, grid_parametros, x, y, train_idx, metrica, ratio_validacion_interna):
     """
-    Busca los mejores hiperparametros del modelo sobre la validacion interna.
+    Busca los mejores hiperparametros del modelo por validacion interna sobre el bloque de entrenamiento.
 
-    Itera el param_grid, ajusta sobre inner-train, evalua sobre inner-val y
-    retorna (best_params, best_score, resultados_detallados).
+    nombre_modelo: nombre del modelo subrogado a evaluar.
+    grid_parametros: lista de diccionarios de hiperparametros candidatos.
+    x: matriz de entrada completa del dataset, ya escalada.
+    y: vector de fitness completo del dataset.
+    train_idx: indices del bloque de entrenamiento sobre los que se hace la busqueda.
+    metrica: metrica usada para comparar candidatos.
+    ratio_validacion_interna: fraccion final de train_idx reservada para validacion interna.
     """
-    inner_train_idx, inner_val_idx = dividir_train_validacion_interna(train_idx, inner_validation_ratio)
+    inner_train_idx, inner_val_idx = dividir_train_validacion_interna(train_idx, ratio_validacion_interna)
     x_inner_train = x[inner_train_idx]
     y_inner_train = y[inner_train_idx]
     x_inner_val = x[inner_val_idx]
     y_inner_val = y[inner_val_idx]
 
-    best_params = None
-    best_score = None
+    mejores_parametros = None
+    mejor_puntuacion = None
     resultados = []
-    for params in param_grid:
-        params = dict(params)
+
+    for parametros in grid_parametros:
+        parametros = dict(parametros)
         try:
             y_pred, tiempo_entrenamiento, tiempo_prediccion = ajustar_y_predecir(
-                model_name,
-                params,
+                nombre_modelo,
+                parametros,
                 x_inner_train,
                 y_inner_train,
                 x_inner_val,
             )
             metricas = calcular_metricas(y_inner_val, y_pred)
-            score = float(metricas[metric])
+            puntuacion = float(metricas[metrica])
             error = None
         except Exception as exc:  # noqa: BLE001 - se registra el fallo y se prueba el siguiente candidato.
-            score = float("nan")
+            puntuacion = float("nan")
             metricas = {}
             tiempo_entrenamiento = float("nan")
             tiempo_prediccion = float("nan")
@@ -359,49 +377,45 @@ def seleccionar_parametros(
 
         resultados.append(
             {
-                "params": params,
-                "score": score,
-                "metric": metric,
+                "params": parametros,
+                "score": puntuacion,
+                "metric": metrica,
                 "error": error,
                 "metricas": metricas,
                 "train_time_s": tiempo_entrenamiento,
                 "predict_time_s": tiempo_prediccion,
             }
         )
-        if es_mejor(score, best_score, metric):
-            best_score = score
-            best_params = params
 
-    if best_params is None:
+        if es_mejor(puntuacion, mejor_puntuacion, metrica):
+            mejor_puntuacion = puntuacion
+            mejores_parametros = parametros
+
+    if mejores_parametros is None:
         raise RuntimeError("Ninguna configuracion de hiperparametros produjo una metrica valida.")
-    return best_params, float(best_score), resultados
+    return mejores_parametros, float(mejor_puntuacion), resultados
 
 
-def ejecutar_benchmark_tuned(
-    *,
-    dataset_paths,
-    funcion,
-    algoritmo,
-    model_name,
-    param_grid,
-    tuning_metric,
-    inner_validation_ratio,
-    random_state,
-    seed_selection_random_state,
-    truncar_convergencia,
-    store_tuning_results,
-    constructor_casos,
-    protocol,
-    split_strategy,
-):
+def ejecutar_benchmark_tuned(*, dataset_paths, funcion, algoritmo, nombre_modelo, grid_parametros, metrica_ajuste, ratio_validacion_interna, random_state, seed_selection_random_state, truncar_convergencia, guardar_resultados_ajuste, constructor_casos, protocolo, estrategia_split):
     """
-    Ejecuta el benchmark con ajuste de hiperparametros sobre los datasets dados.
+    Ejecuta el benchmark con ajuste de hiperparametros sobre los datasets indicados.
 
-    Para cada seed y cada bloque de entrenamiento: busca los mejores hiperparametros
-    por validacion interna, ajusta el modelo final y evalua sobre el bloque siguiente.
-    Retorna el dict de metricas agregadas listo para guardar.
+    dataset_paths: lista de rutas a los ficheros HDF5 del dataset.
+    funcion: nombre de la funcion CEC evaluada.
+    algoritmo: nombre del algoritmo que genero los datasets.
+    nombre_modelo: nombre del modelo subrogado a ajustar y evaluar.
+    grid_parametros: lista de diccionarios de hiperparametros candidatos.
+    metrica_ajuste: metrica usada para seleccionar los mejores hiperparametros.
+    ratio_validacion_interna: fraccion de entrenamiento usada como validacion interna.
+    random_state: semilla para reproducibilidad del splitter de casos.
+    seed_selection_random_state: semilla para seleccionar aleatoriamente seeds; None usa todas.
+    truncar_convergencia: si True, descarta los bloques posteriores a la ultima mejora.
+    guardar_resultados_ajuste: si True, incluye el detalle de todos los candidatos en las metricas.
+    constructor_casos: callable que genera los casos de entrenamiento/validacion.
+    protocolo: protocolo de evaluacion (p.ej. "no_acumulativo").
+    estrategia_split: estrategia de particion temporal usada.
     """
-    escalar_y = model_name not in MODELOS_ARBOL
+    escalar_y = nombre_modelo not in MODELOS_ARBOL
     metricas_runs = []
     seeds_sin_casos = []
     convergencia_por_seed = {}
@@ -431,14 +445,14 @@ def ejecutar_benchmark_tuned(
             train_idx = np.asarray(caso["train_idx"], dtype=np.int64)
             val_idx = np.asarray(caso["val_idx"], dtype=np.int64)
 
-            best_params, best_score, tuning_resultados = seleccionar_parametros(
-                model_name=model_name,
-                param_grid=param_grid,
+            mejores_parametros, mejor_puntuacion, tuning_resultados = seleccionar_parametros(
+                nombre_modelo=nombre_modelo,
+                grid_parametros=grid_parametros,
                 x=x,
                 y=y,
                 train_idx=train_idx,
-                metric=tuning_metric,
-                inner_validation_ratio=inner_validation_ratio,
+                metrica=metrica_ajuste,
+                ratio_validacion_interna=ratio_validacion_interna,
             )
 
             x_train = x[train_idx]
@@ -447,10 +461,10 @@ def ejecutar_benchmark_tuned(
             y_val = y[val_idx]
 
             t0 = time.perf_counter()
-            y_scaler = None if model_name in MODELOS_ARBOL else StandardScaler()
+            y_scaler = None if nombre_modelo in MODELOS_ARBOL else StandardScaler()
             y_train_fit = y_train if y_scaler is None else y_scaler.fit_transform(y_train.reshape(-1, 1)).ravel()
 
-            model = select_model(model_name, **best_params)
+            model = select_model(nombre_modelo, **mejores_parametros)
             model.fit(x_train, y_train_fit)
             tiempo_entrenamiento = time.perf_counter() - t0
 
@@ -484,14 +498,14 @@ def ejecutar_benchmark_tuned(
                     "convergencia_ultimo_bloque": int(convergencia_ultimo_bloque),
                     "convergencia_fraccion": float(convergencia_fraccion),
                     "convergencia_aplicada": bool(truncar_convergencia),
-                    "tuning_metric": str(tuning_metric),
-                    "tuning_inner_validation_ratio": float(inner_validation_ratio),
-                    "tuning_best_score": float(best_score),
-                    "tuning_best_params": best_params,
-                    "tuning_n_candidates": int(len(param_grid)),
+                    "tuning_metric": str(metrica_ajuste),
+                    "tuning_inner_validation_ratio": float(ratio_validacion_interna),
+                    "tuning_best_score": float(mejor_puntuacion),
+                    "tuning_best_params": mejores_parametros,
+                    "tuning_n_candidates": int(len(grid_parametros)),
                 }
             )
-            if store_tuning_results:
+            if guardar_resultados_ajuste:
                 metricas_run["tuning_resultados"] = tuning_resultados
             metricas_runs.append(metricas_run)
 
@@ -503,16 +517,16 @@ def ejecutar_benchmark_tuned(
             "datasets": [str(Path(path).resolve()) for path in dataset_paths],
             "selected_seeds": [int(inferir_seed(path)) for path in dataset_paths],
             "n_datasets_entrada": int(len(dataset_paths)),
-            "model": model_name,
+            "model": nombre_modelo,
             "feature_mode": "x",
             "model_params": {
                 "tuning": True,
-                "tuning_metric": tuning_metric,
-                "inner_validation_ratio": float(inner_validation_ratio),
-                "param_grid": param_grid,
+                "tuning_metric": metrica_ajuste,
+                "inner_validation_ratio": float(ratio_validacion_interna),
+                "param_grid": grid_parametros,
             },
-            "split_strategy": split_strategy,
-            "protocol": protocol,
+            "split_strategy": estrategia_split,
+            "protocol": protocolo,
             "n_bloques": int(N_BLOQUES),
             "validation_ratio": float(VAL_RATIO_TRAIN),
             "scale_features": True,
@@ -541,7 +555,7 @@ def ejecutar_benchmark_tuned(
 
 def main():
     """Punto de entrada del benchmark de ajuste de hiperparametros."""
-    parser = build_parser()
+    parser = construir_parser()
     args = parser.parse_args()
 
     if args.output_dir is None:
@@ -583,8 +597,8 @@ def main():
                 args_run.cec_funcid = funcion
                 args_run.algorithm = algoritmo
                 args_run.model = modelo
-                param_grid = cargar_param_grid(args_run.model, args_run.param_grid_json)
-                if not param_grid:
+                grid_parametros = cargar_param_grid(args_run.model, args_run.param_grid_json)
+                if not grid_parametros:
                     raise SystemExit("El grid de hiperparametros esta vacio.")
                 dataset_paths = seleccionar_datasets(args_run)
                 (
@@ -599,17 +613,17 @@ def main():
                     dataset_paths=dataset_paths,
                     funcion=normalizar_funcion(args_run.cec_funcid),
                     algoritmo=args_run.algorithm,
-                    model_name=args_run.model,
-                    param_grid=param_grid,
-                    tuning_metric=args_run.tuning_metric,
-                    inner_validation_ratio=args_run.inner_validation_ratio,
+                    nombre_modelo=args_run.model,
+                    grid_parametros=grid_parametros,
+                    metrica_ajuste=args_run.tuning_metric,
+                    ratio_validacion_interna=args_run.inner_validation_ratio,
                     random_state=args_run.seed,
                     seed_selection_random_state=args_run.selection_seed,
                     truncar_convergencia=args_run.convergence_truncation,
-                    store_tuning_results=args_run.store_tuning_results,
+                    guardar_resultados_ajuste=args_run.store_tuning_results,
                     constructor_casos=cfg["constructor_casos"],
-                    protocol=cfg["protocol"],
-                    split_strategy=cfg["split_strategy"],
+                    protocolo=cfg["protocol"],
+                    estrategia_split=cfg["split_strategy"],
                 )
 
                 guardar_artefactos_modelo(

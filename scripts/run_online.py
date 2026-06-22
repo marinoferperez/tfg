@@ -106,7 +106,7 @@ def parse_args():
         "--cec-funcid",
         nargs="+",
         required=True,
-        help="Funciones CEC: lista (ej. 1 2 3), CSV (ej. 1,2,3) o 'all'.",
+        help="Funciones CEC2017 a evaluar. Acepta lista (1 4 10), CSV (1,4,10) o 'all'.",
     )
     parser.add_argument(
         "--cec-dim",
@@ -119,10 +119,7 @@ def parse_args():
         "--algorithm",
         nargs="+",
         default=["age"],
-        help=(
-            "Metaheuristica online a ejecutar. Acepta age, de, shade, all, "
-            "listas separadas por espacios o listas separadas por comas."
-        ),
+        help="Metaheuristica a ejecutar. Acepta age, de, shade, all, listas separadas por espacios o comas. Por defecto age.",
     )
     parser.add_argument(
         "--no-metrics",
@@ -218,43 +215,6 @@ def parse_args():
     return parser.parse_args()
 
 
-def gestiona_algoritmos_online(valores):
-    """
-    Normaliza la seleccion de algoritmos online.
-
-    Permite:
-        --algorithm age
-        --algorithm de shade
-        --algorithm age,de
-        --algorithm all
-    """
-    tokens = []
-    for valor in valores or ["age"]:
-        for token in str(valor).split(","):
-            token = token.strip().lower()
-            if token:
-                tokens.append(token)
-
-    if not tokens:
-        return ["age"]
-
-    if "all" in tokens:
-        return ["age", "de", "shade"]
-
-    permitidos = {"age", "de", "shade"}
-    algoritmos = []
-    for token in tokens:
-        if token not in permitidos:
-            raise ValueError(
-                f"Algoritmo online no soportado: {token}. "
-                "Usa age, de, shade o all."
-            )
-        if token not in algoritmos:
-            algoritmos.append(token)
-
-    return algoritmos
-
-
 def validar_args(args):
     """Valida y normaliza los argumentos parseados; añade args.algoritmos."""
     args.restart_ratio = normalizar_ratio_estancamiento_reinicio(args.restart_ratio)
@@ -273,8 +233,13 @@ def validar_args(args):
     args.algoritmos = gestiona_algoritmos(args.algorithm)
 
 
-def construir_config_subrogado(args, seed):
-    """Construye la configuracion del filtro subrogado para una semilla concreta."""
+def construir_config_subrogado(args, semilla):
+    """
+    Construye la configuracion del filtro subrogado para una semilla concreta.
+
+    args: namespace de argparse con los parametros del experimento online.
+    semilla: semilla de aleatoriedad para el subrogado en esta run.
+    """
     surrogate_model = str(args.surrogate_model).lower()
     if args.surrogate_params_json is not None:
         modelo_params = dict(leer_json(args.surrogate_params_json))
@@ -291,13 +256,19 @@ def construir_config_subrogado(args, seed):
         probabilidad_subrogado=float(args.surrogate_prob),
         max_evals=int(args.max_evals),
         minimizacion=True,
-        seed=int(seed),
+        seed=int(semilla),
         retrain_ratio=float(args.retrain_ratio),
     )
 
 
-def construir_metaheuristica_online(args, seed, algoritmo):
-    """Instancia la metaheuristica online indicada con la configuracion de subrogado y reinicio."""
+def construir_metaheuristica_online(args, semilla, algoritmo):
+    """
+    Instancia la metaheuristica online indicada con la configuracion de subrogado y reinicio.
+
+    args: namespace de argparse con los parametros del experimento online.
+    semilla: semilla de aleatoriedad para esta run.
+    algoritmo: identificador del algoritmo; uno de age, de o shade.
+    """
     clases = {
         "age": GeneticStationaryCEC2017Online,
         "de": DifferentialEvolutionCEC2017Online,
@@ -315,18 +286,27 @@ def construir_metaheuristica_online(args, seed, algoritmo):
         kwargs["reinicio_ratio"] = float(args.restart_ratio)
 
     return clases[algoritmo](
-        surrogate_config=construir_config_subrogado(args, seed),
+        surrogate_config=construir_config_subrogado(args, semilla),
         **kwargs,
     )
 
 
-def fila_run(args, algoritmo, funcid, seed, resultado, tiempo_s):
-    """Construye el dict-fila de una run online para el CSV de resultados."""
+def fila_run(args, algoritmo, funcid, semilla, resultado, tiempo_s):
+    """
+    Construye el dict-fila de una run online para el CSV de resultados.
+
+    args: namespace de argparse con la configuracion del experimento.
+    algoritmo: identificador del algoritmo ejecutado.
+    funcid: identificador numerico de la funcion CEC2017.
+    semilla: semilla usada en esta run.
+    resultado: dict devuelto por metaheuristica.optimize().
+    tiempo_s: tiempo de pared de la run en segundos.
+    """
     resumen_online = dict(resultado.get("resumen_online", {}))
     return {
         "algoritmo": str(algoritmo),
         "cec_funcid": int(funcid),
-        "semilla": int(seed),
+        "semilla": int(semilla),
         "fitness": float(resultado["mejor_fitness"]),
         "cec_error": float(resultado["mejor_error"]),
         "tiempo_s": float(tiempo_s),
@@ -386,17 +366,17 @@ def ejecutar_cec_online(args, algoritmo, semillas, outdir_metricas, funcid):
         f"{prefijo_adaptacion}_{prob_label}_c{int(args.restart_cooldown_evals or 0)}_{retrain_label}"
     )
 
-    for run_idx, seed in enumerate(semillas, start=1):
+    for run_idx, semilla in enumerate(semillas, start=1):
         mostrar(
             args,
             f"[ONLINE CEC2017 F{int(funcid)} {run_idx}/{len(semillas)}] "
-            f"{algoritmo.upper()} seed={seed} p={float(args.surrogate_prob):.2f}...",
+            f"{algoritmo.upper()} seed={semilla} p={float(args.surrogate_prob):.2f}...",
             flush=True,
         )
 
-        metaheuristica = construir_metaheuristica_online(args, seed, algoritmo)
+        metaheuristica = construir_metaheuristica_online(args, semilla, algoritmo)
         run_id = (
-            f"{algoritmo}_online_cec2017_f{int(funcid)}_d{int(args.cec_dim)}_s{int(seed)}"
+            f"{algoritmo}_online_cec2017_f{int(funcid)}_d{int(args.cec_dim)}_s{int(semilla)}"
             f"_{prob_label}_cd{int(args.restart_cooldown_evals or 0)}_{retrain_label}"
             f"{sufijo_reinicio}"
         )
@@ -405,7 +385,7 @@ def ejecutar_cec_online(args, algoritmo, semillas, outdir_metricas, funcid):
         resultado = metaheuristica.optimize(
             funcid=int(funcid),
             dim=int(args.cec_dim),
-            seed=int(seed),
+            seed=int(semilla),
             algname=adaptacion,
             registrar_metricas=registrar_metricas,
             ruta_metricas=(
@@ -429,7 +409,7 @@ def ejecutar_cec_online(args, algoritmo, semillas, outdir_metricas, funcid):
                 args=args,
                 algoritmo=algoritmo,
                 funcid=funcid,
-                seed=seed,
+                semilla=semilla,
                 resultado=resultado,
                 tiempo_s=tiempo_s,
             )
@@ -437,7 +417,7 @@ def ejecutar_cec_online(args, algoritmo, semillas, outdir_metricas, funcid):
 
         mostrar(
             args,
-            f"[ONLINE CEC2017 F{int(funcid)}] {algoritmo.upper()} seed={seed} "
+            f"[ONLINE CEC2017 F{int(funcid)}] {algoritmo.upper()} seed={semilla} "
             f"fitness={float(resultado['mejor_fitness']):.6f} "
             f"error={float(resultado['mejor_error']):.6f} "
             f"tiempo={tiempo_s:.4f}s",

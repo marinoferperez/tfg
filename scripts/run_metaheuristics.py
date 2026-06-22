@@ -10,7 +10,7 @@ import sys
 import time
 from pathlib import Path
 
-# Permite ejecutar desde la raiz del repositorio sin instalar el paquete.
+# permite ejecutar desde la raiz del repositorio sin instalar el paquete.
 ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
@@ -31,12 +31,7 @@ from src.utils.file_io import escribir_csv_dicts, escribir_json
 
 
 def parse_args():
-    """
-    Lee los argumentos de linea de comandos.
-
-    Permite seleccionar funciones CEC, semillas, algoritmos, reinicio elitista
-    y opciones de registro de metricas/datasets.
-    """
+    """Lee y devuelve los argumentos de linea de comandos."""
     parser = argparse.ArgumentParser(
         description=(
             "Ejecuta AGE, DE y SHADE offline sobre CEC2017 y guarda resultados "
@@ -99,7 +94,7 @@ def parse_args():
         "--cec-funcid",
         nargs="+",
         required=True,
-        help="Funciones CEC a ejecutar: lista (ej. --cec-funcid 1 2 3), CSV (ej. --cec-funcid 1,2,3) o 'all'.",
+        help="Funciones CEC2017 a evaluar. Acepta lista (1 4 10), CSV (1,4,10) o 'all'.",
     )
     parser.add_argument(
         "--cec-dim",
@@ -143,10 +138,10 @@ def parse_args():
 
 def crear_metaheuristica_offline(algoritmo, kwargs):
     """
-    Instancia el adaptador CEC2017 correspondiente.
+    Instancia el adaptador CEC2017 del algoritmo indicado.
 
-    algoritmo: identificador normalizado, uno de age, de o shade.
-    kwargs: parametros de construccion de la metaheuristica.
+    algoritmo: identificador normalizado; uno de age, de o shade.
+    kwargs: parametros de construccion pasados al constructor de la metaheuristica.
     """
     if algoritmo == "age":
         from src.metaheuristics.algorithms.offline.adapted.age_cec2017 import GeneticStationaryCEC2017
@@ -167,11 +162,11 @@ def ejecutar_cec(args, semillas, outdir_metricas, algoritmos, funcid):
     """
     Ejecuta las metaheuristicas offline para una funcion CEC concreta.
 
-    args: namespace de argparse.
-    semillas: semillas a ejecutar.
-    outdir_metricas: directorio base para metricas detalladas.
-    algoritmos: algoritmos seleccionados.
-    funcid: identificador de funcion CEC2017.
+    args: namespace de argparse con la configuracion del experimento.
+    semillas: lista de semillas a ejecutar.
+    outdir_metricas: directorio base donde guardar las metricas detalladas por run.
+    algoritmos: lista de identificadores de algoritmo a ejecutar.
+    funcid: identificador numerico de la funcion CEC2017.
     """
     filas = []
     total_runs = len(algoritmos) * len(semillas)
@@ -180,16 +175,16 @@ def ejecutar_cec(args, semillas, outdir_metricas, algoritmos, funcid):
     ratio_estancamiento_restart = normalizar_ratio_estancamiento_reinicio(args.restart_ratio)
     restart_activo = bool(args.restart)
     sufijo_reinicio = ""
+    
     if restart_activo:
         sufijo_reinicio = "_reinicio" + sufijo_ratio_estancamiento_reinicio(ratio_estancamiento_restart)
 
     for algoritmo in algoritmos:
         for seed in semillas:
             run_idx += 1
-            mostrar(
-                args,
-                f"[CEC2017 F{int(funcid)} {run_idx}/{total_runs}] {algoritmo.upper()} seed={seed}...",
-                flush=True,
+            mostrar(args,
+                    f"[CEC2017 F{int(funcid)} {run_idx}/{total_runs}] {algoritmo.upper()} seed={seed}...",
+                    flush=True
             )
 
             kwargs = {}
@@ -202,7 +197,6 @@ def ejecutar_cec(args, semillas, outdir_metricas, algoritmos, funcid):
                 kwargs["reinicio_ratio"] = float(ratio_estancamiento_restart)
             mtheuristica, algname = crear_metaheuristica_offline(algoritmo, kwargs)
 
-            # Se mide el tiempo de pared de la ejecucion completa.
             t0 = time.perf_counter()
             resultado = mtheuristica.optimize(
                 funcid = int(funcid),
@@ -222,6 +216,7 @@ def ejecutar_cec(args, semillas, outdir_metricas, algoritmos, funcid):
                 cec_workdir = str(outdir_metricas.resolve().parent),
                 guardar_reinicios_detalle=bool(args.save_restart_detail),
             )
+            
             dt = time.perf_counter() - t0
 
             filas.append({
@@ -288,6 +283,7 @@ def main():
 
     filas_runs_cec = []
     total_funcids = len(funcids_cec)
+    
     for idx, funcid in enumerate(funcids_cec, start=1):
         mostrar(args, f"\nCEC2017 offline: F{int(funcid)} ({idx}/{total_funcids})", flush=True)
         outdir_funcid = outdir_cec / f"f{int(funcid)}"
