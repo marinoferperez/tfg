@@ -22,13 +22,11 @@ ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from src.surrogates.preprocessing.scaling import (
-    MODELOS_ARBOL,
-    ajustar_y,
-    construir_escalador_y,
-    escalar_X,
-    invertir_y,
-)
+from sklearn.preprocessing import StandardScaler
+
+from src.benchmark.cec2017_problem import _LIMITE_SUP
+
+MODELOS_ARBOL = {"random_forest", "hgb", "xgboost"}
 from src.utils.fs_utils import resolver_archivo_existente
 from src.utils.experiment_paths import gestiona_algoritmos, normalizar_funcion
 from src.utils.experiment_io import mostrar
@@ -288,8 +286,8 @@ def dividir_train_validacion_interna(train_idx, ratio):
 def ajustar_y_predecir(model_name, params, x_train, y_train, x_val):
     """Entrena el modelo con params sobre x_train/y_train y predice sobre x_val."""
     t0 = time.perf_counter()
-    y_scaler = construir_escalador_y(model_name)
-    y_train_fit = ajustar_y(y_scaler, y_train)
+    y_scaler = None if model_name in MODELOS_ARBOL else StandardScaler()
+    y_train_fit = y_train if y_scaler is None else y_scaler.fit_transform(y_train.reshape(-1, 1)).ravel()
 
     model = select_model(model_name, **params)
     model.fit(x_train, y_train_fit)
@@ -299,7 +297,7 @@ def ajustar_y_predecir(model_name, params, x_train, y_train, x_val):
     y_pred = model.predict(x_val)
     tiempo_prediccion = time.perf_counter() - t1
 
-    y_pred = invertir_y(y_scaler, y_pred)
+    y_pred = y_pred if y_scaler is None else y_scaler.inverse_transform(np.asarray(y_pred).reshape(-1, 1)).ravel()
     return np.asarray(y_pred, dtype=float).ravel(), float(tiempo_entrenamiento), float(tiempo_prediccion)
 
 
@@ -421,7 +419,7 @@ def ejecutar_benchmark_tuned(
             "fraccion_retenida": float(convergencia_fraccion),
         }
 
-        x = escalar_X(np.asarray(dataset["x"], dtype=float))
+        x = np.asarray(dataset["x"], dtype=float) / _LIMITE_SUP
         y = np.asarray(dataset["fitness"], dtype=float).ravel()
         eval_id = np.asarray(dataset["eval_id"], dtype=np.int64)
         casos = constructor_casos(dataset, random_state=random_state)
@@ -449,8 +447,8 @@ def ejecutar_benchmark_tuned(
             y_val = y[val_idx]
 
             t0 = time.perf_counter()
-            y_scaler = construir_escalador_y(model_name)
-            y_train_fit = ajustar_y(y_scaler, y_train)
+            y_scaler = None if model_name in MODELOS_ARBOL else StandardScaler()
+            y_train_fit = y_train if y_scaler is None else y_scaler.fit_transform(y_train.reshape(-1, 1)).ravel()
 
             model = select_model(model_name, **best_params)
             model.fit(x_train, y_train_fit)
@@ -459,7 +457,7 @@ def ejecutar_benchmark_tuned(
             t1 = time.perf_counter()
             y_pred = model.predict(x_val)
             tiempo_prediccion = time.perf_counter() - t1
-            y_pred = invertir_y(y_scaler, y_pred)
+            y_pred = y_pred if y_scaler is None else y_scaler.inverse_transform(np.asarray(y_pred).reshape(-1, 1)).ravel()
 
             metricas_run = calcular_metricas(y_val, y_pred)
             metricas_run.update(

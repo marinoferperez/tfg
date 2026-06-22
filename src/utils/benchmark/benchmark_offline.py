@@ -8,13 +8,11 @@ import numpy as np
 
 from src.utils.fs_utils import resolver_archivo_existente
 from src.utils.dataset_utils import cargar_dataset, inferir_seed
-from src.surrogates.preprocessing.scaling import (
-    MODELOS_ARBOL,
-    ajustar_y,
-    construir_escalador_y,
-    escalar_X,
-    invertir_y,
-)
+from sklearn.preprocessing import StandardScaler
+
+from src.benchmark.cec2017_problem import _LIMITE_SUP
+
+MODELOS_ARBOL = {"random_forest", "hgb", "xgboost"}
 from src.utils.benchmark.blocks_eval_splitter import (
     N_BLOQUES,
     TOL_MEJORA_BLOQUE_ABS,
@@ -93,12 +91,12 @@ def ejecutar_benchmark_temporal(*, dataset_paths, funcion, algoritmo, nombre_sub
             y_train = y[train_idx]
             y_val = y[val_idx]
 
-            x_train = escalar_X(x_train)
-            x_val = escalar_X(x_val)
+            x_train = np.asarray(x_train, dtype=float) / _LIMITE_SUP
+            x_val = np.asarray(x_val, dtype=float) / _LIMITE_SUP
 
             # el scaler se ajusta solo sobre train para evitar data leakage
-            y_scaler = construir_escalador_y(nombre_subrogado)
-            y_train_fit = ajustar_y(y_scaler, y_train)
+            y_scaler = None if nombre_subrogado in MODELOS_ARBOL else StandardScaler()
+            y_train_fit = y_train if y_scaler is None else y_scaler.fit_transform(y_train.reshape(-1, 1)).ravel()
 
             model = select_model(nombre_subrogado, **hiper_subrogado)
 
@@ -111,7 +109,7 @@ def ejecutar_benchmark_temporal(*, dataset_paths, funcion, algoritmo, nombre_sub
             tiempo_prediccion = time.perf_counter() - t1
 
             # se invierten los escalados para valores reales
-            y_pred = invertir_y(y_scaler, y_pred)
+            y_pred = y_pred if y_scaler is None else y_scaler.inverse_transform(np.asarray(y_pred).reshape(-1, 1)).ravel()
 
             metricas_run = calcular_metricas(y_val, y_pred)
             metricas_run.update({
